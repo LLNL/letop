@@ -47,7 +47,7 @@ class SignedDistanceSolver(object):
         cont = 0
         phi = Function(self.PHI)
 
-        from fenics import File
+        from firedrake import File
         phi_pvd = File("reinit.pvd")
         for n in range(self.n_steps):
             solve(a == L, phi , bc)
@@ -57,7 +57,7 @@ class SignedDistanceSolver(object):
             print("error:", E)
             phi0.assign(phi)
 
-            phi_pvd << phi0
+            phi_pvd.write(phi0)
 
             # Divergence  flag
             if (E_old < E ):
