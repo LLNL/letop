@@ -1,4 +1,6 @@
-from .optimization import SignedDistanceSolver
+import sys
+sys.path.append("../")
+from lestofire.optimization import SignedDistanceSolver
 from firedrake import UnitSquareMesh, FunctionSpace, Expression, \
                     interpolate, File, errornorm, Function,  \
                     DirichletBC, Constant, SpatialCoordinate

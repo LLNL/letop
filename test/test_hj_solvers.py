@@ -3,7 +3,9 @@ from firedrake import UnitSquareMesh, FunctionSpace, Expression, \
                     DirichletBC, Constant, SpatialCoordinate
 from ufl import as_vector
 import pytest
-from .optimization import HJStabSolver, HJSUPG, HJDG
+import sys
+sys.path.append("../")
+from lestofire.optimization import HJStabSolver, HJSUPG, HJDG
 
 N = 100
 @pytest.fixture(scope='module')
