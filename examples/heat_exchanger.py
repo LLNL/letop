@@ -1,8 +1,10 @@
 from firedrake import (Mesh, FunctionSpace, Function, Constant,
                         SpatialCoordinate, VectorElement, FiniteElement,
-                        TestFunction, interpolate, File, DirichletBC, solve)
+                        TestFunction, TrialFunction, interpolate, File, DirichletBC, solve,
+                        FacetNormal, CellDiameter)
 
-from ufl import (sin, pi, split, inner, grad, div, exp, dx, as_vector, derivative)
+from ufl import (sin, pi, split, inner, grad, div, exp,
+                dx, as_vector, derivative, dot, avg, jump, ds, dS)
 
 
 from parameters_heat_exch import height, width, inlet_width, dist_center, inlet_depth, shift_center, line_sep
@@ -93,6 +95,72 @@ def main():
     u.rename("Velocity")
     p.rename("Pressure")
     File("u2.pvd").write(u, p)
+
+
+    # Convection difussion equation
+    T = FunctionSpace(mesh, 'DG', 1)
+
+    t = Function(T, name="Temperature")
+    w = TestFunction(T)
+    theta = TrialFunction(T)
+
+    # Mesh-related functions
+    n = FacetNormal(mesh)
+    h = CellDiameter(mesh)
+    h_avg = (h('+') + h('-'))/2
+
+    kf = Constant(1e0)
+    ks = Constant(1e0)
+    cp_value = 5.0e3
+    cp = Constant(cp_value)
+
+    Pe = u_inflow * width * cp_value / ks.values()[0]
+    print("Peclet number: {:.5f}".format(Pe))
+
+    # Temperature problem
+    tin1 = Constant(10.0)
+    tin2 = Constant(100.0)
+
+    u1, p1 = split(U1)
+    u2, p2 = split(U2)
+    u1n = (dot(u1, n) + abs(dot(u1, n)))/2.0
+    u2n = (dot(u2, n) + abs(dot(u2, n)))/2.0
+    # Penalty term
+    alpha = Constant(50000.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
+    # Bilinear form
+    a_int = dot(grad(w), ks*grad(t) - cp*(u1 + u2)*t)*dx
+
+    a_fac = - ks*dot(avg(grad(w)), jump(t, n))*dS \
+          - ks*dot(jump(w, n), avg(grad(t)))*dS \
+          + ks('+')*(alpha('+')/avg(h))*dot(jump(w, n), jump(t, n))*dS
+
+    a_vel = dot(jump(w), Constant(cp_value)*(u1n('+') + u2n('+'))*t('+') - \
+            Constant(cp_value)*(u1n('-') + u2n('-'))*t('-'))*dS + \
+            dot(w, Constant(cp_value)*(u1n + u2n)*t)*ds
+
+    a_bnd = dot(w, Constant(cp_value)*dot(u1 + u2, n)*t)*(ds(INLET1) + ds(INLET2)) \
+            + w*t*(ds(INLET1) + ds(INLET2)) \
+            - w*tin1*ds(INLET1) \
+            - w*tin2*ds(INLET2) \
+            + alpha/h * ks *w*t*(ds(INLET1) + ds(INLET2)) \
+            - ks * dot(grad(w), t*n)*(ds(INLET1) + ds(INLET2)) \
+            - ks * dot(grad(t), w*n)*(ds(INLET1) + ds(INLET2))
+
+    aT = a_int + a_fac + a_vel + a_bnd
+
+    LT_bnd = alpha/h * ks * tin1 * w * ds(INLET1)  \
+            + alpha/h * ks * tin2 * w * ds(INLET2) \
+            - tin1 * ks * dot(grad(w), n) * ds(INLET1) \
+            - tin2 * ks * dot(grad(w), n) * ds(INLET2)
+    eT = aT - LT_bnd
+
+    solve(eT==0, t, solver_parameters=parameters)
+    File("t.pvd").write(t)
+
+
+
+
+
 
 if __name__ == '__main__':
     main()
