@@ -1,10 +1,10 @@
 from firedrake import (Mesh, FunctionSpace, Function, Constant,
                         SpatialCoordinate, VectorElement, FiniteElement,
                         TestFunction, TrialFunction, interpolate, File, DirichletBC, solve,
-                        FacetNormal, CellDiameter, homogenize, assemble)
+                        FacetNormal, CellSize, CellDiameter, homogenize, assemble, adjoint, derivative, replace)
 
 from ufl import (sin, pi, split, inner, grad, div, exp,
-                dx, as_vector, derivative, dot, avg, jump, ds, dS, adjoint, replace)
+                dx, as_vector,  dot, avg, jump, ds, dS)
 
 
 from parameters_heat_exch import height, width, inlet_width, dist_center, inlet_depth, shift_center, line_sep
@@ -41,7 +41,6 @@ def main():
     V = TestFunction(W)
     v, q = split(V)
 
-    f = Constant((0.0, 0.0))
     mu = Constant(1e-2)                   # viscosity
     a_fluid = mu*inner(grad(u), grad(v)) + inner(grad(p), v) + q*div(u)
     darcy_term = inner(u, v)
@@ -62,7 +61,6 @@ def main():
     inflow1 = as_vector([u_inflow*sin(((y - (line_sep - (dist_center + inlet_width))) * pi )/ inlet_width), 0.0])
     inflow2 = as_vector([u_inflow*sin(((y - (line_sep + dist_center)) * pi )/ inlet_width), 0.0])
 
-    pressure_outlet = Constant(0.0)
     noslip = Constant((0.0, 0.0))
 
     # Stokes 1
@@ -97,11 +95,9 @@ def main():
     u, p = U1.split()
     u.rename("Velocity")
     p.rename("Pressure")
-    File("u1.pvd").write(u, p)
     u, p = U2.split()
     u.rename("Velocity")
     p.rename("Pressure")
-    File("u2.pvd").write(u, p)
 
 
     # Convection difussion equation
@@ -109,14 +105,11 @@ def main():
 
     t = Function(T, name="Temperature")
     w = TestFunction(T)
-    theta = TrialFunction(T)
 
     # Mesh-related functions
     n = FacetNormal(mesh)
     h = CellDiameter(mesh)
-    h_avg = (h('+') + h('-'))/2
 
-    kf = Constant(1e0)
     ks = Constant(1e0)
     cp_value = 5.0e3
     cp = Constant(cp_value)
@@ -137,8 +130,8 @@ def main():
     # Bilinear form
     a_int = dot(grad(w), ks*grad(t) - cp*(u1 + u2)*t)*dx
 
-    a_fac = - ks*dot(avg(grad(w)), jump(t, n))*dS \
-          - ks*dot(jump(w, n), avg(grad(t)))*dS \
+    a_fac = Constant(-1.0)*ks*dot(avg(grad(w)), jump(t, n))*dS \
+        + Constant(-1.0)*ks*dot(jump(w, n), avg(grad(t)))*dS \
           + ks('+')*(alpha('+')/avg(h))*dot(jump(w, n), jump(t, n))*dS
 
     a_vel = dot(jump(w), Constant(cp_value)*(u1n('+') + u2n('+'))*t('+') - \
@@ -162,7 +155,6 @@ def main():
     eT = aT - LT_bnd
 
     solve(eT==0, t, solver_parameters=parameters)
-    File("t.pvd").write(t)
 
 
     #### OPTIMIZATION
@@ -174,6 +166,7 @@ def main():
     # Foward and adjoint problems problem
     m = Function(T)
     XSI, PSI = Function(W), Function(W)
+    deltat = TrialFunction(T)
     def solve_forward_and_adjoint(phi):
         # Stokes 1 problem
         solve(e1f(phi)==0, U, bcs=bcs1, solver_parameters=parameters)
@@ -183,14 +176,15 @@ def main():
         solve(eT==0, t, solver_parameters=parameters)
 
         # Stokes 2 adjoint
-        solve(adjoint(derivative(eT, t))==-derivative(Jform, t, w), m, solver_parameters=parameters)
-        solve(adjoint(derivative(e1f(dx),U)) == -derivative(replace(eT, {w: m}), U1, V) - derivative(Jform, U1, V), XSI, bcs=homogenize(bcs1), solver_parameters=parameters)
-        solve(adjoint(derivative(e2f(dx),U)) == (-derivative(replace(eT, {w: m}), U2, V) - derivative(Jform, U2, V)), PSI, bcs=homogenize(bcs2), solver_parameters=parameters)
+        solve(adjoint(derivative(eT, t, deltat))==-derivative(Jform, t, w), m, solver_parameters=parameters)
+        solve(adjoint(derivative(e1f(phi),U)) == -derivative(replace(eT, {w: m}), U1, V) - derivative(Jform, U1, V), XSI, bcs=homogenize(bcs1), solver_parameters=parameters)
+        solve(adjoint(derivative(e2f(phi),U)) == (-derivative(replace(eT, {w: m}), U2, V) - derivative(Jform, U2, V)), PSI, bcs=homogenize(bcs2), solver_parameters=parameters)
 
 
     solve_forward_and_adjoint(phi)
-    Lagr = replace(eT, {w: m}) + replace(e1f(dx), {U: U1, V: XSI}) + replace(e2f(dx), {U: U2, V: PSI}) + Jform
+    Lagr = replace(eT, {w: m}) + replace(e1f(phi), {U: U1, V: XSI}) + replace(e2f(phi), {U: U2, V: PSI}) + Jform
     dL = derivative(Lagr, X)
+    dJ = assemble(dL)
 
     output_dir = "./"
     u1_pvd = File(output_dir + "u1.pvd")
@@ -199,11 +193,11 @@ def main():
     p2_pvd = File(output_dir + "p2.pvd")
     xsi1_pvd = File(output_dir + "xsi.pvd")
     psi1_pvd = File(output_dir + "psi.pvd")
-    pressure_adj_pvd = File(output_dir + "pressure_adj.pvd")
     t_pvd = File(output_dir + "t.pvd")
     m_pvd = File(output_dir + "m.pvd")
-    pressure_pvd = File(output_dir + "pressure.pvd")
     phi_pvd = File(output_dir + "phi_evo.pvd")
+    dJ_pvd = File(output_dir + "dJ_evo.pvd")
+    #dJ_pvd.write(dJ)
 
     u1_func, p1_func = U1.split()
     u2_func, p2_func = U2.split()
@@ -213,24 +207,24 @@ def main():
     p2_pvd.write(p2_func)
     t_pvd.write(t)
 
-    S = FunctionSpace(mesh, P2)
+
+    S = FunctionSpace(mesh, VectorElement("Lagrange", mesh.ufl_cell(), 1))
     theta,xi = [TrialFunction(S), TestFunction( S)]
     beta = Function(S)
     beta_plotting = Function(S)
     dJ_plotting = Function(S)
 
-    av = assemble((Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx)
-         + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds))
+    av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds)
 
     bc_beta1 = DirichletBC(S, Constant((0.0, 0.0)), MOUTH1)
     bc_beta2 = DirichletBC(S, Constant((0.0, 0.0)), MOUTH2)
 
-    # Line search parameters
+    ## Line search parameters
     alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.1]
     alpha0 = alpha0_init
     alpha  = alpha0 # Line search step
 
-    # Stopping criterion parameters
+    ## Stopping criterion parameters
     Nx = 100
     ItMax,It,stop = [int(1.5*Nx), 0, False]
 
@@ -243,46 +237,20 @@ def main():
     hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0)
     reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
 
+    hmin = assemble(CellSize(mesh)*dx)
     while It < ItMax and stop == False:
-        subdomain.set_all(FLUID2)
-        omegaD = OmegaDown()
-        omegaD.mark(subdomain, FLUID1)
-        omegaMouth2.mark(subdomain, MOUTH2)
-        omegaMouth1.mark(subdomain, MOUTH1)
 
-        inlets_mshfunc.set_all(0)
+        solve_forward_and_adjoint(phi)
 
-
-        all_boundary = Boundary()
-        all_boundary.mark(inlets_mshfunc, WALLS)
-        inlets = Inlet1()
-        inlets.mark(inlets_mshfunc, INLET1)
-        outlets = Outlet1()
-        outlets.mark(inlets_mshfunc, OUTLET1)
-        inlets = Inlet2()
-        inlets.mark(inlets_mshfunc, INLET2)
-        outlets = Outlet2()
-        outlets.mark(inlets_mshfunc, OUTLET2)
-
-        omegaDe = OmegaDesign()
-        omegaDe.mark(inlets_mshfunc, DESIGNBC)
-
-        File(output_dir + "bc_mshfunc.pvd") << inlets_mshfunc
-
-        dx = Measure("dx", domain=mesh, subdomain_data=subdomain)
-
-        solve_forward_and_adjoint(dx)
-
-        Lagr = replace(eT, {w: m}) + replace(e1f(dx), {U: U1, V: XSI}) + replace(e2f(dx), {U: U2, V: PSI}) + Jform
+        Lagr = replace(eT, {w: m}) + replace(e1f(phi), {U: U1, V: XSI}) + replace(e2f(phi), {U: U2, V: PSI}) + Jform
         dL = derivative(Lagr, X)
-
 
         J = assemble(Jform)
         Jarr[It] = J
 
         # CFL condition
         maxv = np.max(phi.vector()[:])
-        dt = 1e0 * alpha * mesh.hmin() / maxv
+        dt = 1e0 * alpha * hmin / maxv
         # ------- LINE SEARCH ------------------------------------------
         if It > 0 and Jarr[It] > Jarr[It-1] and ls < ls_max:
             ls   += 1
@@ -295,15 +263,15 @@ def main():
         else:
             u1_func, p1_func = U1.split()
             u2_func, p2_func = U2.split()
-            xsi_func, padj_func = XSI.split()
-            psi_func, padj_func = PSI.split()
-            xsi1_pvd << xsi_func
-            psi1_pvd << psi_func
-            u1_pvd << u1_func
-            u2_pvd << u2_func
-            t_pvd << t
-            m_pvd << m
-            phi_pvd << phi
+            xsi_func, _ = XSI.split()
+            psi_func, _ = PSI.split()
+            xsi1_pvd.write(xsi_func)
+            psi1_pvd.write(psi_func)
+            u1_pvd.write(u1_func)
+            u2_pvd.write(u2_func)
+            t_pvd.write(t)
+            m_pvd.write(m)
+            phi_pvd.write(phi)
             print('************ ITERATION NUMBER %s' % It)
             print('Function value        : %.5f' % Jarr[It])
             #print('Compliance            : %.2f' % )
@@ -314,24 +282,23 @@ def main():
             # Reset alpha and line search index
             ls,alpha,It = [0,alpha0, It+1]
 
-            dJ = assemble(dL)
-            dJ_plotting.vector()[:] = -dJ.get_local()
+            assemble(dL, bcs=[bc_beta1, bc_beta2], tensor=dJ)
+            dJ_pvd.write(dJ)
 
-            bc_beta1.apply(av, dJ)
-            bc_beta2.apply(av, dJ)
-            bc_beta4.apply(av, dJ)
 
-            solverav = LUSolver(av)
-            solverav.solve(beta.vector(), -dJ)
-            beta_plotting.assign(beta)
-            beta_pvd << beta_plotting
+
+            #solve(av==0, beta, bcs=[bc_beta1, bc_beta2], solver_parameters=parameters)
+            Av = assemble(av, bcs=[bc_beta1, bc_beta2])
+            solve(Av, beta.vector(), dJ)
+            #beta_plotting.assign(beta)
+            beta_pvd.write(beta)
 
             phi_old.assign(phi)
             phi.assign(hj_solver.solve(beta, phi, steps=3, dt=dt))
 
             # Reinit the level set function every five iterations.
             if np.mod(It,5) == 0:
-                Dx = mesh.hmin()
+                Dx = hmin
                 phi.assign(reinit_solver.solve(phi, Dx))
             #------------ STOPPING CRITERION ---------------------------
             if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1]))<2.0e-8*Jarr[It-1]/Nx**2/10:
