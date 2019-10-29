@@ -7,6 +7,12 @@ from firedrake import FunctionSpace, TrialFunction,  \
                     div
 
 
+default_solver_parameters = {
+    "mat_type" : "aij",
+    "ksp_type" : "preonly",
+    "pc_type" : "lu",
+    "pc_factor_mat_solver_type" : "mumps"
+    }
 class HJStabSolver(object):
     def __init__(self, mesh, PHI, c2_param=0.05, f=Constant(0.0)):
         self.PHI = PHI
@@ -14,7 +20,7 @@ class HJStabSolver(object):
         self.c2 = c2_param
         self.f = f
 
-    def solve(self, beta, phi_n, steps=5, t=0, dt=1.0, bc=None):
+    def solve(self, beta, phi_n, steps=5, t=0, dt=1.0, bc=None, solver_parameters=default_solver_parameters):
         phi = TrialFunction(self.PHI)
         psi = TestFunction(self.PHI)
         n = FacetNormal(self.mesh)
@@ -28,9 +34,9 @@ class HJStabSolver(object):
                 - self.f * psi * dx
             phi_new = Function(self.PHI)
             if bc is None:
-                solve(lhs(F)==rhs(F), phi_new)
+                solve(lhs(F)==rhs(F), phi_new, solver_parameters=solver_parameters)
             else:
-                solve(lhs(F)==rhs(F), phi_new, bcs=bc)
+                solve(lhs(F)==rhs(F), phi_new, bcs=bc, solver_parameters=solver_parameters)
             phi_n.assign(phi_new)
 
         return phi_n
