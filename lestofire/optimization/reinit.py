@@ -5,6 +5,12 @@ from firedrake import FunctionSpace, TrialFunction, \
                     Function, \
                     solve, assemble
 
+default_solver_parameters = {
+    "mat_type" : "aij",
+    "ksp_type" : "preonly",
+    "pc_type" : "lu",
+    "pc_factor_mat_solver_type" : "mumps"
+    }
 class SignedDistanceSolver(object):
     def __init__(self, mesh, PHI, alpha=10.0, dt=1e-6, n_steps=10):
         self.PHI = PHI
@@ -13,7 +19,7 @@ class SignedDistanceSolver(object):
         self.dt = dt
         self.n_steps = n_steps
 
-    def solve(self, phi_n, Dx):
+    def solve(self, phi_n, Dx, solver_parameters=default_solver_parameters):
         # phi_n     - is the  level  set  field  which  comes  from of the  main  algorithm
         # mesh - mesh  description
         # Dx    - mesh  size in the x-direction
@@ -50,7 +56,7 @@ class SignedDistanceSolver(object):
         from firedrake import File
         phi_pvd = File("reinit.pvd")
         for n in range(self.n_steps):
-            solve(a == L, phi , bc)
+            solve(a == L, phi , bc, solver_parameters=solver_parameters)
             # Euclidean  norm
             error = (((phi - phi0)/k)**2)*dx
             E = sqrt(abs(assemble(error)))
