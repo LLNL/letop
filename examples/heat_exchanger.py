@@ -8,7 +8,7 @@ from ufl import (sin, pi, split, inner, grad, div, exp,
 
 
 from parameters_heat_exch import height, width, inlet_width, dist_center, inlet_depth, shift_center, line_sep
-from parameters_heat_exch import MOUTH1, MOUTH2, INLET1, INLET2, OUTLET1, OUTLET2, WALLS
+from parameters_heat_exch import OUTMOUTH1, OUTMOUTH2, INMOUTH1, INMOUTH2, INLET1, INLET2, OUTLET1, OUTLET2, WALLS
 
 import sys
 sys.path.append('..')
@@ -45,17 +45,22 @@ def main():
     a_fluid = mu*inner(grad(u), grad(v)) + inner(grad(p), v) + q*div(u)
     darcy_term = inner(u, v)
 
-    alphamax = 1e4
-    alphamin = 1e-9
-    epsilon = Constant(100.0)
+    alphamax = 2.5 * mu / (1e-7)
+    alphamin = 1e-12
+    epsilon = Constant(50.0)
 
     def hs(phi, epsilon):
         return Constant(alphamax)*Constant(1.0) / ( Constant(1.0) + exp(-epsilon*phi)) + Constant(alphamin)
 
     def e1f(phi):
-        return a_fluid*(dx(0) + dx(MOUTH1) + dx(MOUTH2)) + hs(-phi, epsilon)*darcy_term*dx(0) + alphamax*darcy_term*dx(MOUTH2)
+        return a_fluid*dx + hs(-phi, epsilon)*darcy_term*dx(0) + alphamax*darcy_term*dx(INMOUTH2)
     def e2f(phi):
-        return a_fluid*(dx(0) + dx(MOUTH1) + dx(MOUTH2)) + hs(phi, epsilon)*darcy_term*dx(0) + alphamax*darcy_term*dx(MOUTH1)
+        return a_fluid*dx + hs(phi, epsilon)*darcy_term*dx(0) + alphamax*darcy_term*dx(INMOUTH1)
+
+    DG0 = FunctionSpace(mesh, 'DG', 0)
+    alpha_hs_pvd = File("alpha_hs.pvd")
+    alphadg0 = interpolate(hs(phi, epsilon), DG0)
+    alpha_hs_pvd.write(alphadg0)
 
     u_inflow = 2e-1
     inflow1 = as_vector([u_inflow*sin(((y - (line_sep - (dist_center + inlet_width))) * pi )/ inlet_width), 0.0])
@@ -186,7 +191,7 @@ def main():
     dL = derivative(Lagr, X)
     dJ = assemble(dL)
 
-    output_dir = "./"
+    output_dir = "./heat_exchanger/"
     u1_pvd = File(output_dir + "u1.pvd")
     p1_pvd = File(output_dir + "p1.pvd")
     u2_pvd = File(output_dir + "u2.pvd")
@@ -196,6 +201,7 @@ def main():
     t_pvd = File(output_dir + "t.pvd")
     m_pvd = File(output_dir + "m.pvd")
     phi_pvd = File(output_dir + "phi_evo.pvd")
+    phi_pvd.write(phi)
     dJ_pvd = File(output_dir + "dJ_evo.pvd")
     #dJ_pvd.write(dJ)
 
@@ -214,10 +220,13 @@ def main():
     beta_plotting = Function(S)
     dJ_plotting = Function(S)
 
-    av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds)
+    av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds) + \
+            1e10*inner(theta, xi)*(dx(INMOUTH1) + dx(INMOUTH2) + dx(OUTMOUTH1) + dx(OUTMOUTH2))
 
-    bc_beta1 = DirichletBC(S, Constant((0.0, 0.0)), MOUTH1)
-    bc_beta2 = DirichletBC(S, Constant((0.0, 0.0)), MOUTH2)
+    bc_beta1 = DirichletBC(S, Constant((0.0, 0.0)), INLET1)
+    bc_beta2 = DirichletBC(S, Constant((0.0, 0.0)), INLET2)
+    bc_beta3 = DirichletBC(S, Constant((0.0, 0.0)), OUTLET1)
+    bc_beta4 = DirichletBC(S, Constant((0.0, 0.0)), OUTLET2)
 
     ## Line search parameters
     alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.1]
@@ -237,7 +246,9 @@ def main():
     hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0)
     reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
 
-    hmin = assemble(CellSize(mesh)*dx)
+    hmin = assemble(CellDiameter(mesh)*dx)
+    print("hmin: {:.5f}".format(hmin))
+    hmin = 0.00940 # Hard coded from FEniCS
     while It < ItMax and stop == False:
 
         solve_forward_and_adjoint(phi)
@@ -251,6 +262,7 @@ def main():
         # CFL condition
         maxv = np.max(phi.vector()[:])
         dt = 1e0 * alpha * hmin / maxv
+        print("dt: {:.5f}".format(dt))
         # ------- LINE SEARCH ------------------------------------------
         if It > 0 and Jarr[It] > Jarr[It-1] and ls < ls_max:
             ls   += 1
@@ -271,7 +283,6 @@ def main():
             u2_pvd.write(u2_func)
             t_pvd.write(t)
             m_pvd.write(m)
-            phi_pvd.write(phi)
             print('************ ITERATION NUMBER %s' % It)
             print('Function value        : %.5f' % Jarr[It])
             #print('Compliance            : %.2f' % )
@@ -282,19 +293,25 @@ def main():
             # Reset alpha and line search index
             ls,alpha,It = [0,alpha0, It+1]
 
-            assemble(dL, bcs=[bc_beta1, bc_beta2], tensor=dJ)
+            bcs_beta = [bc_beta1, bc_beta2, bc_beta3, bc_beta4]
+            assemble(dL, bcs=bcs_beta, tensor=dJ)
+            with dJ.dat.vec as v:
+                v *= -1.0
             dJ_pvd.write(dJ)
 
 
 
             #solve(av==0, beta, bcs=[bc_beta1, bc_beta2], solver_parameters=parameters)
-            Av = assemble(av, bcs=[bc_beta1, bc_beta2])
-            solve(Av, beta.vector(), dJ)
+            Av = assemble(av, bcs=bcs_beta)
+            solve(Av, beta.vector(), dJ, solver_parameters=parameters)
             #beta_plotting.assign(beta)
             beta_pvd.write(beta)
 
             phi_old.assign(phi)
-            phi.assign(hj_solver.solve(beta, phi, steps=3, dt=dt))
+            phi.assign(hj_solver.solve(beta, phi, steps=3, dt=dt, solver_parameters=parameters))
+            phi_pvd.write(phi)
+            alphadg0.interpolate(hs(phi, epsilon))
+            alpha_hs_pvd.write(alphadg0)
 
             # Reinit the level set function every five iterations.
             if np.mod(It,5) == 0:
