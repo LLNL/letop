@@ -1,7 +1,8 @@
 from firedrake import (Mesh, FunctionSpace, Function, Constant,
                         SpatialCoordinate, VectorElement, FiniteElement,
                         TestFunction, TrialFunction, interpolate, File, DirichletBC, solve,
-                        FacetNormal, CellSize, CellDiameter, homogenize, assemble, adjoint, derivative, replace)
+                        FacetNormal, CellSize, CellDiameter, homogenize, assemble, adjoint,
+                        par_loop, derivative, replace, WRITE, READ, RW)
 
 from ufl import (sin, pi, split, inner, grad, div, exp,
                 dx, as_vector,  dot, avg, jump, ds, dS)
@@ -47,7 +48,7 @@ def main():
 
     alphamax = 2.5 * mu / (1e-7)
     alphamin = 1e-12
-    epsilon = Constant(50.0)
+    epsilon = Constant(1000.0)
 
     def hs(phi, epsilon):
         return Constant(alphamax)*Constant(1.0) / ( Constant(1.0) + exp(-epsilon*phi)) + Constant(alphamin)
@@ -57,10 +58,6 @@ def main():
     def e2f(phi):
         return a_fluid*dx + hs(phi, epsilon)*darcy_term*dx(0) + alphamax*darcy_term*dx(INMOUTH1)
 
-    DG0 = FunctionSpace(mesh, 'DG', 0)
-    alpha_hs_pvd = File("alpha_hs.pvd")
-    alphadg0 = interpolate(hs(phi, epsilon), DG0)
-    alpha_hs_pvd.write(alphadg0)
 
     u_inflow = 2e-1
     inflow1 = as_vector([u_inflow*sin(((y - (line_sep - (dist_center + inlet_width))) * pi )/ inlet_width), 0.0])
@@ -192,6 +189,10 @@ def main():
     dJ = assemble(dL)
 
     output_dir = "./heat_exchanger/"
+    DG0 = FunctionSpace(mesh, 'DG', 0)
+    alpha_hs_pvd = File(output_dir + "alpha_hs.pvd")
+    alphadg0 = interpolate(hs(phi, epsilon), DG0)
+    alpha_hs_pvd.write(alphadg0)
     u1_pvd = File(output_dir + "u1.pvd")
     p1_pvd = File(output_dir + "p1.pvd")
     u2_pvd = File(output_dir + "u2.pvd")
@@ -220,13 +221,30 @@ def main():
     beta_plotting = Function(S)
     dJ_plotting = Function(S)
 
-    av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds) + \
-            1e10*inner(theta, xi)*(dx(INMOUTH1) + dx(INMOUTH2) + dx(OUTMOUTH1) + dx(OUTMOUTH2))
+    av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds)
 
-    bc_beta1 = DirichletBC(S, Constant((0.0, 0.0)), INLET1)
-    bc_beta2 = DirichletBC(S, Constant((0.0, 0.0)), INLET2)
-    bc_beta3 = DirichletBC(S, Constant((0.0, 0.0)), OUTLET1)
-    bc_beta4 = DirichletBC(S, Constant((0.0, 0.0)), OUTLET2)
+    # Heaviside step function in domain of interest
+    V_DG0_B = FunctionSpace(mesh, "DG", 0)
+    I_B = Function(V_DG0_B)
+    par_loop(('{[i] : 0 <= i < f.dofs}', 'f[i, 0] = 1.0'),
+             dx(0), {'f': (I_B, WRITE)}, is_loopy_kernel=True)
+
+    I_cg_B = Function(S)
+    par_loop(('{[i, j] : 0 <= i < A.dofs and 0 <= j < 2}', 'A[i, j] = fmax(A[i, j], B[0, 0])'),
+             dx, {'A' : (I_cg_B, RW), 'B': (I_B, READ)}, is_loopy_kernel=True)
+
+    import numpy as np
+    class MyBC(DirichletBC):
+        def __init__(self, V, value, markers):
+            # Call superclass init
+            # We provide a dummy subdomain id.
+            super(MyBC, self).__init__(V, value, 0)
+            # Override the "nodes" property which says where the boundary
+            # condition is to be applied.
+            self.nodes = np.unique(np.where(markers.dat.data_ro_with_halos == 0)[0])
+
+    bc_exclude_mouths = MyBC(S, 0, I_cg_B )
+
 
     ## Line search parameters
     alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.1]
@@ -293,7 +311,7 @@ def main():
             # Reset alpha and line search index
             ls,alpha,It = [0,alpha0, It+1]
 
-            bcs_beta = [bc_beta1, bc_beta2, bc_beta3, bc_beta4]
+            bcs_beta = [bc_exclude_mouths]
             assemble(dL, bcs=bcs_beta, tensor=dJ)
             with dJ.dat.vec as v:
                 v *= -1.0
