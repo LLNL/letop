@@ -1,3 +1,6 @@
+*.msh
+*.vtk
+*.geo
 .cache
 .vim
 __pycache__
