@@ -102,6 +102,7 @@ class OptimizationProblem(object):
 
     def __init__(self, mesh):
         self.mesh = mesh
+        self.is_cost_func_eval = False
         # Build function space
         P2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         P1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
@@ -169,9 +170,11 @@ class OptimizationProblem(object):
         eT = eTp(self.T, self.U1, self.U2, self.t, ks, cp, tin1, tin2, self.mesh)
         solve(eT==0, self.t, solver_parameters=parameters)
 
+        self.is_cost_func_eval = True
         return assemble(self.cost_function(self.U1, self.U2, self.t, self.mesh))
 
     def derivative_evaluation(self, phi):
+        assert self.is_cost_func_eval == True
         # Foward and adjoint problems problem
         m = Function(self.T)
         XSI, PSI = Function(self.W), Function(self.W)
@@ -197,4 +200,5 @@ class OptimizationProblem(object):
         dL = derivative(Lagr, X)
         dJ = assemble(dL)
 
+        self.is_cost_func_eval = False
         return dJ

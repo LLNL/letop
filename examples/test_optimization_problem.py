@@ -48,10 +48,9 @@ n = FacetNormal(mesh)
 S = FunctionSpace(mesh, VectorElement("Lagrange", mesh.ufl_cell(), 1))
 theta,xi = [TrialFunction(S), TestFunction( S)]
 beta = Function(S)
-beta_plotting = Function(S)
-dJ_plotting = Function(S)
 
-av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + 1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds)
+av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + \
+       1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds)
 
 # Heaviside step function in domain of interest
 V_DG0_B = FunctionSpace(mesh, "DG", 0)
