@@ -7,6 +7,7 @@ from parameters_heat_exch import height, width, inlet_width, dist_center, inlet_
 from parameters_heat_exch import OUTMOUTH1, OUTMOUTH2, INMOUTH1, INMOUTH2, INLET1, INLET2, OUTLET1, OUTLET2, WALLS
 
 from optimization_problem import OptimizationProblem
+from regularization_solver import RegularizationSolver
 
 import sys
 sys.path.append('..')
@@ -41,40 +42,10 @@ Nx = 100
 ItMax,It,stop = [int(1.5*Nx), 0, False]
 
 
-from firedrake import (VectorElement, TestFunction, TrialFunction, Function,
-                        Constant, inner, grad, dot, FacetNormal, ds, par_loop,
-                        WRITE, RW, READ, DirichletBC)
-n = FacetNormal(mesh)
+from firedrake import (VectorElement, TestFunction, TrialFunction, Function)
 S = FunctionSpace(mesh, VectorElement("Lagrange", mesh.ufl_cell(), 1))
-theta,xi = [TrialFunction(S), TestFunction( S)]
-beta = Function(S)
-
-av = (Constant(1e3)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + \
-       1.0e4*(inner(dot(theta,n),dot(xi,n)) * ds)
-
-# Heaviside step function in domain of interest
-V_DG0_B = FunctionSpace(mesh, "DG", 0)
-I_B = Function(V_DG0_B)
-par_loop(('{[i] : 0 <= i < f.dofs}', 'f[i, 0] = 1.0'),
-         dx(0), {'f': (I_B, WRITE)}, is_loopy_kernel=True)
-
-I_cg_B = Function(S)
-par_loop(('{[i, j] : 0 <= i < A.dofs and 0 <= j < 2}', 'A[i, j] = fmax(A[i, j], B[0, 0])'),
-         dx, {'A' : (I_cg_B, RW), 'B': (I_B, READ)}, is_loopy_kernel=True)
-
-import numpy as np
-class MyBC(DirichletBC):
-    def __init__(self, V, value, markers):
-        # Call superclass init
-        # We provide a dummy subdomain id.
-        super(MyBC, self).__init__(V, value, 0)
-        # Override the "nodes" property which says where the boundary
-        # condition is to be applied.
-        self.nodes = np.unique(np.where(markers.dat.data_ro_with_halos == 0)[0])
-
-bc_exclude_mouths = MyBC(S, 0, I_cg_B )
-
-
+velocity = Function(S)
+reg_solver = RegularizationSolver(S, mesh, dx=dx)
 
 phi_old = Function(PHI)
 hmin = 0.00940 # Hard coded from FEniCS
@@ -106,7 +77,7 @@ while It < ItMax and stop == False:
         ls   += 1
         alpha *= gamma
         phi.assign(phi_old)
-        phi.assign(hj_solver.solve(beta, phi, steps=3, dt=dt))
+        phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt))
         print('Line search iteration : %s' % ls)
         print('Line search step : %.8f' % alpha)
         print('Function value        : %.10f' % Jarr[It])
@@ -121,20 +92,11 @@ while It < ItMax and stop == False:
         # Reset alpha and line search index
         ls,alpha,It = [0,alpha0, It+1]
 
-        bcs_beta = [bc_exclude_mouths]
-        #assemble(dL, bcs=bcs_beta, tensor=dJ)
         dJ = opti_problem.derivative_evaluation(phi)
-        for bc in bcs_beta:
-            bc.apply(dJ)
-        with dJ.dat.vec as v:
-            v *= -1.0
-
-        from firedrake import solve
-        Av = assemble(av, bcs=bcs_beta)
-        solve(Av, beta.vector(), dJ, solver_parameters=parameters)
+        reg_solver.solve(velocity, dJ, solver_parameters=parameters)
 
         phi_old.assign(phi)
-        phi.assign(hj_solver.solve(beta, phi, steps=3, dt=dt, solver_parameters=parameters))
+        phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt, solver_parameters=parameters))
         phi_pvd.write(phi)
 
         # Reinit the level set function every five iterations.
