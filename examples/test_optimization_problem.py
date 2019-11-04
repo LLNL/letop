@@ -21,10 +21,10 @@ phi_expr = -y + line_sep \
             - (y < line_sep)*(0.5*sin((y + line_sep/3.0)*pi/(2.0*line_sep/3.0)))* \
                     sin(x*pi*2.0/width)
 
-opti_problem = OptimizationProblem(mesh)
-
 PHI = FunctionSpace(mesh, 'CG', 1)
 phi = interpolate(phi_expr , PHI)
+opti_problem = OptimizationProblem(mesh, phi)
+
 J = opti_problem.cost_function_evaluation(phi)
 dJ = opti_problem.derivative_evaluation(phi)
 print("Cost function: {0:.5f}".format(J))
@@ -75,7 +75,6 @@ class MyBC(DirichletBC):
 bc_exclude_mouths = MyBC(S, 0, I_cg_B )
 
 
-Jarr = np.zeros( ItMax )
 
 phi_old = Function(PHI)
 hmin = 0.00940 # Hard coded from FEniCS
@@ -91,6 +90,8 @@ parameters = {
 output_dir = "./test_heat_exchanger/"
 phi_pvd = File(output_dir + "phi_evo.pvd")
 phi_pvd.write(phi)
+ItMax = 20
+Jarr = np.zeros( ItMax )
 while It < ItMax and stop == False:
 
     J = opti_problem.cost_function_evaluation(phi)
@@ -143,3 +144,6 @@ while It < ItMax and stop == False:
         #------------ STOPPING CRITERION ---------------------------
         if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1]))<2.0e-8*Jarr[It-1]/Nx**2/10:
             stop = True
+
+from numpy.testing import assert_allclose
+assert assert_allclose(Jarr[20], -46471.13659, atol=1e-7, err_msg='Optimization broken')
