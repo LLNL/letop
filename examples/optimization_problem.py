@@ -2,7 +2,9 @@ from firedrake import (VectorElement, FiniteElement, FunctionSpace,
                         Constant, Function, TestFunction, split, as_vector,
                         DirichletBC, SpatialCoordinate, solve, FacetNormal,
                         adjoint, replace, CellDiameter, derivative, TrialFunction,
-                        homogenize, assemble)
+                        homogenize, assemble, NonlinearVariationalProblem, NonlinearVariationalSolver)
+
+from pyop2.profiling import timed_function
 
 from ufl import (grad, inner, dx, div, exp, sin, pi, dot, ds, avg, jump, dS)
 
@@ -100,7 +102,7 @@ class OptimizationProblem(object):
     function.
     """
 
-    def __init__(self, mesh):
+    def __init__(self, mesh, phi):
         self.mesh = mesh
         self.is_cost_func_eval = False
         # Build function space
@@ -109,6 +111,8 @@ class OptimizationProblem(object):
         TH = P2*P1
         W = FunctionSpace(mesh, TH)
         self.W = W
+
+        self.phi_control = phi
 
         U = Function(W)
         self.U = U
@@ -119,6 +123,7 @@ class OptimizationProblem(object):
 
         self.stks1 = partial(ef1, u, v, p, q)
         self.stks2 = partial(ef2, u, v, p, q)
+
 
         # Dirichelt boundary conditions
         X = SpatialCoordinate(mesh)
@@ -136,6 +141,7 @@ class OptimizationProblem(object):
         bcs1_5 = DirichletBC(W.sub(0), noslip, OUTLET2)
         self.bcs1 = [bcs1_1,bcs1_2,bcs1_3,bcs1_4, bcs1_5]
 
+
         # Stokes 2
         bcs2_1 = DirichletBC(W.sub(0), noslip, WALLS)
         bcs2_2 = DirichletBC(W.sub(0), inflow2, INLET2)
@@ -144,10 +150,25 @@ class OptimizationProblem(object):
         bcs2_5 = DirichletBC(W.sub(0), noslip, OUTLET1)
         self.bcs2 = [bcs2_1,bcs2_2,bcs2_3,bcs2_4, bcs2_5]
 
+
         # Convection difussion equation
         T = FunctionSpace(mesh, 'DG', 1)
         self.t = Function(T, name="Temperature")
         self.T = T
+
+        # Forward problems
+        problem = NonlinearVariationalProblem(self.stks1(self.phi_control), self.U, bcs=self.bcs1)
+        self.solver_stokes1 = NonlinearVariationalSolver(problem, solver_parameters=parameters)
+
+        problem = NonlinearVariationalProblem(self.stks2(self.phi_control), self.U, bcs=self.bcs2)
+        self.solver_stokes2 = NonlinearVariationalSolver(problem, solver_parameters=parameters)
+
+        eT = eTp(self.T, self.U1, self.U2, self.t, ks, cp, tin1, tin2, self.mesh)
+        problem = NonlinearVariationalProblem(eT, self.t)
+        self.solver_temp = NonlinearVariationalSolver(problem, solver_parameters=parameters)
+
+        # Adjoint problem
+
 
     @staticmethod
     def cost_function(U1, U2, t, mesh):
@@ -155,24 +176,31 @@ class OptimizationProblem(object):
         u1, p1 = split(U1)
         _, p2 = split(U2)
 
-        Power1 = Constant(8e3)*p1*ds(INLET1)
-        Power2 = Constant(8e3)*p2*ds(INLET2)
+        Power1 = Constant(4e3)*p1*ds(INLET1)
+        Power2 = Constant(4e3)*p2*ds(INLET2)
         Jform = Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1) + \
                 Power1 + Power2
         return Jform
 
+    @timed_function("Forward solve")
     def cost_function_evaluation(self, phi):
+        # TODO, check phi is of the correct type and size
+        self.phi_control.assign(phi)
 
-        solve(self.stks1(phi)==0, self.U, bcs=self.bcs1, solver_parameters=parameters)
+        #solve(self.stks1(phi)==0, self.U, bcs=self.bcs1, solver_parameters=parameters)
+        self.solver_stokes1.solve()
         self.U1.assign(self.U)
-        solve(self.stks2(phi)==0, self.U, bcs=self.bcs2, solver_parameters=parameters)
+
+        #solve(self.stks2(phi)==0, self.U, bcs=self.bcs2, solver_parameters=parameters)
+        self.solver_stokes2.solve()
         self.U2.assign(self.U)
-        eT = eTp(self.T, self.U1, self.U2, self.t, ks, cp, tin1, tin2, self.mesh)
-        solve(eT==0, self.t, solver_parameters=parameters)
+
+        self.solver_temp.solve()
 
         self.is_cost_func_eval = True
         return assemble(self.cost_function(self.U1, self.U2, self.t, self.mesh))
 
+    @timed_function("Adjoint solve")
     def derivative_evaluation(self, phi):
         assert self.is_cost_func_eval == True
         # Foward and adjoint problems problem
