@@ -60,7 +60,7 @@ RUN echo "alias gdh='git diff HEAD'" >> /home/firedrake/.bashrc
 
 RUN pip3 install roltrilinos 
 RUN pip3 install ROL
-RUN pip3 install tensorflow
+RUN pip3 install tensorflow==1.15.0
 RUN pip3 install protobuf==3.7.1
 RUN pip3 install --upgrade numpy
 RUN git clone https://bitbucket.org/nate-sime/dolfin_dg.git && \
