@@ -54,6 +54,7 @@ reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
 parameters = {
     "mat_type" : "aij",
     "ksp_type" : "preonly",
+    "ksp_converged_reason" : None,
     "pc_type" : "lu",
     "pc_factor_mat_solver_type" : "mumps"
 }
@@ -61,13 +62,16 @@ parameters = {
 output_dir = "./test_heat_exchanger/"
 phi_pvd = File(output_dir + "phi_evo.pvd")
 phi_pvd.write(phi)
-ItMax = 100
+ItMax = 21
 Jarr = np.zeros( ItMax )
 
 opti_solver = SteepestDescent(opti_problem, reg_solver, pvd_output=phi_pvd)
 
 opti_solver.solve(phi, velocity, solver_parameters=parameters)
 
+print("Jarr at 20: {0:.10f}".format(Jarr[20]))
+from numpy.testing import assert_allclose
+assert_allclose(Jarr[20], -46471.13659, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')
 
 #while It < ItMax and stop == False:
 #
@@ -113,6 +117,3 @@ opti_solver.solve(phi, velocity, solver_parameters=parameters)
 #        if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1]))<2.0e-8*Jarr[It-1]/Nx**2/10:
 #            stop = True
 #
-#from numpy.testing import assert_allclose
-#print("Jarr at 20: {0:.10f}".format(Jarr[20]))
-#assert_allclose(Jarr[20], -46471.13659, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')

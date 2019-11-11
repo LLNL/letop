@@ -3,7 +3,7 @@ import pygmsh as pg
 INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2 = 1, 2, 3, 4
 WALLS = 5
 def main():
-    size = 2.e-2;
+    size = 1.0e-2;
     geom = pg.built_in.Geometry()
 
     INLET1_SEP = 0.2
