@@ -34,14 +34,14 @@ def main():
         return Constant(1.0) / ( Constant(1.0) + exp(-epsilon*phi)) + Constant(alphamin)
 
     ALPHA = FunctionSpace(mesh, 'DG', 0)
-    File("alpha.pvd").write(interpolate(hs(phi, epsilon), ALPHA))
+    #File("alpha.pvd").write(interpolate(hs(phi, epsilon), ALPHA))
     # Build function space
     P2 = VectorElement("CG", mesh.ufl_cell(), 2)
     P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
     TH = P2*P1
     W = FunctionSpace(mesh, TH)
 
-    U = Function(W)
+    U = Function(W, name='Solution')
     u, p = split(U)
     V = TestFunction(W)
     v, q = split(V)
@@ -72,11 +72,7 @@ def main():
     nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
 
     solve(a==L, U, bcs, solver_parameters=parameters)#, nullspace=nullspace)
-    u, p = U.split()
-    u.rename("Velocity")
-    p.rename("Pressure")
-
-    File("stokes_solution.pvd").write(u, p)
+    u, p = split(U)
 
     penalty = 8e6
     VolPen = Constant(penalty)*(hs(-phi, epsilon)*Constant(1.0)*dx(domain=mesh) - Constant(0.5)*dx(domain=mesh))
@@ -85,8 +81,14 @@ def main():
     #print("Jform constraint: {:.5f}".format(Jform))
     Jform += assemble(VolPen)
 
+    alpha_pvd = File("alpha.pvd")
+    alpha = Function(ALPHA)
+    def deriv_cb(phi):
+        alpha.interpolate(hs(phi[0], epsilon))
+        alpha_pvd.write(alpha)
+
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi)
+    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
     Jhat_v = Jhat(phi)
     print("Initial cost function value {}".format(Jhat_v))
     dJ = Jhat.derivative()
@@ -116,6 +118,10 @@ def main():
     phi_pvd = File("phi_evolution.pvd")
     phi_pvd.write(phi)
     hmin = 0.01414 # Hard coded from FEniCS
+
+
+    Jhat.optimize_tape()
+
     opti_solver = SteepestDescent(Jhat, reg_solver, hmin=hmin, pvd_output=phi_pvd)
 
     opti_solver.solve(phi, velocity, solver_parameters=parameters)
