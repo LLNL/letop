@@ -2,7 +2,8 @@
 #
 from .__about__ import __author__, __email__, __license__, __status__, __version__
 #from .cli import show
-from .optimization import HJStabSolver, HJSUPG, SignedDistanceSolver
+from .optimization import HJStabSolver, HJSUPG, SignedDistanceSolver, SteepestDescent
+from .levelset import LevelSetLagrangian, RegularizationSolver
 
 __all__ = [
     "__author__",

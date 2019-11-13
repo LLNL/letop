@@ -2,7 +2,8 @@ from firedrake import (VectorElement, FiniteElement, FunctionSpace,
                         Constant, Function, TestFunction, split, as_vector,
                         DirichletBC, SpatialCoordinate, solve, FacetNormal,
                         adjoint, replace, CellDiameter, derivative, TrialFunction,
-                        homogenize, assemble, NonlinearVariationalProblem, NonlinearVariationalSolver)
+                        homogenize, assemble, NonlinearVariationalProblem,
+                        NonlinearVariationalSolver, File)
 
 from pyop2.profiling import timed_function
 
@@ -124,6 +125,11 @@ class OptimizationProblem(object):
         self.stks1 = partial(ef1, u, v, p, q)
         self.stks2 = partial(ef2, u, v, p, q)
 
+        self.t_pvd = File("t.pvd")
+        self.phi_pvd = File("phi_evolution.pvd")
+        self.u1_pvd = File("u1.pvd")
+        self.u2_pvd = File("u2.pvd")
+
 
         # Dirichelt boundary conditions
         X = SpatialCoordinate(mesh)
@@ -209,6 +215,13 @@ class OptimizationProblem(object):
         deltat = TrialFunction(self.T)
         w = TestFunction(self.T)
         V = TestFunction(self.W)
+
+        self.phi_pvd.write(phi)
+        self.t_pvd.write(self.t)
+        u1_for_pvd, _ = self.U1.split()
+        u2_for_pvd, _ = self.U2.split()
+        self.u1_pvd.write(u1_for_pvd)
+        self.u2_pvd.write(u2_for_pvd)
 
         Jform = self.cost_function(self.U1, self.U2, self.t, self.mesh)
 

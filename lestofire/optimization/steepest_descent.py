@@ -1,9 +1,7 @@
 from firedrake import Function, File
 import numpy as np
 
-#import sys
-#sys.path.append('..')
-from lestofire import HJStabSolver, SignedDistanceSolver
+from lestofire.optimization import HJStabSolver, SignedDistanceSolver
 
 parameters = {
         "mat_type" : "aij",

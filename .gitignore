@@ -1,4 +1,5 @@
-*.msh
+*.vtu
+*.pvd
 *.vtk
 *.geo
 .cache

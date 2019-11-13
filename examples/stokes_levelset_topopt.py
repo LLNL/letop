@@ -6,9 +6,10 @@ from ufl import min_value, max_value
 
 from mesh_stokes_flow import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, WALLS
 
-from level_set_lagrangian import LevelSetLagrangian
-from steepest_descent import SteepestDescent
-from regularization_solver import RegularizationSolver
+from lestofire import LevelSetLagrangian, SteepestDescent, RegularizationSolver
+#from level_set_lagrangian import LevelSetLagrangian
+#from steepest_descent import SteepestDescent
+#from regularization_solver import RegularizationSolver
 
 def main():
     output_dir = "stokes_levelset_darcy/"
@@ -33,9 +34,6 @@ def main():
     def hs(phi, epsilon):
         return Constant(1.0) / ( Constant(1.0) + exp(-epsilon*phi)) + Constant(alphamin)
 
-    ALPHA = FunctionSpace(mesh, 'DG', 0)
-    #File("alpha.pvd").write(interpolate(hs(phi, epsilon), ALPHA))
-    # Build function space
     P2 = VectorElement("CG", mesh.ufl_cell(), 2)
     P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
     TH = P2*P1
@@ -75,36 +73,19 @@ def main():
     u, p = split(U)
 
     penalty = 8e6
-    VolPen = Constant(penalty)*(hs(-phi, epsilon)*Constant(1.0)*dx(domain=mesh) - Constant(0.5)*dx(domain=mesh))
-    #print("Vol constraint: {:.5f}".format(assemble(VolPen)))
+    VolPen = Constant(penalty)*(hs(-phi, epsilon)*Constant(1.0)*dx(domain=mesh) - Constant(0.3)*dx(domain=mesh))
     Jform = assemble(Constant(alphamax)*hs(phi, epsilon)*inner(mu*u, u)*dx + hs(-phi, epsilon)*inner(mu*u,u)*dx)
-    #print("Jform constraint: {:.5f}".format(Jform))
     Jform += assemble(VolPen)
 
-    alpha_pvd = File("alpha.pvd")
-    alpha = Function(ALPHA)
+    phi_pvd = File(output_dir + "phi_evolution.pvd")
     def deriv_cb(phi):
-        alpha.interpolate(hs(phi[0], epsilon))
-        alpha_pvd.write(alpha)
+        phi_pvd.write(phi[0])
 
     c = Control(s)
     Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
     Jhat_v = Jhat(phi)
     print("Initial cost function value {}".format(Jhat_v))
     dJ = Jhat.derivative()
-
-    #A = 1e-1
-    #h = Function(S,name="V")
-    #h.interpolate(as_vector((A*y, A*cos(x))))
-
-    ## Finite difference
-    #r0 = taylor_test(Jhat, s, h, dJdm=0)
-    #Jhat(s)
-    #assert(r0>0.95)
-
-    #r1 = taylor_test(Jhat, s, h)
-    #Jhat(s)
-    #assert(r1>1.95)
 
     velocity = Function(S)
     bcs_vel_1 = DirichletBC(S, noslip, 1)
@@ -113,17 +94,12 @@ def main():
     bcs_vel_4 = DirichletBC(S, noslip, 4)
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
-    reg_solver = RegularizationSolver(S, mesh, beta=2e4, gamma=0.0, dx=dx, bcs=bcs_vel)
+    reg_solver = RegularizationSolver(S, mesh, beta=1e4, gamma=0.0, dx=dx, bcs=bcs_vel)
 
-    phi_pvd = File("phi_evolution.pvd")
-    phi_pvd.write(phi)
     hmin = 0.01414 # Hard coded from FEniCS
 
-
     Jhat.optimize_tape()
-
     opti_solver = SteepestDescent(Jhat, reg_solver, hmin=hmin, pvd_output=phi_pvd)
-
     opti_solver.solve(phi, velocity, solver_parameters=parameters)
 
 
