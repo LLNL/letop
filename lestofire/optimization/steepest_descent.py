@@ -14,24 +14,28 @@ class SteepestDescent(object):
 
     """ Steepest Descent for the level set evolution """
 
-    def __init__(self, lagrangian, reg_solver, hmin=0.0094, pvd_output=False, parameters={}):
+    def __init__(self, lagrangian, reg_solver, c2_param=1.5, hmin=0.0094, pvd_output=False, parameters={}):
         """TODO: to be defined. """
 
         self.lagrangian = lagrangian
         self.reg_solver = reg_solver
         self.pvd_output = pvd_output
+        self.c2_param = c2_param
         self.hmin = hmin
 
     def solve(self, phi, velocity, solver_parameters=parameters):
         PHI = phi.function_space()
         phi_old = Function(PHI)
         mesh = PHI.mesh()
-        hj_solver = HJStabSolver(mesh, PHI, c2_param=1.5)
+        hj_solver = HJStabSolver(mesh, PHI, c2_param=self.c2_param)
         reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
         ## Line search parameters
         alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.1]
         alpha0 = alpha0_init
         alpha  = alpha0 # Line search step
+
+
+        beta_pvd = File("beta.pvd")
 
         ## Stopping criterion parameters
         Nx = 100
@@ -49,7 +53,7 @@ class SteepestDescent(object):
 
             # CFL condition
             maxv = np.max(phi.vector()[:])
-            dt = 0.1 * alpha * self.hmin / maxv
+            dt = 1.0 * alpha * self.hmin / maxv
             print("dt: {:.5f}".format(dt))
             # ------- LINE SEARCH ------------------------------------------
             if It > 0 and Jarr[It] > Jarr[It-1] and ls < ls_max:
@@ -73,6 +77,8 @@ class SteepestDescent(object):
 
                 dJ = self.lagrangian.derivative()
                 self.reg_solver.solve(velocity, dJ, solver_parameters=solver_parameters)
+
+                beta_pvd.write(velocity)
 
                 phi_old.assign(phi)
                 phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt, solver_parameters=solver_parameters))

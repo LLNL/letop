@@ -16,7 +16,7 @@ class RegularizationSolver(object):
 
     """Solver to regularize the optimization problem"""
 
-    def __init__(self, S, mesh, beta=1e3, gamma=1.0e4, bcs=None, dx=dx, sim_domain=None):
+    def __init__(self, S, mesh, beta=1e3, gamma=1.0e4, bcs=[], dx=dx, sim_domain=None):
         n = FacetNormal(mesh)
         theta,xi = [TrialFunction(S), TestFunction( S)]
         self.xi = xi

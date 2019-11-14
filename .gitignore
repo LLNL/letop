@@ -1,7 +1,6 @@
 *.vtu
 *.pvd
 *.vtk
-*.geo
 .cache
 .vim
 __pycache__
