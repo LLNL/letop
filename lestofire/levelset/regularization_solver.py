@@ -23,7 +23,6 @@ class RegularizationSolver(object):
 
         self.a = (Constant(beta)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + \
                Constant(gamma)*(inner(dot(theta,n),dot(xi,n)) * ds)
-        dj = inner(Constant(tuple(0.0 for _ in range(mesh.geometric_dimension()))), xi)*dx
 
         # Dirichlet boundary conditions equal to zero for regions where we want
         # the domain to be static, i.e. zero velocities
@@ -53,7 +52,6 @@ class RegularizationSolver(object):
             self.bcs.append(MyBC(S, 0, I_cg_B ))
 
         self.Av = assemble(self.a, bcs=self.bcs)
-        self.dJ = assemble(dj)
 
         self.beta_pvd = File("beta.pvd")
 

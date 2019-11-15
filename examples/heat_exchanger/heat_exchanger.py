@@ -174,6 +174,7 @@ def main():
     Jhat_v = Jhat(phi)
     print("Initial cost function value {}".format(Jhat_v))
     dJ = Jhat.derivative()
+    Jhat.optimize_tape()
 
     velocity = Function(S)
     bcs_vel_1 = DirichletBC(S, noslip, 1)
