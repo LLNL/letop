@@ -72,7 +72,7 @@ class SteepestDescent(object):
         PHI = phi.function_space()
         phi_old = Function(PHI)
         mesh = PHI.mesh()
-        hj_solver = HJStabSolver(mesh, PHI, c2_param=hj_stab)
+        hj_solver = HJStabSolver(mesh, PHI, c2_param=hj_stab, solver_parameters=solver_parameters)
         reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
         ## Line search parameters
         alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.1]
@@ -125,7 +125,7 @@ class SteepestDescent(object):
                 beta_pvd.write(velocity)
 
                 phi_old.assign(phi)
-                phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt, solver_parameters=solver_parameters))
+                phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt))
                 if self.pvd_output:
                     self.pvd_output.write(phi)
 
