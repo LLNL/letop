@@ -96,10 +96,17 @@ def main():
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
     reg_solver = RegularizationSolver(S, mesh, beta=1e4, gamma=0.0, dx=dx, bcs=bcs_vel)
 
-    hmin = 0.01414 # Hard coded from FEniCS
-
     Jhat.optimize_tape()
-    opti_solver = SteepestDescent(Jhat, reg_solver, hmin=hmin, pvd_output=phi_pvd)
+
+    options = {
+             'hmin' : 0.01414,
+             'hj_stab': 1.5,
+             'dt_scale' : 0.1,
+             'n_hj_steps' : 3
+             }
+
+
+    opti_solver = SteepestDescent(Jhat, reg_solver, options=options, pvd_output=phi_pvd)
     opti_solver.solve(phi, velocity, solver_parameters=parameters)
 
 

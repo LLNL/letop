@@ -14,26 +14,67 @@ class SteepestDescent(object):
 
     """ Steepest Descent for the level set evolution """
 
-    def __init__(self, lagrangian, reg_solver, c2_param=1.5, hmin=0.0094, pvd_output=False, parameters={}):
-        """TODO: to be defined. """
+    def __init__(self, lagrangian, reg_solver, options={}, pvd_output=False, parameters={}):
+        """
+        Initializes the Steepest Descent algorithm with the Hamilton-Jacobi (HJ)
+        equation.
 
+        options:
+            - hj_stab: Stabilization parameter to solve the HJ equation
+            - hmin: Mesh minimum cell size for the CFL condition.
+            - dt_scale: Scaling of the time step
+            - HJ steps: Number of steps taken for the HJ equation"""
+
+        self.set_options(options)
         self.lagrangian = lagrangian
         self.reg_solver = reg_solver
         self.pvd_output = pvd_output
-        self.c2_param = c2_param
-        self.hmin = hmin
+        self.options = options
+
+    @classmethod
+    def default_options(cls):
+
+        default = {'hj_stab': 1.5,
+                    'hmin' : 0.01,
+                    'dt_scale' : 1.0,
+                    'n_hj_steps': 5}
+
+        return default
+
+    def set_options(self, user_options):
+        # Update options with provided dictionary.
+        if not isinstance(user_options, dict):
+            raise TypeError("Options have to be set with a dictionary object.")
+        if hasattr(self,  'options'):
+            options = self.options
+        else:
+            options = self.default_options()
+        for key, val in user_options.items():
+            if key not in options:
+                raise KeyError("'{}' not a valid setting for {}".format(key, self.__class__.__name__))
+            # TODO: check also that the provided value is admissible.
+            options[key] = val
+        self.options = options
+
+        return options
 
     def solve(self, phi, velocity, solver_parameters=parameters):
+
+        hj_stab = self.options['hj_stab']
+        hmin = self.options['hmin']
+        dt_scale = self.options['dt_scale']
+        n_hj_steps = self.options['n_hj_steps']
+
+
         PHI = phi.function_space()
         phi_old = Function(PHI)
         mesh = PHI.mesh()
-        hj_solver = HJStabSolver(mesh, PHI, c2_param=self.c2_param)
+        hj_solver = HJStabSolver(mesh, PHI, c2_param=hj_stab)
         reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
         ## Line search parameters
         alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.1]
         alpha0 = alpha0_init
         alpha  = alpha0 # Line search step
-
 
         beta_pvd = File("beta.pvd")
 
@@ -53,7 +94,7 @@ class SteepestDescent(object):
 
             # CFL condition
             maxv = np.max(phi.vector()[:])
-            dt = 1.0 * alpha * self.hmin / maxv
+            dt = dt_scale * alpha * hmin / maxv
             print("dt: {:.5f}".format(dt))
             # ------- LINE SEARCH ------------------------------------------
             if It > 0 and Jarr[It] > Jarr[It-1] and ls < ls_max:
@@ -81,13 +122,13 @@ class SteepestDescent(object):
                 beta_pvd.write(velocity)
 
                 phi_old.assign(phi)
-                phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt, solver_parameters=solver_parameters))
+                phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt, solver_parameters=solver_parameters))
                 if self.pvd_output:
                     self.pvd_output.write(phi)
 
                 # Reinit the level set function every five iterations.
                 if np.mod(It,5) == 0:
-                    Dx = self.hmin
+                    Dx = hmin
                     phi.assign(reinit_solver.solve(phi, Dx))
                 #------------ STOPPING CRITERION ---------------------------
                 if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1]))<2.0e-8*Jarr[It-1]/Nx**2/10:

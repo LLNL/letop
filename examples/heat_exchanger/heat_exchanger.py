@@ -187,10 +187,13 @@ def main():
 
     hmin = 0.00940 # Hard coded from FEniCS
 
-    #Jhat.optimize_tape()
-    tape = get_working_tape()
-    tape.visualise()
-    opti_solver = SteepestDescent(Jhat, reg_solver, hmin=hmin, c2_param=1.0)
+    options = {
+             'hmin' : 0.00940,
+             'hj_stab': 1.0,
+             'dt_scale' : 1.0,
+             'n_hj_steps' : 3
+             }
+    opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
     opti_solver.solve(phi, velocity, solver_parameters=parameters)
 
 
