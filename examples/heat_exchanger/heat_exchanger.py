@@ -191,11 +191,14 @@ def main():
              'hmin' : 0.00940,
              'hj_stab': 1.0,
              'dt_scale' : 1.0,
-             'n_hj_steps' : 3
+             'n_hj_steps' : 3,
+             'max_iter' : 20
              }
     opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
-    opti_solver.solve(phi, velocity, solver_parameters=parameters)
+    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters)
 
+    from numpy.testing import assert_allclose
+    assert_allclose(Jarr[19], -46302.57412, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')
 
 
 if __name__ == '__main__':

@@ -23,7 +23,8 @@ class SteepestDescent(object):
             - hj_stab: Stabilization parameter to solve the HJ equation
             - hmin: Mesh minimum cell size for the CFL condition.
             - dt_scale: Scaling of the time step
-            - HJ steps: Number of steps taken for the HJ equation"""
+            - HJ steps: Number of steps taken for the HJ equation
+            - max_iter: Max number of optimization iterations"""
 
         self.set_options(options)
         self.lagrangian = lagrangian
@@ -37,6 +38,7 @@ class SteepestDescent(object):
         default = {'hj_stab': 1.5,
                     'hmin' : 0.01,
                     'dt_scale' : 1.0,
+                    'max_iter' : 20,
                     'n_hj_steps': 5}
 
         return default
@@ -64,6 +66,7 @@ class SteepestDescent(object):
         hmin = self.options['hmin']
         dt_scale = self.options['dt_scale']
         n_hj_steps = self.options['n_hj_steps']
+        max_iter = self.options['max_iter']
 
 
         PHI = phi.function_space()
@@ -80,14 +83,14 @@ class SteepestDescent(object):
 
         ## Stopping criterion parameters
         Nx = 100
-        ItMax,It,stop = [int(1.5*Nx), 0, False]
+        It,stop = [0, False]
 
-        Jarr = np.zeros( ItMax )
+        Jarr = np.zeros(max_iter)
 
         if self.pvd_output:
             self.pvd_output.write(phi)
 
-        while It < ItMax and stop == False:
+        while It < max_iter and stop == False:
 
             J = self.lagrangian(phi)
             Jarr[It] = J
@@ -133,3 +136,5 @@ class SteepestDescent(object):
                 #------------ STOPPING CRITERION ---------------------------
                 if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1]))<2.0e-8*Jarr[It-1]/Nx**2/10:
                     stop = True
+
+        return Jarr
