@@ -90,22 +90,18 @@ def main():
 
     # Forward problems
     U1, U2 = Function(W), Function(W)
-    #problem = NonlinearVariationalProblem(stokes(phi), U1, bcs=bcs1)
-    #solver_stokes1 = NonlinearVariationalSolver(problem, solver_parameters=parameters)
-    #solver_stokes1.solve()
-    nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
     L = inner(Constant((0.0, 0.0, 0.0)), V)*dx
-    solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=parameters) #, nullspace=nullspace)
+    problem = LinearVariationalProblem(stokes(-phi, INMOUTH2), L, U1, bcs=bcs1)
+    nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
+    solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=parameters) #, nullspace=nullspace)
+    solver_stokes1.solve()
 
-    #problem = NonlinearVariationalProblem(stokes(-phi), U2, bcs=bcs2)
-    #solver_stokes2 = NonlinearVariationalSolver(problem, solver_parameters=parameters)
-    #solver_stokes2.solve()
-    solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=parameters)
+    #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=parameters) #, nullspace=nullspace)
 
-    #u1, p1 = U1.split()
-    #File("u1.pvd").write(u1, p1)
-    #u2, p2 = U2.split()
-    #File("u2.pvd").write(u2, p2)
+    problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
+    solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=parameters)
+    solver_stokes2.solve()
+    #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=parameters)
 
     # Convection difussion equation
     ks = Constant(1e0)
@@ -155,10 +151,9 @@ def main():
             - tin2 * ks * dot(grad(w), n) * ds(INLET2)
     eT = aT - LT_bnd
 
-    #problem = NonlinearVariationalProblem(eT, t)
-    #solver_temp = NonlinearVariationalSolver(problem, solver_parameters=parameters)
-    #solver_temp.solve()
-    solve(eT==0, t, solver_parameters=parameters)
+    problem = NonlinearVariationalProblem(eT, t)
+    solver_temp = NonlinearVariationalSolver(problem, solver_parameters=parameters)
+    solver_temp.solve()
     File("t.pvd").write(t)
 
     Power1 = Constant(4e3)*p1*ds(INLET1)
@@ -192,7 +187,7 @@ def main():
              'hj_stab': 1.0,
              'dt_scale' : 1.0,
              'n_hj_steps' : 3,
-             'max_iter' : 20
+             'max_iter' : 60
              }
     opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
     Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters)
