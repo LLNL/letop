@@ -1,6 +1,7 @@
 from pyadjoint.drivers import compute_gradient, compute_hessian
 from pyadjoint.enlisting import Enlist
 from pyadjoint.tape import get_working_tape, stop_annotating, no_annotations
+from lestofire.optimization import augmented_lagrangian
 
 
 class LevelSetLagrangian(object):
@@ -28,7 +29,8 @@ class LevelSetLagrangian(object):
 
     """
 
-    def __init__(self, functional, controls, level_set, constraint=None,
+    def __init__(self, functional, controls, level_set,
+                 constraint=None, method=None,
                  scale=1.0, tape=None,
                  eval_cb_pre=lambda *args: None,
                  eval_cb_post=lambda *args: None,
@@ -38,6 +40,7 @@ class LevelSetLagrangian(object):
                  hessian_cb_post=lambda *args: None):
         self.functional = functional
         self.constraint = constraint
+        self.method = method
         self.tape = get_working_tape() if tape is None else tape
         self.controls = Enlist(controls)
         self.level_set = Enlist(level_set)
@@ -49,9 +52,38 @@ class LevelSetLagrangian(object):
         self.hessian_cb_pre = hessian_cb_pre
         self.hessian_cb_post = hessian_cb_post
 
+        if constraint is not None:
+            if method is "AL":
+                from firedrake import FunctionSpace, dx
+                from firedrake_adjoint import Function, Constant, assemble
+                from pyadjoint.placeholder import Placeholder
+
+                mesh = level_set.function_space().mesh()
+                self.lagr_mult = Function(FunctionSpace(mesh, 'Real', 0))
+                Placeholder(self.lagr_mult)
+                self.c = Constant(10)
+                Placeholder(self.c)
+
+                self.functional += assemble(augmented_lagrangian(constraint, self.lagr_mult, dx(domain=mesh), self.c))
+            else:
+                raise RuntimeError("Constrained specified but not the method to handle it")
+
         # TODO Check that the level set is in the tape.
         # Actually, not even pyadjoint checks if the given Control is in the
         # tape.
+
+    def update_augmented_lagrangian(self):
+        """ This method is only used for the Augmented Lagrangian method
+        """
+        assert self.constraint is not None
+        assert self.method is "AL"
+        from ufl import max_value
+        from pyadjoint import Control
+
+        constraint_value = Control(self.constraint).tape_value()
+
+        self.lagr_mult.assign(max_value(self.lagr_mult + self.c*constraint_value, 0.0))
+        self.c.assign(float(self.c) * 2.0)
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
