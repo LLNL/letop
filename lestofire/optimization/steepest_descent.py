@@ -90,6 +90,7 @@ class SteepestDescent(object):
         if self.pvd_output:
             self.pvd_output.write(phi)
 
+        tolerance_criteria = 100
         while It < max_iter and stop == False:
 
             J = self.lagrangian(phi)
@@ -109,7 +110,7 @@ class SteepestDescent(object):
                 print('Line search step : %.8f' % alpha)
                 print('Function value        : %.10f' % Jarr[It])
             else:
-                print('************ ITERATION NUMBER %s' % It)
+                print('************ ITERATION NUMBER {0} ** error: {1:.5f}'.format(It, tolerance_criteria))
                 print('Function value        : %.10f' % Jarr[It])
                 #print('Compliance            : %.2f' % )
                 #print('Volume fraction       : %.2f' % (vol/(lx*ly)))
@@ -134,7 +135,8 @@ class SteepestDescent(object):
                     Dx = hmin
                     phi.assign(reinit_solver.solve(phi, Dx))
                 #------------ STOPPING CRITERION ---------------------------
-                if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1])) < tolerance*Jarr[It-1]/Nx**2/10:
+                tolerance_criteria = max(abs(Jarr[It-5:It]-Jarr[It-1])) if It > 20 else 1e2
+                if It > 20 and tolerance_criteria < tolerance*Jarr[It-1]/Nx**2/10:
                     stop = True
 
         return Jarr

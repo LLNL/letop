@@ -1,5 +1,7 @@
 from lestofire.optimization import SteepestDescent
 
+from termcolor import colored
+
 
 parameters = {
         "mat_type" : "aij",
@@ -7,6 +9,7 @@ parameters = {
         "pc_type" : "lu",
         "pc_factor_mat_solver_type" : "mumps"
         }
+
 class AugmentedLagrangianOptimization(object):
 
     """Implementes the Augmented Lagrangian Algorithm for constrained
@@ -32,9 +35,9 @@ class AugmentedLagrangianOptimization(object):
         it_max = 100
         it = 0
         stop_value = 1e-1
-        tolerance = 1e-4
+        tolerance = 1e-2
         while stop_value > 1e-6 and it < it_max:
-            print("\033[92m It.: {:d}".format(it))
+            print(colored("Outer It.: {:d} ".format(it), 'green'))
             it = it + 1
 
             self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
@@ -42,4 +45,4 @@ class AugmentedLagrangianOptimization(object):
             stop_value = self.lagrangian.stop_criteria()
             self.lagrangian.update_augmented_lagrangian()
             tolerance *= 0.8
-            print("\033[94m Stopping criteria {:.5f} \033[0m".format(stop_value))
+            print(colored("Stopping criteria {:.5f}".format(stop_value), 'red'))

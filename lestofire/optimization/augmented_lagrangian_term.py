@@ -1,4 +1,4 @@
-from fenics_adjoint import assemble, Constant
+from firedrake_adjoint import assemble, Constant
 
 from ufl import max_value
 

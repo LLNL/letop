@@ -26,7 +26,8 @@ class LevelSetLagrangian(object):
             instance instead of a list.
         constraint (:obj:`OverloadedType`): An instance of an OverloadedType,
             usually :class:`AdjFloat`. This should be the return value of the
-            constraint you want to calculate.
+            inequality constraint you want to calculate.
+            It should be implemented as g(x) < 0
 
     """
 
@@ -60,12 +61,12 @@ class LevelSetLagrangian(object):
                 from pyadjoint.placeholder import Placeholder
 
                 mesh = level_set.function_space().mesh()
-                self.lagr_mult = Function(FunctionSpace(mesh, 'Real', 0))
+                self.lagr_mult = Constant(100.0)
                 Placeholder(self.lagr_mult)
-                self.c = Constant(10)
+                self.c = Constant(1000)
                 Placeholder(self.c)
 
-                self.functional += assemble(augmented_lagrangian(constraint, self.lagr_mult, dx(domain=mesh), self.c))
+                self.functional += augmented_lagrangian(constraint, self.lagr_mult, dx(domain=mesh), self.c)
             else:
                 raise RuntimeError("Constrained specified but not the method to handle it")
 
@@ -80,7 +81,9 @@ class LevelSetLagrangian(object):
         assert self.method is "AL"
 
         constraint_value = Control(self.constraint).tape_value()
-        return abs(constraint_value * float(self.lagr_mult))
+        with stop_annotating():
+            stop_criteria = abs(constraint_value * float(self.lagr_mult))
+        return stop_criteria
 
     def update_augmented_lagrangian(self):
         """ This method is only used for the Augmented Lagrangian method
@@ -91,8 +94,8 @@ class LevelSetLagrangian(object):
 
         constraint_value = Control(self.constraint).tape_value()
 
-        self.lagr_mult.assign(max_value(self.lagr_mult + self.c*constraint_value, 0.0))
-        self.c.assign(float(self.c) * 2.0)
+        self.lagr_mult.assign(max_value(self.lagr_mult + self.c*constraint_value, 0.0), annotate_tape=False)
+        self.c.assign(float(self.c) * 2.0, annotate_tape=False)
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
