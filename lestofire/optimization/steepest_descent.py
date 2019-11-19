@@ -60,7 +60,7 @@ class SteepestDescent(object):
 
         return options
 
-    def solve(self, phi, velocity, solver_parameters=parameters):
+    def solve(self, phi, velocity, solver_parameters=parameters, tolerance=1e-6):
 
         hj_stab = self.options['hj_stab']
         hmin = self.options['hmin']
@@ -134,7 +134,7 @@ class SteepestDescent(object):
                     Dx = hmin
                     phi.assign(reinit_solver.solve(phi, Dx))
                 #------------ STOPPING CRITERION ---------------------------
-                if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1]))<2.0e-8*Jarr[It-1]/Nx**2/10:
+                if It>20 and max(abs(Jarr[It-5:It]-Jarr[It-1])) < tolerance*Jarr[It-1]/Nx**2/10:
                     stop = True
 
         return Jarr

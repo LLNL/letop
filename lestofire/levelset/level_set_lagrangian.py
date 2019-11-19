@@ -2,6 +2,7 @@ from pyadjoint.drivers import compute_gradient, compute_hessian
 from pyadjoint.enlisting import Enlist
 from pyadjoint.tape import get_working_tape, stop_annotating, no_annotations
 from lestofire.optimization import augmented_lagrangian
+from pyadjoint import Control
 
 
 class LevelSetLagrangian(object):
@@ -72,13 +73,21 @@ class LevelSetLagrangian(object):
         # Actually, not even pyadjoint checks if the given Control is in the
         # tape.
 
+    def stop_criteria(self):
+        """ This method is only used for the Augmented Lagrangian method
+        """
+        assert self.constraint is not None
+        assert self.method is "AL"
+
+        constraint_value = Control(self.constraint).tape_value()
+        return abs(constraint_value * float(self.lagr_mult))
+
     def update_augmented_lagrangian(self):
         """ This method is only used for the Augmented Lagrangian method
         """
         assert self.constraint is not None
         assert self.method is "AL"
         from ufl import max_value
-        from pyadjoint import Control
 
         constraint_value = Control(self.constraint).tape_value()
 
