@@ -74,6 +74,8 @@ def main():
 
     penalty = 8e6
     VolPen = Constant(penalty)*(hs(-phi, epsilon)*Constant(1.0)*dx(domain=mesh) - Constant(0.3)*dx(domain=mesh))
+    with stop_annotating():
+        print("Initial constraint function value {}".format(assemble(VolPen)))
     Jform = assemble(Constant(alphamax)*hs(phi, epsilon)*inner(mu*u, u)*dx + hs(-phi, epsilon)*inner(mu*u,u)*dx)
     Jform += assemble(VolPen)
 

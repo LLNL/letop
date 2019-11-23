@@ -61,9 +61,9 @@ class LevelSetLagrangian(object):
                 from pyadjoint.placeholder import Placeholder
 
                 mesh = level_set.function_space().mesh()
-                self.lagr_mult = Constant(100.0)
+                self.lagr_mult = Constant(8e5)
                 Placeholder(self.lagr_mult)
-                self.c = Constant(1000)
+                self.c = Constant(1e2)
                 Placeholder(self.c)
 
                 self.functional += augmented_lagrangian(constraint, self.lagr_mult, dx(domain=mesh), self.c)
@@ -80,10 +80,15 @@ class LevelSetLagrangian(object):
         assert self.constraint is not None
         assert self.method is "AL"
 
-        constraint_value = Control(self.constraint).tape_value()
+        constraint_value = Control(self.constraint).tape_value().dat.data
         with stop_annotating():
             stop_criteria = abs(constraint_value * float(self.lagr_mult))
         return stop_criteria
+
+    def constraint_value(self):
+        constraint_value = Control(self.constraint).tape_value().dat.data[0]
+        return constraint_value
+
 
     def update_augmented_lagrangian(self):
         """ This method is only used for the Augmented Lagrangian method
@@ -178,6 +183,7 @@ class LevelSetLagrangian(object):
                 of :class:`AdjFloat`.
 
         """
+        #print("Constraint value: {:.5f}".format(self.constraint_value()))
         values = Enlist(values)
         if len(values) != len(self.level_set):
             raise ValueError("values should be a list of same length as level sets.")

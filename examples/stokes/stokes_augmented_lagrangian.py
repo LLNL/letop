@@ -76,8 +76,8 @@ def main():
     with stop_annotating():
         total_area = assemble(Constant(1.0)*dx(domain=mesh))
 
-    VolPen = assemble(Constant(penalty)*(hs(-phi, epsilon)*Constant(1.0)*dx(domain=mesh) \
-                - Constant(0.3*total_area)*dx(domain=mesh)))
+    VolPen = hs(-phi, epsilon)*Constant(1.0) \
+                - Constant(0.3*total_area)
 
     Jform = assemble(Constant(alphamax)*hs(phi, epsilon)*inner(mu*u, u)*dx \
                 + hs(-phi, epsilon)*inner(mu*u,u)*dx)
@@ -101,14 +101,16 @@ def main():
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
     reg_solver = RegularizationSolver(S, mesh, beta=1e4, gamma=0.0, dx=dx, bcs=bcs_vel)
 
-    Jhat.optimize_tape()
+    #Jhat.optimize_tape()
+    tape = get_working_tape()
+    tape.visualise()
 
     options = {
              'hmin' : 0.01414,
              'hj_stab': 1.5,
              'dt_scale' : 0.1,
              'n_hj_steps' : 3,
-             'max_iter' : 15
+             'max_iter' : 30
              }
 
 
