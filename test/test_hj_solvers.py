@@ -1,6 +1,7 @@
 from firedrake import UnitSquareMesh, FunctionSpace, Expression, \
                     interpolate, File, errornorm, Function,  \
-                    DirichletBC, Constant, SpatialCoordinate
+                    DirichletBC, Constant, SpatialCoordinate, \
+                    FiniteElement, VectorFunctionSpace
 from ufl import as_vector
 import pytest
 import sys
@@ -12,10 +13,17 @@ N = 100
 def mesh():
     return UnitSquareMesh(N, N)
 
+@pytest.fixture(scope='module')
+def phicg1_elem(mesh):
+    return FiniteElement('CG', mesh.ufl_cell(), 1)
 
 @pytest.fixture(scope='module')
-def phicg1(mesh):
-    return FunctionSpace(mesh, 'CG', 1)
+def phicg1(mesh, phicg1_elem):
+    return FunctionSpace(mesh, phicg1_elem)
+
+@pytest.fixture(scope='module')
+def phicg1_vector(mesh, phicg1_elem):
+    return VectorFunctionSpace(mesh, phicg1_elem)
 
 @pytest.fixture(scope='module')
 def X(mesh):
@@ -28,12 +36,11 @@ def phi_x0(X):
 
 
 
-def time_loop(mesh, X, hj_solver, phicg1, phi_x0):
+def time_loop(mesh, X, hj_solver, phicg1, phicg1_vector):
     t = 0.0
-    beta = as_vector([1.0, 0.0])
+    beta = interpolate(as_vector([1.0, 0.0]), phicg1_vector)
     phi_expr = (X[0] - t < 0.2)*(X[1] > 0.5)
     phi_n = interpolate(phi_expr, phicg1)
-    bc = DirichletBC(phicg1, phi_x0, 1)
     import numpy as np
     hmin = np.sqrt(2.0 / (N*N)) # TODO, hardcoded for UnitSquareMesh
     for i in range(50):
@@ -43,7 +50,7 @@ def time_loop(mesh, X, hj_solver, phicg1, phi_x0):
         dt = hmin / maxv
 
         # Solve
-        phi_next = hj_solver.solve(beta, phi_n, steps=1, t=t, dt=dt, bc=bc)
+        phi_next = hj_solver.solve(beta, phi_n, steps=1, t=t, dt=dt)
 
         phi_n.assign(phi_next)
         t += dt
@@ -53,16 +60,18 @@ def time_loop(mesh, X, hj_solver, phicg1, phi_x0):
         print("Error: {0:.12f}".format(error_phi))
     return error_phi
 
-def test_stab_solver(mesh, phicg1, phi_x0, X):
-    hj_solver = HJStabSolver(mesh, phicg1, c2_param=0.2)
-    error_phi = time_loop(mesh, X, hj_solver,phicg1, phi_x0)
+def test_stab_solver(mesh, phicg1, phi_x0, X, phicg1_vector):
+    bc = DirichletBC(phicg1, phi_x0, 1)
+    hj_solver = HJStabSolver(mesh, phicg1, c2_param=0.2, bc=bc)
+    error_phi = time_loop(mesh, X, hj_solver,phicg1, phicg1_vector)
 
     error_stab_after_50 = 0.08070355337702109
-    assert pytest.approx(error_phi, 1e-8) == error_stab_after_50
+    assert pytest.approx(error_phi, 1e-5) == error_stab_after_50
 
-def test_supg_solver(mesh, phicg1, phi_x0, X):
-    hj_solver = HJSUPG(mesh, phicg1)
-    error_phi = time_loop(mesh, X, hj_solver, phicg1, phi_x0)
+def test_supg_solver(mesh, phicg1, phi_x0, X, phicg1_vector):
+    bc = DirichletBC(phicg1, phi_x0, 1)
+    hj_solver = HJSUPG(mesh, phicg1, bc=bc)
+    error_phi = time_loop(mesh, X, hj_solver, phicg1, phicg1_vector)
 
     error_supg_after_50 = 0.04416640448327516
     assert pytest.approx(error_phi, 1e-8) == error_supg_after_50

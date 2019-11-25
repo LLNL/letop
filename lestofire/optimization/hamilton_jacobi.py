@@ -42,7 +42,7 @@ class HJStabSolver(object):
                 + self.f * psi * dx
 
         self.phi_sol = Function(self.PHI)
-        self.problem = LinearVariationalProblem(self.a, self.L, self.phi_sol)
+        self.problem = LinearVariationalProblem(self.a, self.L, self.phi_sol, bcs=bc)
         self.solver = LinearVariationalSolver(self.problem, solver_parameters=default_solver_parameters)
 
     def solve(self, beta, phi_n, steps=5, t=0, dt=1.0):
@@ -60,13 +60,14 @@ class HJStabSolver(object):
         return self.phi_n
 
 class HJSUPG(object):
-    def __init__(self, mesh, PHI, f=Constant(0.0)):
+    def __init__(self, mesh, PHI, f=Constant(0.0), bc=None):
         self.PHI = PHI
         self.mesh = mesh
         self.f = f
+        self.bc = bc
 
 
-    def solve(self, beta, phi_n, steps=5, t=0, dt=1.0, bc=None,):
+    def solve(self, beta, phi_n, steps=5, t=0, dt=1.0):
         phi = TrialFunction(self.PHI)
         psi = TestFunction(self.PHI)
         n = FacetNormal(self.mesh)
@@ -92,10 +93,10 @@ class HJSUPG(object):
 
             phi_new = Function(self.PHI)
 
-            if bc is None:
+            if self.bc is None:
                 solve(lhs(F)==rhs(F), phi_new)
             else:
-                solve(lhs(F)==rhs(F), phi_new, bcs=bc)
+                solve(lhs(F)==rhs(F), phi_new, bcs=self.bc)
             phi_n.assign(phi_new)
 
         return phi_n
