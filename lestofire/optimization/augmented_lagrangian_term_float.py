@@ -1,5 +1,5 @@
 from firedrake_adjoint import assemble, Constant
-from pyadjoint import Block
+from pyadjoint import Block, AdjFloat
 from pyadjoint.tape import no_annotations
 
 import numpy as np
@@ -48,7 +48,7 @@ max_fvalue = overload_function(max_fvalue, MaxBlock)
 def h(g, lmbda, c):
     return max_fvalue(g, -lmbda/c)
 
-def augmented_lagrangian(*args, **kwargs):
+def augmented_lagrangian_float(*args, **kwargs):
     r'''
     Implements the augmented lagrangian term for the inequality constraint g < 0
         lmbda h + c * h * h
@@ -58,9 +58,9 @@ def augmented_lagrangian(*args, **kwargs):
 
     g = args[0]
     lmbda = args[1]
-    c = args[3]
+    c = args[2]
 
-    value = lmbda * h(g, lmbda, c) + c / Constant(2.0) * h(g, lmbda, c) * h(g, lmbda, c)
+    value = lmbda * h(g, lmbda, c) + c / 2.0 * h(g, lmbda, c) * h(g, lmbda, c)
 
     return value
 
