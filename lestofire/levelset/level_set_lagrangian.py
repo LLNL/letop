@@ -1,8 +1,9 @@
 from pyadjoint.drivers import compute_gradient, compute_hessian
 from pyadjoint.enlisting import Enlist
 from pyadjoint.tape import get_working_tape, stop_annotating, no_annotations
-from lestofire.optimization import augmented_lagrangian
-from pyadjoint import Control
+from lestofire.optimization import augmented_lagrangian_float
+from pyadjoint import Control, AdjFloat
+from termcolor import colored
 
 
 class LevelSetLagrangian(object):
@@ -61,12 +62,12 @@ class LevelSetLagrangian(object):
                 from pyadjoint.placeholder import Placeholder
 
                 mesh = level_set.function_space().mesh()
-                self.lagr_mult = Constant(8e5)
-                Placeholder(self.lagr_mult)
-                self.c = Constant(1e2)
-                Placeholder(self.c)
+                self.lagr_mult = AdjFloat(1e6)
+                self.lagr_mult_ph = Placeholder(self.lagr_mult)
+                self.c = AdjFloat(1e6)
+                self.c_ph = Placeholder(self.c)
 
-                self.functional += augmented_lagrangian(constraint, self.lagr_mult, dx(domain=mesh), self.c)
+                self.functional += augmented_lagrangian_float(constraint, self.lagr_mult, self.c)
             else:
                 raise RuntimeError("Constrained specified but not the method to handle it")
 
@@ -80,15 +81,17 @@ class LevelSetLagrangian(object):
         assert self.constraint is not None
         assert self.method is "AL"
 
-        constraint_value = Control(self.constraint).tape_value().dat.data
+        constraint_value = self.constraint_value()
         with stop_annotating():
             stop_criteria = abs(constraint_value * float(self.lagr_mult))
         return stop_criteria
 
     def constraint_value(self):
-        constraint_value = Control(self.constraint).tape_value().dat.data[0]
+        constraint_value = Control(self.constraint).tape_value()
         return constraint_value
 
+    def lagrange_multiplier(self):
+        return float(self.lagr_mult_ph.saved_output)
 
     def update_augmented_lagrangian(self):
         """ This method is only used for the Augmented Lagrangian method
@@ -97,10 +100,11 @@ class LevelSetLagrangian(object):
         assert self.method is "AL"
         from ufl import max_value
 
-        constraint_value = Control(self.constraint).tape_value()
+        constraint_value = self.constraint_value()
 
-        self.lagr_mult.assign(max_value(self.lagr_mult + self.c*constraint_value, 0.0), annotate_tape=False)
-        self.c.assign(float(self.c) * 2.0, annotate_tape=False)
+        with stop_annotating():
+            self.lagr_mult_ph.set_value(AdjFloat(max(float(self.lagr_mult_ph.saved_output + self.c_ph.saved_output*constraint_value), 0.0)))
+            self.c_ph.set_value(AdjFloat(float(self.c)* 10.0))
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
@@ -183,7 +187,7 @@ class LevelSetLagrangian(object):
                 of :class:`AdjFloat`.
 
         """
-        #print("Constraint value: {:.5f}".format(self.constraint_value()))
+        print(colored("Constraint value: {:.5f}".format(self.constraint_value()), 'red'))
         values = Enlist(values)
         if len(values) != len(self.level_set):
             raise ValueError("values should be a list of same length as level sets.")

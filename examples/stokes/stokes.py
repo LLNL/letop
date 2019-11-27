@@ -105,7 +105,7 @@ def main():
              'hj_stab': 1.5,
              'dt_scale' : 0.1,
              'n_hj_steps' : 3,
-             'max_iter' : 15
+             'max_iter' : 40
              }
 
 

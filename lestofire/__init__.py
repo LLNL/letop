@@ -3,7 +3,8 @@
 from .__about__ import __author__, __email__, __license__, __status__, __version__
 #from .cli import show
 from .optimization import HJStabSolver, HJSUPG, SignedDistanceSolver, SteepestDescent, \
-                        augmented_lagrangian, AugmentedLagrangianOptimization
+                        augmented_lagrangian, AugmentedLagrangianOptimization, max_fvalue, \
+                        augmented_lagrangian_float
 from .levelset import LevelSetLagrangian, RegularizationSolver
 
 __all__ = [

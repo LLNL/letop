@@ -124,6 +124,9 @@ class SteepestDescent(object):
                 self.reg_solver.solve(velocity, dJ, solver_parameters=solver_parameters)
 
                 beta_pvd.write(velocity)
+                from firedrake import norm
+                print("Derivative norm {:.5f}".format(np.linalg.norm(dJ.dat.data)))
+                print("Scaled (J_0) gradient norm {:.8E}".format(norm(velocity) / Jarr[0]))
 
                 phi_old.assign(phi)
                 phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt))
@@ -136,6 +139,12 @@ class SteepestDescent(object):
                     phi.assign(reinit_solver.solve(phi, Dx))
                 #------------ STOPPING CRITERION ---------------------------
                 tolerance_criteria = max(abs(Jarr[It-5:It]-Jarr[It-1])) if It > 20 else 1e2
+
+                rel_change_J = abs(Jarr[It-2] - Jarr[It-1]) / Jarr[0]
+                print("Relative change in J {:.8E}".format(rel_change_J))
+                if It > 2 and rel_change_J < 5e-3:
+                    stop = True
+
                 if It > 20 and tolerance_criteria < tolerance*Jarr[It-1]/Nx**2/10:
                     stop = True
 

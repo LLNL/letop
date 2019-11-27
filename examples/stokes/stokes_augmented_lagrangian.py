@@ -76,12 +76,12 @@ def main():
     with stop_annotating():
         total_area = assemble(Constant(1.0)*dx(domain=mesh))
 
-    VolPen = hs(-phi, epsilon)*Constant(1.0) \
-                - Constant(0.3*total_area)
+    VolPen = assemble((hs(-phi, epsilon)*Constant(1.0) - Constant(0.3*total_area))*dx)
 
     Jform = assemble(Constant(alphamax)*hs(phi, epsilon)*inner(mu*u, u)*dx \
                 + hs(-phi, epsilon)*inner(mu*u,u)*dx)
 
+    print("Initial cost function value {}".format(Jform))
     phi_pvd = File(output_dir + "phi_evolution.pvd")
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
@@ -89,7 +89,6 @@ def main():
     c = Control(s)
     Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, constraint=VolPen, method='AL')
     Jhat_v = Jhat(phi)
-    print("Initial cost function value {}".format(Jhat_v))
     dJ = Jhat.derivative()
 
     velocity = Function(S)
