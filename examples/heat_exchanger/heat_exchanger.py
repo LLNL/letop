@@ -40,13 +40,87 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
+    iterative = False
     parameters = {
+        "mat_type" : "aij",
+        "ksp_type" : "preonly",
+        "ksp_converged_reason" : None,
+        "pc_type" : "lu",
+        "pc_factor_mat_solver_type" : "mumps"
+        }
+    if iterative:
+        fieldsplit_1_lsc = {
+             "ksp_type" : "preonly",
+             "pc_type" : "lsc",
+             "lsc_ksp_type" : "cg",
+             "lsc_pc_type" : "bjacobi",
+             "lsc_sub_pc_type" : "icc",
+             "lsc_ksp_rtol" : 1.0e-4
+         }
+
+        fieldsplit_0_gamg = {
+                    "ksp_type" : "preonly",
+                    "pc_type" : "gamg",
+                    "pc_gamg_type" : "agg",
+                    "ksp_monitor_true_residual": None,
+                    "mg_levels_esteig_ksp_type" : "cg",
+                    "mg_levels_ksp_type" : "chebyshev",
+                    "mg_levels_ksp_chebyshev_esteig_steps" : 10,
+                    "mg_levels_pc_type" : "sor",
+                    "pc_gamg_agg_nsmooths" : 4,
+                    "pc_gamg_threshold" : 0.2,
+        }
+        stokes_solver_params = {
+                "mat_type" : "aij",
+                "ksp_monitor_true_residual": None,
+                "ksp_converged_reason": None,
+                "ksp_max_it" : 1000,
+                "ksp_norm_type" : "unpreconditioned",
+                "ksp_atol" : 1e-6,
+                "ksp_type" : "fgmres",
+                "pc_type" : "fieldsplit",
+                "pc_fieldsplit_type" : "schur",
+                "pc_fieldsplit_schur_fact_type": "full",
+                "pc_fieldsplit_schur_precondition": "selfp" ,
+                "pc_fieldsplit_detect_saddle_point": None,
+                "fieldsplit_0": fieldsplit_0_gamg,
+                "fieldsplit_1" : fieldsplit_0_gamg
+        }
+        gamg_temperature = {
+                "ksp_type" : "gmres",
+                "ksp_converged_reason": None,
+                "ksp_max_it" : 1000,
+                "ksp_norm_type" : "unpreconditioned",
+                "ksp_atol" : 1e-6,
+                "pc_type" : "gamg",
+                "pc_gamg_type" : "agg",
+                "ksp_monitor_true_residual": None,
+                "mg_levels_esteig_ksp_type" : "cg",
+                "mg_levels_ksp_type" : "chebyshev",
+                "mg_levels_ksp_chebyshev_esteig_steps" : 20,
+                "mg_levels_pc_type" : "sor",
+                "pc_gamg_agg_nsmooths" : 2,
+                "pc_gamg_threshold" : 0.1,
+                }
+        stokes_solver_params = parameters
+        # Penalty term
+        alpha = Constant(500.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
+        temperature_solver_params = gamg_temperature
+    else:
+        parameters = {
             "mat_type" : "aij",
             "ksp_type" : "preonly",
+            "ksp_monitor_true_residual": None,
             "ksp_converged_reason" : None,
             "pc_type" : "lu",
             "pc_factor_mat_solver_type" : "mumps"
             }
+        # Penalty term
+        alpha = Constant(50000.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
+        stokes_solver_params = parameters
+        temperature_solver_params = parameters
+
+
 
     P2 = VectorElement("CG", mesh.ufl_cell(), 2)
     P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
@@ -93,15 +167,15 @@ def main():
     L = inner(Constant((0.0, 0.0, 0.0)), V)*dx
     problem = LinearVariationalProblem(stokes(-phi, INMOUTH2), L, U1, bcs=bcs1)
     nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
-    solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=parameters) #, nullspace=nullspace)
+    solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_solver_params) #, nullspace=nullspace)
     solver_stokes1.solve()
 
-    #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=parameters) #, nullspace=nullspace)
+    #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=stokes_solver_params) #, nullspace=nullspace)
 
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
-    solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=parameters)
+    solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_solver_params)
     solver_stokes2.solve()
-    #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=parameters)
+    #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=stokes_solver_params)
 
     # Convection difussion equation
     ks = Constant(1e0)
@@ -122,8 +196,6 @@ def main():
     u1n = upwind(u1)
     u2n = upwind(u2)
 
-    # Penalty term
-    alpha = Constant(50000.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
     # Bilinear form
     a_int = dot(grad(w), ks*grad(t) - cp*(u1 + u2)*t)*dx
 
@@ -152,7 +224,7 @@ def main():
     eT = aT - LT_bnd
 
     problem = NonlinearVariationalProblem(eT, t)
-    solver_temp = NonlinearVariationalSolver(problem, solver_parameters=parameters)
+    solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_solver_params)
     solver_temp.solve()
     File("t.pvd").write(t)
 
@@ -190,7 +262,7 @@ def main():
              'max_iter' : 60
              }
     opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters)
+    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-10)
 
     from numpy.testing import assert_allclose
     assert_allclose(Jarr[19], -46302.57412, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')
