@@ -79,7 +79,7 @@ def main():
     VolPen = assemble((hs(-phi, epsilon)*Constant(1.0) - Constant(0.3*total_area))*dx)
 
     Jform = assemble(Constant(alphamax)*hs(phi, epsilon)*inner(mu*u, u)*dx \
-                + hs(-phi, epsilon)*inner(mu*u,u)*dx)
+                + mu/Constant(2.0)*inner(grad(u), grad(u))*dx)
 
     print("Initial cost function value {}".format(Jform))
     phi_pvd = File(output_dir + "phi_evolution.pvd")
