@@ -42,6 +42,7 @@ class LevelSetLagrangian(object):
                  hessian_cb_pre=lambda *args: None,
                  hessian_cb_post=lambda *args: None):
         self.functional = functional
+        self.cost_function = self.functional
         self.constraint = constraint
         self.method = method
         self.tape = get_working_tape() if tape is None else tape
@@ -89,6 +90,9 @@ class LevelSetLagrangian(object):
     def constraint_value(self):
         constraint_value = Control(self.constraint).tape_value()
         return constraint_value
+    def cost_function_value(self):
+        cost_func_value = Control(self.cost_function).tape_value()
+        return cost_func_value
 
     def lagrange_multiplier(self):
         return float(self.lagr_mult_ph.saved_output)
@@ -187,7 +191,9 @@ class LevelSetLagrangian(object):
                 of :class:`AdjFloat`.
 
         """
-        print(colored("Constraint value: {:.5f}".format(self.constraint_value()), 'red'))
+        print(colored("Cost function value: {:.5f}".format(self.cost_function_value()), 'red'))
+        if self.constraint:
+            print(colored("Constraint value: {:.5f}".format(self.constraint_value()), 'red'))
         values = Enlist(values)
         if len(values) != len(self.level_set):
             raise ValueError("values should be a list of same length as level sets.")

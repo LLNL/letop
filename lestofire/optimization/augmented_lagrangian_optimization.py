@@ -31,19 +31,21 @@ class AugmentedLagrangianOptimization(object):
         self.opti_solver = SteepestDescent(lagrangian, reg_solver, options=options)
 
 
-    def solve(self, phi, velocity, solver_parameters=parameters):
+    def solve(self, phi, velocity, solver_parameters=parameters, tolerance=5e-3):
         it_max = 100
         it = 0
         stop_value = 1e-1
-        tolerance = 1e-2
         while stop_value > 1e-6 and it < it_max:
             print(colored("Outer It.: {:d} ".format(it), 'green'))
             it = it + 1
 
-            self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
+            Jarr = self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
+            tolerance *= 0.5
 
             stop_value = self.lagrangian.stop_criteria()
             self.lagrangian.update_augmented_lagrangian()
             lagr_mult = self.lagrangian.lagrange_multiplier()
             tolerance *= 0.8
             print(colored("Stopping criteria {0:.5f}, Lagrange multiplier {1:.5f}".format(stop_value, lagr_mult), 'blue'))
+
+        return Jarr
