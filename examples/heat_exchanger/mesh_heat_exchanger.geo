@@ -1,7 +1,7 @@
 // This code was created by pygmsh v6.0.2.
 SetFactory("OpenCASCADE");
-Mesh.CharacteristicLengthMin = 0.02;
-Mesh.CharacteristicLengthMax = 0.02;
+Mesh.CharacteristicLengthMin = 0.08;
+Mesh.CharacteristicLengthMax = 0.08;
 s0 = news;
 Rectangle(s0) = {0.0, 0.0, 0.0, 1.2, 1.5};
 s1 = news;

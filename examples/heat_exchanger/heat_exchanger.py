@@ -13,6 +13,8 @@ def main():
     output_dir = "heat_exchanger/"
 
     mesh = Mesh('./mesh_heat_exchanger.msh')
+    meshes = MeshHierarchy(mesh, 3)
+    mesh = meshes[-1]
 
     S = VectorFunctionSpace(mesh, "CG", 1)
     s = Function(S,name="deform")
@@ -47,6 +49,8 @@ def main():
             "pc_type" : "lu",
             "pc_factor_mat_solver_type" : "mumps"
             }
+    stokes_parameters = parameters
+
 
     P2 = VectorElement("CG", mesh.ufl_cell(), 2)
     P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
@@ -93,13 +97,13 @@ def main():
     L = inner(Constant((0.0, 0.0, 0.0)), V)*dx
     problem = LinearVariationalProblem(stokes(-phi, INMOUTH2), L, U1, bcs=bcs1)
     nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
-    solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=parameters) #, nullspace=nullspace)
+    solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters) #, nullspace=nullspace)
     solver_stokes1.solve()
 
     #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=parameters) #, nullspace=nullspace)
 
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
-    solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=parameters)
+    solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
     solver_stokes2.solve()
     #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=parameters)
 
@@ -124,6 +128,7 @@ def main():
 
     # Penalty term
     alpha = Constant(50000.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
+    alpha = Constant(500.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
     # Bilinear form
     a_int = dot(grad(w), ks*grad(t) - cp*(u1 + u2)*t)*dx
 
@@ -152,9 +157,21 @@ def main():
     eT = aT - LT_bnd
 
     problem = NonlinearVariationalProblem(eT, t)
-    solver_temp = NonlinearVariationalSolver(problem, solver_parameters=parameters)
+    temperature_parameters = {
+            "ksp_type": "fgmres",
+            "ksp_max_it": 200,
+            "ksp_rtol": 1e-8,
+            "pc_type": "mg",
+            "pc_mg_type": "full",
+            "ksp_converged_reason" : None,
+            "ksp_monitor_true_residual" : None,
+            "mg_levels_ksp_type": "chebyshev",
+            "mg_levels_pc_type": "sor",
+            }
+    solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
     File("t.pvd").write(t)
+    exit()
 
     Power1 = Constant(4e3)*p1*ds(INLET1)
     Power2 = Constant(4e3)*p2*ds(INLET2)
