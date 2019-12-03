@@ -23,6 +23,16 @@ def main():
     x, y = SpatialCoordinate(mesh)
     PHI = FunctionSpace(mesh, 'CG', 1)
     phi_expr = sin(y*pi/0.2)*cos(x*pi/0.2) - Constant(0.8)
+
+    block_inlet = True
+    if block_inlet:
+        scaling = Constant(-1.0)
+    else:
+        scaling = Constant(1.0)
+
+    phi_expr *= scaling
+
+
     phi = interpolate(phi_expr , PHI)
     phi.rename("LevelSet")
     File(output_dir + "phi_initial.pvd").write(phi)
