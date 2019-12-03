@@ -13,7 +13,7 @@ def main():
     output_dir = "heat_exchanger/"
 
     mesh = Mesh('./mesh_heat_exchanger.msh')
-    meshes = MeshHierarchy(mesh, 3)
+    meshes = MeshHierarchy(mesh, 2)
     mesh = meshes[-1]
 
     S = VectorFunctionSpace(mesh, "CG", 1)
@@ -42,14 +42,70 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    parameters = {
+    iterative = False
+    if iterative:
+        fieldsplit_1_mg = {
+                    "ksp_type" : "preonly",
+                    "pc_type" : "mg",
+                    "ksp_monitor_true_residual": None,
+                    #"mg_levels_esteig_ksp_type" : "cg",
+                    "mg_levels_ksp_type" : "chebyshev",
+                    #"mg_levels_ksp_chebyshev_esteig_steps" : 10,
+                    "mg_levels_pc_type" : "sor",
+        }
+
+        fieldsplit_0_gamg = {
+                    "ksp_type" : "preonly",
+                    "pc_type" : "gamg",
+                    "pc_gamg_type" : "agg",
+                    "ksp_monitor_true_residual": None,
+                    "mg_levels_esteig_ksp_type" : "cg",
+                    "mg_levels_ksp_type" : "chebyshev",
+                    "mg_levels_ksp_chebyshev_esteig_steps" : 10,
+                    "mg_levels_pc_type" : "sor",
+                    "pc_gamg_agg_nsmooths" : 4,
+                    "pc_gamg_threshold" : 0.4,
+        }
+        stokes_parameters = {
+                "mat_type" : "aij",
+                "ksp_monitor_true_residual": None,
+                "ksp_converged_reason": None,
+                "ksp_max_it" : 1000,
+                "ksp_norm_type" : "unpreconditioned",
+                "ksp_atol" : 1e-6,
+                "ksp_type" : "fgmres",
+                "pc_type" : "fieldsplit",
+                "pc_fieldsplit_type" : "schur",
+                "pc_fieldsplit_schur_fact_type": "full",
+                "pc_fieldsplit_schur_precondition": "selfp" ,
+                "pc_fieldsplit_detect_saddle_point": None,
+                "fieldsplit_0": fieldsplit_0_gamg,
+                "fieldsplit_1" : fieldsplit_0_gamg
+        }
+        # Penalty term
+        temperature_parameters = {
+                "ksp_type": "fgmres",
+                "ksp_max_it": 200,
+                "ksp_rtol": 1e-12,
+                "ksp_atol": 1e-7,
+                "pc_type": "mg",
+                "pc_mg_type": "full",
+                "ksp_converged_reason" : None,
+                "ksp_monitor_true_residual" : None,
+                "mg_levels_ksp_type": "chebyshev",
+                "mg_levels_pc_type": "sor",
+            }
+    else:
+        parameters = {
             "mat_type" : "aij",
             "ksp_type" : "preonly",
+            "ksp_monitor_true_residual": None,
             "ksp_converged_reason" : None,
             "pc_type" : "lu",
             "pc_factor_mat_solver_type" : "mumps"
             }
-    stokes_parameters = parameters
+        stokes_parameters = parameters
+        temperature_parameters = parameters
 
 
     P2 = VectorElement("CG", mesh.ufl_cell(), 2)
@@ -100,12 +156,12 @@ def main():
     solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters) #, nullspace=nullspace)
     solver_stokes1.solve()
 
-    #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=parameters) #, nullspace=nullspace)
+    #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=stokes_solver_params) #, nullspace=nullspace)
 
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
     solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
     solver_stokes2.solve()
-    #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=parameters)
+    #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=stokes_solver_params)
 
     # Convection difussion equation
     ks = Constant(1e0)
@@ -157,17 +213,6 @@ def main():
     eT = aT - LT_bnd
 
     problem = NonlinearVariationalProblem(eT, t)
-    temperature_parameters = {
-            "ksp_type": "fgmres",
-            "ksp_max_it": 200,
-            "ksp_rtol": 1e-8,
-            "pc_type": "mg",
-            "pc_mg_type": "full",
-            "ksp_converged_reason" : None,
-            "ksp_monitor_true_residual" : None,
-            "mg_levels_ksp_type": "chebyshev",
-            "mg_levels_pc_type": "sor",
-            }
     solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
     File("t.pvd").write(t)
@@ -207,7 +252,7 @@ def main():
              'max_iter' : 60
              }
     opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters)
+    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-10)
 
     from numpy.testing import assert_allclose
     assert_allclose(Jarr[19], -46302.57412, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')

@@ -142,7 +142,7 @@ class SteepestDescent(object):
 
                 rel_change_J = abs(Jarr[It-2] - Jarr[It-1]) / Jarr[0]
                 print("Relative change in J {:.8E}".format(rel_change_J))
-                if It > 2 and rel_change_J < 5e-3:
+                if It > 2 and abs(rel_change_J) < tolerance:
                     stop = True
 
                 if It > 20 and tolerance_criteria < tolerance*Jarr[It-1]/Nx**2/10:
