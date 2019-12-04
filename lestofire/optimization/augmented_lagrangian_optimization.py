@@ -44,8 +44,8 @@ class AugmentedLagrangianOptimization(object):
             tolerance *= 0.5
 
 
-            stop_value = self.lagrangian.stop_criteria()
             self.lagrangian.update_augmented_lagrangian()
+            stop_value = self.lagrangian.stop_criteria()
             tolerance *= 0.8
             print(colored("Stopping criteria {0:.5f}".format(stop_value), 'blue'))
 
