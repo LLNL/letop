@@ -2,8 +2,9 @@ from firedrake import *
 from firedrake_adjoint import *
 
 from lestofire import LevelSetLagrangian, AugmentedLagrangianOptimization, RegularizationSolver, SteepestDescent
+import pytest
 
-def main():
+def test_augmented_lagrangian():
 
     mesh = UnitSquareMesh(100, 100)
 
@@ -61,8 +62,3 @@ def main():
     analytical_solution = 1.0/2.0 - 1.0/8.0
 
     assert_allclose(Jarr[Jarr != 0][-1], scaling*analytical_solution, rtol=1e-2, err_msg='Optimization broken')
-
-    # It 14 is 1835676.2021
-
-if __name__ == '__main__':
-    main()

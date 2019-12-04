@@ -209,9 +209,10 @@ class LevelSetLagrangian(object):
                 of :class:`AdjFloat`.
 
         """
-        print(colored("Cost function value: {:.5f}".format(self.cost_function_value()), 'red'))
+        print(colored("f: {:.5f}".format(self.cost_function_value()), 'red'))
         if self.constraints[0]:
-            print(colored("Constraint value: {:.5f}".format(self.constraint_value(0)), 'red'))
+            constr_values = [self.constraint_value(i) for i in range(self.m)]
+            [print(colored("g[{0}]: {1:.5f}".format(i, value), 'green')) for i, value in enumerate(constr_values)]
         values = Enlist(values)
         if len(values) != len(self.level_set):
             raise ValueError("values should be a list of same length as level sets.")
