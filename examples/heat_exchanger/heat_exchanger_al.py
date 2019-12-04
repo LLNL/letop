@@ -4,7 +4,7 @@ import numpy as np
 from ufl import replace, conditional
 from ufl import min_value, max_value
 
-from lestofire import LevelSetLagrangian, SteepestDescent, RegularizationSolver
+from lestofire import LevelSetLagrangian, AugmentedLagrangianOptimization, RegularizationSolver
 
 from parameters_heat_exch import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
@@ -13,8 +13,6 @@ def main():
     output_dir = "heat_exchanger/"
 
     mesh = Mesh('./mesh_heat_exchanger.msh')
-    #meshes = MeshHierarchy(mesh, 2)
-    #mesh = meshes[-1]
 
     S = VectorFunctionSpace(mesh, "CG", 1)
     s = Function(S,name="deform")
@@ -100,7 +98,7 @@ def main():
             "mat_type" : "aij",
             "ksp_type" : "preonly",
             "ksp_monitor_true_residual": None,
-            "ksp_converged_reason" : None,
+            #"ksp_converged_reason" : None,
             "pc_type" : "lu",
             "pc_factor_mat_solver_type" : "mumps"
             }
@@ -217,18 +215,19 @@ def main():
     solver_temp.solve()
     File("t.pvd").write(t)
 
-    Power1 = Constant(4e3)*p1*ds(INLET1)
-    Power2 = Constant(4e3)*p2*ds(INLET2)
-    Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1) + \
-            Power1 + Power2)
+    Power1 = assemble(p1*ds(INLET1))
+    Power2 = assemble(p2*ds(INLET2))
+    Power_c = Power1 + Power2 - 1.0
+    Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1))
 
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
 
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
+    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=4e3, penalty_value=1e4, penalty_update=2.0, constraint=Power_c, method='AL')
     Jhat_v = Jhat(phi)
     print("Initial cost function value {}".format(Jhat_v))
+    print("Power drop {}".format(Power_c))
     dJ = Jhat.derivative()
     Jhat.optimize_tape()
 
@@ -250,11 +249,8 @@ def main():
              'n_hj_steps' : 3,
              'max_iter' : 60
              }
-    opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
+    opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
     Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-10)
-
-    from numpy.testing import assert_allclose
-    assert_allclose(Jarr[19], -46302.57412, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')
 
 
 if __name__ == '__main__':
