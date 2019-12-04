@@ -7,9 +7,6 @@ from ufl import min_value, max_value
 from mesh_stokes_flow import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, WALLS
 
 from lestofire import LevelSetLagrangian, AugmentedLagrangianOptimization, RegularizationSolver
-#from level_set_lagrangian import LevelSetLagrangian
-#from steepest_descent import SteepestDescent
-#from regularization_solver import RegularizationSolver
 
 def main():
     output_dir = "stokes_levelset_darcy/"
