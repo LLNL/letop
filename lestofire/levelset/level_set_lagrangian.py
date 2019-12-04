@@ -43,7 +43,7 @@ class LevelSetLagrangian(object):
                  hessian_cb_post=lambda *args: None):
         self.functional = functional
         self.cost_function = self.functional
-        self.constraint = constraint
+        #self.constraint = constraint
         self.method = method
         self.tape = get_working_tape() if tape is None else tape
         self.controls = Enlist(controls)
@@ -58,17 +58,19 @@ class LevelSetLagrangian(object):
 
         if constraint is not None:
             if method is "AL":
+                self.constraints = Enlist(constraint)
+                self.m = len(self.constraints)
                 from firedrake import FunctionSpace, dx
                 from firedrake_adjoint import Function, Constant, assemble
                 from pyadjoint.placeholder import Placeholder
 
-                mesh = level_set.function_space().mesh()
-                self.lagr_mult = AdjFloat(1e6)
-                self.lagr_mult_ph = Placeholder(self.lagr_mult)
-                self.c = AdjFloat(1e6)
-                self.c_ph = Placeholder(self.c)
+                self.lagr_mult = [AdjFloat(1e6) for _ in range(self.m)]
+                self.lagr_mult_ph = [Placeholder(self.lagr_mult[i]) for i in range(self.m)]
+                self.c = [AdjFloat(1e6) for _ in range(self.m)]
+                self.c_ph = [Placeholder(self.c[i]) for i in range(self.m)]
 
-                self.functional += augmented_lagrangian_float(constraint, self.lagr_mult, self.c)
+                for i in range(self.m):
+                    self.functional += augmented_lagrangian_float(self.constraints[i], self.lagr_mult[i], self.c[i])
             else:
                 raise RuntimeError("Constrained specified but not the method to handle it")
 
@@ -76,39 +78,50 @@ class LevelSetLagrangian(object):
         # Actually, not even pyadjoint checks if the given Control is in the
         # tape.
 
+
     def stop_criteria(self):
         """ This method is only used for the Augmented Lagrangian method
         """
-        assert self.constraint is not None
+        assert self.constraints is not None
         assert self.method is "AL"
 
-        constraint_value = self.constraint_value()
+        stop_criteria = 0.0
         with stop_annotating():
-            stop_criteria = abs(constraint_value * float(self.lagr_mult))
+            for i in range(self.m):
+                constraint_value = self.constraint_value(i)
+                stop_criteria += abs(constraint_value * float(self.lagr_mult_ph[i].saved_output))
         return stop_criteria
 
-    def constraint_value(self):
-        constraint_value = Control(self.constraint).tape_value()
+
+    def constraint_value(self, i):
+        constraint_value = Control(self.constraints[i]).tape_value()
         return constraint_value
+
+
     def cost_function_value(self):
         cost_func_value = Control(self.cost_function).tape_value()
         return cost_func_value
 
-    def lagrange_multiplier(self):
-        return float(self.lagr_mult_ph.saved_output)
+
+    def lagrange_multiplier(self, i):
+        return float(self.lagr_mult_ph[i].saved_output)
+
+    def penalty(self, i):
+        return float(self.c_ph[i].saved_output)
 
     def update_augmented_lagrangian(self):
         """ This method is only used for the Augmented Lagrangian method
         """
-        assert self.constraint is not None
+        assert self.constraints is not None
         assert self.method is "AL"
         from ufl import max_value
 
-        constraint_value = self.constraint_value()
 
         with stop_annotating():
-            self.lagr_mult_ph.set_value(AdjFloat(max(float(self.lagr_mult_ph.saved_output + self.c_ph.saved_output*constraint_value), 0.0)))
-            self.c_ph.set_value(AdjFloat(float(self.c)* 10.0))
+            for i in range(self.m):
+                constraint_value = self.constraint_value(i)
+                self.lagr_mult_ph[i].set_value(AdjFloat(max(float(self.lagr_mult_ph[i].saved_output + self.c_ph[i].saved_output*constraint_value), 0.0)))
+                self.c_ph[i].set_value(AdjFloat(float(self.c_ph[i].saved_output)* 2.0))
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
@@ -192,8 +205,8 @@ class LevelSetLagrangian(object):
 
         """
         print(colored("Cost function value: {:.5f}".format(self.cost_function_value()), 'red'))
-        if self.constraint:
-            print(colored("Constraint value: {:.5f}".format(self.constraint_value()), 'red'))
+        if self.constraints:
+            print(colored("Constraint value: {:.5f}".format(self.constraint_value(0)), 'red'))
         values = Enlist(values)
         if len(values) != len(self.level_set):
             raise ValueError("values should be a list of same length as level sets.")

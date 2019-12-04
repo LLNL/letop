@@ -39,8 +39,10 @@ class AugmentedLagrangianOptimization(object):
             print(colored("Outer It.: {:d} ".format(it), 'green'))
             it = it + 1
 
+            print(colored("Lagrange mult value: {0:.5f}, Penalty: {1:.5f}".format(self.lagrangian.lagrange_multiplier(0), self.lagrangian.penalty(0)), 'red'))
             Jarr = self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
             tolerance *= 0.5
+
 
             stop_value = self.lagrangian.stop_criteria()
             self.lagrangian.update_augmented_lagrangian()
