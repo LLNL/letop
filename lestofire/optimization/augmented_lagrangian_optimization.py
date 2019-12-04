@@ -28,6 +28,12 @@ class AugmentedLagrangianOptimization(object):
         self.pvd_output = pvd_output
         self.options = options
 
+        if 'stopping_criteria' in options:
+            self.stopping_criteria = options.pop('stopping_criteria')
+        else:
+            self.stopping_criteria = 1e-4
+
+
         self.opti_solver = SteepestDescent(lagrangian, reg_solver, options=options)
 
 
@@ -35,14 +41,13 @@ class AugmentedLagrangianOptimization(object):
         it_max = 100
         it = 0
         stop_value = 1e-1
-        while stop_value > 1e-6 and it < it_max:
+        while stop_value > self.stopping_criteria and it < it_max:
             print(colored("Outer It.: {:d} ".format(it), 'green'))
             it = it + 1
 
             print(colored("Lagrange mult value: {0:.5f}, Penalty: {1:.5f}".format(self.lagrangian.lagrange_multiplier(0), self.lagrangian.penalty(0)), 'red'))
             Jarr = self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
             tolerance *= 0.5
-
 
             self.lagrangian.update_augmented_lagrangian()
             stop_value = self.lagrangian.stop_criteria()
