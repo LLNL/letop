@@ -35,6 +35,9 @@ class LevelSetLagrangian(object):
     def __init__(self, functional, controls, level_set,
                  constraint=None, method=None,
                  scale=1.0, tape=None,
+                 lagrange_multiplier=1e5,
+                 penalty_value=1e5,
+                 penalty_update=2.0,
                  eval_cb_pre=lambda *args: None,
                  eval_cb_post=lambda *args: None,
                  derivative_cb_pre=lambda *args: None,
@@ -43,7 +46,8 @@ class LevelSetLagrangian(object):
                  hessian_cb_post=lambda *args: None):
         self.functional = functional
         self.cost_function = self.functional
-        #self.constraint = constraint
+        self.constraints = Enlist(constraint)
+        self.penalty_update = penalty_update
         self.method = method
         self.tape = get_working_tape() if tape is None else tape
         self.controls = Enlist(controls)
@@ -58,15 +62,16 @@ class LevelSetLagrangian(object):
 
         if constraint is not None:
             if method is "AL":
-                self.constraints = Enlist(constraint)
+                lagrange_multiplier = Enlist(lagrange_multiplier)
+                penalty_value = Enlist(penalty_value)
                 self.m = len(self.constraints)
                 from firedrake import FunctionSpace, dx
                 from firedrake_adjoint import Function, Constant, assemble
                 from pyadjoint.placeholder import Placeholder
 
-                self.lagr_mult = [AdjFloat(1e6) for _ in range(self.m)]
+                self.lagr_mult = [AdjFloat(lagrange_multiplier[i]) for i in range(self.m)]
                 self.lagr_mult_ph = [Placeholder(self.lagr_mult[i]) for i in range(self.m)]
-                self.c = [AdjFloat(1e6) for _ in range(self.m)]
+                self.c = [AdjFloat(penalty_value[i]) for i in range(self.m)]
                 self.c_ph = [Placeholder(self.c[i]) for i in range(self.m)]
 
                 for i in range(self.m):
@@ -121,7 +126,7 @@ class LevelSetLagrangian(object):
             for i in range(self.m):
                 constraint_value = self.constraint_value(i)
                 self.lagr_mult_ph[i].set_value(AdjFloat(max(float(self.lagr_mult_ph[i].saved_output + self.c_ph[i].saved_output*constraint_value), 0.0)))
-                self.c_ph[i].set_value(AdjFloat(float(self.c_ph[i].saved_output)* 2.0))
+                self.c_ph[i].set_value(AdjFloat(float(self.c_ph[i].saved_output)* self.penalty_update))
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
@@ -205,7 +210,7 @@ class LevelSetLagrangian(object):
 
         """
         print(colored("Cost function value: {:.5f}".format(self.cost_function_value()), 'red'))
-        if self.constraints:
+        if self.constraints[0]:
             print(colored("Constraint value: {:.5f}".format(self.constraint_value(0)), 'red'))
         values = Enlist(values)
         if len(values) != len(self.level_set):
