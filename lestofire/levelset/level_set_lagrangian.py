@@ -47,7 +47,7 @@ class LevelSetLagrangian(object):
         self.functional = functional
         self.cost_function = self.functional
         self.constraints = Enlist(constraint)
-        self.penalty_update = penalty_update
+        self.penalty_update = Enlist(penalty_update)
         self.method = method
         self.tape = get_working_tape() if tape is None else tape
         self.controls = Enlist(controls)
@@ -126,7 +126,7 @@ class LevelSetLagrangian(object):
             for i in range(self.m):
                 constraint_value = self.constraint_value(i)
                 self.lagr_mult_ph[i].set_value(AdjFloat(max(float(self.lagr_mult_ph[i].saved_output + self.c_ph[i].saved_output*constraint_value), 0.0)))
-                self.c_ph[i].set_value(AdjFloat(float(self.c_ph[i].saved_output)* self.penalty_update))
+                self.c_ph[i].set_value(AdjFloat(float(self.c_ph[i].saved_output)* self.penalty_update[i]))
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
