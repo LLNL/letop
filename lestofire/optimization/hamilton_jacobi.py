@@ -11,7 +11,7 @@ from firedrake import FunctionSpace, TrialFunction,  \
 default_solver_parameters = {
     "mat_type" : "aij",
     "ksp_type" : "preonly",
-    "ksp_converged_reason" : None,
+    #"ksp_converged_reason" : None,
     "pc_type" : "lu",
     "pc_factor_mat_solver_type" : "mumps"
     }

@@ -25,6 +25,7 @@ def main():
                 + (y > line_sep + 0.2)*(-2.0*sin((y-line_sep - 0.2)*pi/0.5))*sin(x*pi/width) \
                 - (y < line_sep)*(0.5*sin((y + line_sep/3.0)*pi/(2.0*line_sep/3.0)))* \
                         sin(x*pi*2.0/width)
+    phi_expr = sin(y*pi/0.2)*cos(x*pi/0.2) - Constant(0.8)
 
     PHI = FunctionSpace(mesh, 'CG', 1)
     phi = interpolate(phi_expr , PHI)
@@ -33,7 +34,7 @@ def main():
     phi_pvd.write(phi)
 
     mu = Constant(1e-2)                   # viscosity
-    alphamax = 2.5 * mu / (1e-7)
+    alphamax = 2.5 * mu / (1e-5)
     alphamin = 1e-12
     epsilon = Constant(1000.0)
     u_inflow = 2e-1
@@ -217,17 +218,28 @@ def main():
 
     Power1 = assemble(p1*ds(INLET1))
     Power2 = assemble(p2*ds(INLET2))
-    Power_c = Power1 + Power2 - 1.0
+    Power_c = Power1 + Power2 - 10.0
     Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1))
 
+    U1control = Control(U1)
+    U2control = Control(U2)
+    u1_pvd = File("u1.pvd")
+    u2_pvd = File("u2.pvd")
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
+        u1, _ = U1control.tape_value().split()
+        u2, _ = U2control.tape_value().split()
+        u1.rename("Velocity")
+        u2.rename("Velocity")
+        u1_pvd.write(u1)
+        u2_pvd.write(u2)
+
 
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=4e3, penalty_value=1e4, penalty_update=2.0, constraint=Power_c, method='AL')
+    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=4e2, penalty_value=1e3, penalty_update=2.0, constraint=Power_c, method='AL')
     Jhat_v = Jhat(phi)
-    print("Initial cost function value {}".format(Jhat_v))
-    print("Power drop {}".format(Power_c))
+    print("Initial cost function value {:.5f}".format(Jhat_v))
+    print("Power drop {:.5f}".format(Power_c))
     dJ = Jhat.derivative()
     Jhat.optimize_tape()
 
@@ -238,19 +250,19 @@ def main():
     bcs_vel_4 = DirichletBC(S, noslip, 4)
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
-    reg_solver = RegularizationSolver(S, mesh, dx=dx, sim_domain=0)
+    reg_solver = RegularizationSolver(S, mesh, beta=2e3, dx=dx, sim_domain=0)
 
     hmin = 0.00940 # Hard coded from FEniCS
 
     options = {
              'hmin' : 0.00940,
-             'hj_stab': 1.0,
+             'hj_stab': 10.0,
              'dt_scale' : 1.0,
              'n_hj_steps' : 3,
              'max_iter' : 60
              }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-10)
+    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-2)
 
 
 if __name__ == '__main__':

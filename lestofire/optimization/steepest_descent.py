@@ -141,7 +141,7 @@ class SteepestDescent(object):
                 tolerance_criteria = max(abs(Jarr[It-5:It]-Jarr[It-1])) if It > 20 else 1e2
 
                 rel_change_J = abs(Jarr[It-2] - Jarr[It-1]) / Jarr[0]
-                print("Relative change in J {:.8E}".format(rel_change_J))
+                print("Relative change in J: {0:.4E}, stopping criteria steepest descent: {1:.4E}".format(rel_change_J, tolerance))
                 if It > 2 and abs(rel_change_J) < tolerance:
                     stop = True
 
