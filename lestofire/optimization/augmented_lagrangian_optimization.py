@@ -45,7 +45,11 @@ class AugmentedLagrangianOptimization(object):
             print(colored("Outer It.: {:d} ".format(it), 'green'))
             it = it + 1
 
-            print(colored("Lagrange mult value: {0:.5f}, Penalty: {1:.5f}".format(self.lagrangian.lagrange_multiplier(0), self.lagrangian.penalty(0)), 'red'))
+            m_constr = range(self.lagrangian.m)
+            lagr_mults = [self.lagrangian.lagrange_multiplier(i) for i in m_constr]
+            c_penalties = [self.lagrangian.penalty(i) for i in m_constr]
+            [print(colored("Lagr[{0}]: {1:.5f}. c[{0}]: {2:.5f}".format(i, lagr, penalty), 'green'))
+                    for i, (lagr, penalty) in enumerate(zip(lagr_mults, c_penalties)) ]
             Jarr = self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
 
             if tolerance > 1e-5:
