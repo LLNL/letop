@@ -79,8 +79,6 @@ class SteepestDescent(object):
         alpha0 = alpha0_init
         alpha  = alpha0 # Line search step
 
-        beta_pvd = File("beta.pvd")
-
         ## Stopping criterion parameters
         Nx = 100
         It,stop = [0, False]
@@ -123,7 +121,6 @@ class SteepestDescent(object):
                 dJ = self.lagrangian.derivative()
                 self.reg_solver.solve(velocity, dJ, solver_parameters=solver_parameters)
 
-                beta_pvd.write(velocity)
                 from firedrake import norm
                 print("Derivative norm {:.5f}".format(np.linalg.norm(dJ.dat.data)))
                 print("Scaled (J_0) gradient norm {:.8E}".format(norm(velocity) / Jarr[0]))
