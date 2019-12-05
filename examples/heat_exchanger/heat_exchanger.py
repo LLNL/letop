@@ -10,7 +10,7 @@ from parameters_heat_exch import (INMOUTH2, INMOUTH1, line_sep, dist_center, inl
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
 
 def main():
-    output_dir = "heat_exchanger/"
+    output_dir = "heat_exchanger_unconstrained/"
 
     mesh = Mesh('./mesh_heat_exchanger.msh')
     #meshes = MeshHierarchy(mesh, 2)

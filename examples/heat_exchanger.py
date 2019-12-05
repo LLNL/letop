@@ -258,7 +258,6 @@ def main():
     import numpy as np
     phi_old = Function(PHI)
     Jarr = np.zeros( ItMax )
-    beta_pvd = File(output_dir + "beta_evo.pvd")
 
 
     hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0)
@@ -323,7 +322,6 @@ def main():
             Av = assemble(av, bcs=bcs_beta)
             solve(Av, beta.vector(), dJ, solver_parameters=parameters)
             #beta_plotting.assign(beta)
-            beta_pvd.write(beta)
 
             phi_old.assign(phi)
             phi.assign(hj_solver.solve(beta, phi, steps=3, dt=dt, solver_parameters=parameters))
