@@ -3,7 +3,6 @@ from pyadjoint.enlisting import Enlist
 from pyadjoint.tape import get_working_tape, stop_annotating, no_annotations
 from lestofire.optimization import augmented_lagrangian_float
 from pyadjoint import Control, AdjFloat
-from termcolor import colored
 
 
 class LevelSetLagrangian(object):
@@ -209,10 +208,6 @@ class LevelSetLagrangian(object):
                 of :class:`AdjFloat`.
 
         """
-        print(colored("f: {:.5f}".format(self.cost_function_value()), 'red'))
-        if self.constraints[0]:
-            constr_values = [self.constraint_value(i) for i in range(self.m)]
-            [print(colored("g[{0}]: {1:.5f}".format(i, value), 'green')) for i, value in enumerate(constr_values)]
         values = Enlist(values)
         if len(values) != len(self.level_set):
             raise ValueError("values should be a list of same length as level sets.")
