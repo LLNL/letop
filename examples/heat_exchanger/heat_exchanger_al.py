@@ -34,9 +34,9 @@ def main():
     phi_pvd.write(phi)
 
     mu = Constant(1e-2)                   # viscosity
-    alphamax = 2.5 * mu / (1e-6)
+    alphamax = 2.5 * mu / (2e-6)
     alphamin = 1e-12
-    epsilon = Constant(1000.0)
+    epsilon = Constant(10000.0)
     u_inflow = 2e-1
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
@@ -216,8 +216,8 @@ def main():
     solver_temp.solve()
     File("t.pvd").write(t)
 
-    Power1 = assemble(p1*ds(INLET1)) - 1.0
-    Power2 = assemble(p2*ds(INLET2)) - 1.0
+    Power1 = assemble(p1*ds(INLET1)) - 2.0
+    Power2 = assemble(p2*ds(INLET2)) - 2.0
     Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1))
 
     U1control = Control(U1)
@@ -235,7 +235,7 @@ def main():
 
 
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e1, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
+    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e3, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
     Jhat_v = Jhat(phi)
     print("Initial cost function value {:.5f}".format(Jhat_v))
     print("Power drop 1 {:.5f}".format(Power1))
@@ -256,13 +256,13 @@ def main():
 
     options = {
              'hmin' : 0.00940,
-             'hj_stab': 1.0,
+             'hj_stab': 1.5,
              'dt_scale' : 1.0,
              'n_hj_steps' : 1,
              'max_iter' : 60
              }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-2)
+    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-4)
 
 
 if __name__ == '__main__':
