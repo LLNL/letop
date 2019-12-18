@@ -71,7 +71,7 @@ def main():
                 "ksp_converged_reason": None,
                 "ksp_max_it" : 1000,
                 "ksp_norm_type" : "unpreconditioned",
-                "ksp_atol" : 1e-6,
+                "ksp_atol" : 1e-9,
                 "ksp_type" : "fgmres",
                 "pc_type" : "fieldsplit",
                 "pc_fieldsplit_type" : "schur",
@@ -81,12 +81,20 @@ def main():
                 "fieldsplit_0": fieldsplit_0_gamg,
                 "fieldsplit_1" : fieldsplit_0_gamg
         }
+        #stokes_parameters = {
+        #    "mat_type" : "aij",
+        #    "ksp_type" : "preonly",
+        #    "ksp_monitor_true_residual": None,
+        #    #"ksp_converged_reason" : None,
+        #    "pc_type" : "lu",
+        #    "pc_factor_mat_solver_type" : "mumps"
+        #}
         # Penalty term
         temperature_parameters = {
                 "ksp_type": "fgmres",
                 "ksp_max_it": 200,
                 "ksp_rtol": 1e-12,
-                "ksp_atol": 1e-7,
+                "ksp_atol": 1e-9,
                 "pc_type": "mg",
                 "pc_mg_type": "full",
                 "ksp_converged_reason" : None,
@@ -155,12 +163,16 @@ def main():
     solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters) #, nullspace=nullspace)
     solver_stokes1.solve()
 
-    #solve(stokes(-phi, INMOUTH2)==L, U1, bcs=bcs1, solver_parameters=stokes_solver_params) #, nullspace=nullspace)
 
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
     solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
     solver_stokes2.solve()
-    #solve(stokes(phi, INMOUTH1)==L, U2, bcs=bcs2, solver_parameters=stokes_solver_params)
+    u1, _ = Control(U2).tape_value().split()
+    u2, _ = Control(U1).tape_value().split()
+    u1.rename("Velocity")
+    u2.rename("Velocity")
+    File("u2.pvd").write(u2)
+    File("u1.pvd").write(u1)
 
     # Convection difussion equation
     ks = Constant(1e0)
