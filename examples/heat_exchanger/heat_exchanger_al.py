@@ -34,14 +34,14 @@ def main():
     phi_pvd.write(phi)
 
     mu = Constant(1e-2)                   # viscosity
-    alphamax = 2.5 * mu / (2e-6)
+    alphamax = 2.5 * mu / (2e-3)
     alphamin = 1e-12
     epsilon = Constant(10000.0)
     u_inflow = 2e-1
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = False
+    iterative = True
     if iterative:
         fieldsplit_1_mg = {
                     "ksp_type" : "preonly",
@@ -91,16 +91,16 @@ def main():
         #}
         # Penalty term
         temperature_parameters = {
-                "ksp_type": "fgmres",
-                "ksp_max_it": 200,
-                "ksp_rtol": 1e-12,
-                "ksp_atol": 1e-9,
-                "pc_type": "mg",
-                "pc_mg_type": "full",
-                "ksp_converged_reason" : None,
-                "ksp_monitor_true_residual" : None,
-                "mg_levels_ksp_type": "chebyshev",
-                "mg_levels_pc_type": "sor",
+                "ksp_type" : "fgmres",
+                "ksp_max_it": 4000,
+                "pc_type" : "ml",
+                "ksp_rtol" : 1e-7,
+                "pc_mg_cycles" : 4,
+                "ksp_converged_reason": None,
+                "snes_monitor": None,
+                "pc_ml_Threshold" : 0.01,
+                #"pc_ml_maxNlevels" : 5,
+                "pc_ml_maxCoarseSize" : 10,
             }
     else:
         parameters = {
@@ -228,6 +228,7 @@ def main():
     solver_temp.solve()
     File("t.pvd").write(t)
 
+
     Power1 = assemble(p1*ds(INLET1)) - 2.0
     Power2 = assemble(p2*ds(INLET2)) - 2.0
     Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1))
@@ -249,6 +250,7 @@ def main():
     c = Control(s)
     Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e3, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
     Jhat_v = Jhat(phi)
+    exit()
     print("Initial cost function value {:.5f}".format(Jhat_v))
     print("Power drop 1 {:.5f}".format(Power1))
     print("Power drop 2 {:.5f}".format(Power2))

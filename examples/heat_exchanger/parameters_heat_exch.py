@@ -1,6 +1,6 @@
 height = 1.5;
 shift_center = 0.52;
-dist_center = 0.02;
+dist_center = 0.03;
 inlet_width = 0.2;
 inlet_depth = 0.2;
 width = 1.2;
