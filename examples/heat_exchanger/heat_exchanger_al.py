@@ -34,7 +34,6 @@ def main():
     phi_pvd.write(phi)
 
     mu = Constant(1e-2)                   # viscosity
-    alphamax = 2.5 * mu / (2e-3)
     alphamin = 1e-12
     epsilon = Constant(10000.0)
     u_inflow = 2e-1
@@ -43,6 +42,7 @@ def main():
 
     iterative = True
     if iterative:
+        alphamax = 2.5 * mu / (2e-3)
         fieldsplit_1_mg = {
                     "ksp_type" : "preonly",
                     "pc_type" : "mg",
@@ -103,6 +103,7 @@ def main():
                 "pc_ml_maxCoarseSize" : 10,
             }
     else:
+        alphamax = 2.5 * mu / (2e-6)
         parameters = {
             "mat_type" : "aij",
             "ksp_type" : "preonly",
