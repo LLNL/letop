@@ -1,5 +1,5 @@
 # My dev environment for pyadjoint
-FROM quay.io/dolfinadjoint/pyadjoint-firedrake:latest
+FROM pyadjoint:firedrake
 MAINTAINER miguelito 
 
 USER root
@@ -30,8 +30,8 @@ RUN /usr/bin/git --git-dir=$HOME/.myconf/ --work-tree=$HOME config --local statu
 RUN /usr/bin/git config --global user.email "salazardetro1@llnl.gov"
 RUN /usr/bin/git config --global user.name "Miguel Salazar"
 
-USER root
-RUN find /home/firedrake -maxdepth 1 | sed "1d" | grep -v "/home/firedrake/shared" | xargs chown -R firedrake:firedrake 2> /dev/null || true
+#USER root
+#RUN find /home/firedrake -maxdepth 1 | sed "1d" | grep -v "/home/firedrake/shared" | xargs chown -R firedrake:firedrake 2> /dev/null || true
 USER firedrake
 RUN nvim -i NONE -c PlugInstall -c quitall #> /dev/null 2>&1
 RUN nvim -i NONE -c 'CocInstall coc-python' -c 'sleep 2' -c quitall
