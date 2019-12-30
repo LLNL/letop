@@ -13,8 +13,8 @@ distribution_parameters={"partition": True, "overlap_type": (DistributedMeshOver
 def main():
     output_dir = "heat_exchanger_unconstrained/"
 
-    nref = 1
-    mesh = Mesh("./mesh_heat_exchanger.msh", distribution_parameters=distribution_parameters)
+    nref = 2
+    mesh = Mesh("./2D_mesh.msh", distribution_parameters=distribution_parameters)
     mh = MeshHierarchy(mesh, nref, distribution_parameters=distribution_parameters, reorder=True)
     mesh = mh[-1]
 
@@ -46,7 +46,7 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = False
+    iterative = True
     if iterative:
         stokes_parameters = {
             "mat_type": "matfree",
@@ -112,6 +112,14 @@ def main():
         stokes_parameters = parameters
         temperature_parameters = parameters
 
+    parameters = {
+        "mat_type" : "aij",
+        "ksp_type" : "preonly",
+        "ksp_monitor_true_residual": None,
+        "ksp_converged_reason" : None,
+        "pc_type" : "lu",
+        "pc_factor_mat_solver_type" : "mumps"
+        }
 
     P2 = VectorElement("CG", mesh.ufl_cell(), 2)
     P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
@@ -132,22 +140,37 @@ def main():
         a_fluid = (mu*inner(grad(u), grad(v)) - div(v)*p - q*div(u))
         darcy_term = inner(u, v)
         if BLOCK_MOUTH == 2:
-            alpha_inlet = Constant(alphamax)*conditional(
+            alpha_inlet_other = Constant(alphamax)*conditional(
                             And(lt(x, 0.0),
                                 lt(y, line_sep)), 1.0, 1e-8)
+            alpha_inlet_mine = hs(phi, epsilon)*conditional(
+                            Or(
+                            And(lt(x, 0.0),
+                                gt(y, line_sep)),
+                                And(gt(x, width),
+                                    gt(y, line_sep))), 1e-8, 1.0)
         elif BLOCK_MOUTH == 3:
-            alpha_inlet = Constant(alphamax)*conditional(
+            alpha_inlet_other = Constant(alphamax)*conditional(
                             And(lt(x, 0.0),
                                 gt(y, line_sep)), 1.0, 1e-8)
+            alpha_inlet_mine = hs(phi, epsilon)*conditional(
+                            Or(
+                            And(lt(x, 0.0),
+                                lt(y, line_sep)),
+                                And(gt(x, width),
+                                    lt(y, line_sep))), 1e-8, 1.0)
 
-        File("alpha.pvd").write(interpolate(alpha_inlet, Q))
 
-        return a_fluid*dx + hs(phi, epsilon)*darcy_term*dx(0) + alpha_inlet*darcy_term*dx
+        File("alpha.pvd").write(interpolate(alpha_inlet_other, Q))
+
+
+
+        return a_fluid*dx + alpha_inlet_mine*darcy_term*dx + alpha_inlet_other*darcy_term*dx
 
 
     # Dirichelt boundary conditions
     inflow1 = as_vector([u_inflow*sin(((y - (line_sep - (dist_center + inlet_width))) * pi )/ inlet_width), 0.0])
-    inflow2 = as_vector([u_inflow*sin(((y - (line_sep + dist_center)) * pi )/ inlet_width), 0.0])
+    inflow2 = as_vector([u_inflow*sin(((y - (line_sep + dist_center + 0.2)) * pi )/ inlet_width), 0.0])
 
     noslip = Constant((0.0, 0.0))
 
@@ -237,8 +260,6 @@ def main():
     solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
     File("t.pvd").write(t)
-
-    exit()
 
     Power1 = Constant(4e3)*p1*ds(INLET1)
     Power2 = Constant(4e3)*p2*ds(INLET2)
