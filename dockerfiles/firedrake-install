@@ -127,7 +127,7 @@ def resolve_doi_branches(doi):
     import hashlib
     log.info("Installing Firedrake components specified by {}".format(doi))
     response = requests.get("https://zenodo.org/api/records",
-                            params={"q": "doi:{}".format(doi.replace("/", r"\/"))})
+                            params={"q": "doi:{}".format(doi.replace("/", r"\/"))}, verify=False)
     if response.status_code >= 400:
         log.error("Unable to obtain Zenodo record for doi {}".format(doi))
         log.error("Response was {}".format(response.json()))
@@ -146,7 +146,7 @@ def resolve_doi_branches(doi):
     except ValueError:
         log.error("Expecting to find exactly one 'components.json' in record")
         sys.exit(1)
-    download = requests.get(componentjson["links"]["self"])
+    download = requests.get(componentjson["links"]["self"], verify=False)
     if download.status_code >= 400:
         log.error("Unable to download 'components.json'")
         log.error("Response was {}".format(download.json()))
@@ -790,6 +790,8 @@ def get_slepc_dir():
 def build_and_install_petsc():
     import hashlib
     import urllib.request
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
     tarball = "eigen-3.3.3.tgz"
     url = "https://bitbucket.org/eigen/eigen/get/3.3.3.tar.gz"
     sha = hashlib.sha256()

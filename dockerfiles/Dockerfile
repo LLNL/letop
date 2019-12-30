@@ -1,13 +1,13 @@
 # My dev environment for pyadjoint
-FROM quay.io/dolfinadjoint/pyadjoint-firedrake:latest
+FROM pyadjoint:firedrake
 MAINTAINER miguelito 
 
 USER root
 RUN apt-get -y update
 RUN apt-get -y install software-properties-common 
 RUN apt-get -y install silversearcher-ag
-RUN add-apt-repository ppa:neovim-ppa/stable
-RUN apt-get update
+#RUN add-apt-repository ppa:neovim-ppa/stable
+#RUN apt-get update
 RUN apt-get -y install neovim curl git tmux
 
 RUN git clone --depth 1 --quiet https://github.com/junegunn/fzf.git /home/firedrake/.fzf \
@@ -63,10 +63,6 @@ RUN pip3 install ROL
 RUN pip3 install tensorflow==1.15.0
 RUN pip3 install protobuf==3.7.1
 RUN pip3 install --upgrade numpy
-RUN git clone https://bitbucket.org/nate-sime/dolfin_dg.git && \
-	cd dolfin_dg && \
-	python3 setup.py install 
-
 
 
 USER firedrake
