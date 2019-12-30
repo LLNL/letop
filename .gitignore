@@ -4,3 +4,8 @@
 .cache
 .vim
 __pycache__
+old_scripts/
+gallery/
+.vscode/
+.devcontainer/
+lestofire.*
