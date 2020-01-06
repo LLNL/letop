@@ -39,7 +39,7 @@ def main():
 
     iterative = True
     if iterative:
-        alphamax = 2.5 * mu / (2e-3)
+        alphamax = 2.5 * mu / (2e-7)
 
         fieldsplit_0_gamg = {
                     "ksp_type" : "preonly",
@@ -118,12 +118,16 @@ def main():
         #    }
         temperature_parameters = {
                 "ksp_type" : "fgmres",
-                "ksp_max_it": 1000,
+                "ksp_max_it": 2000,
                 "pc_type" : "hypre",
                 "ksp_monitor_true_residual": None,
                 "ksp_gmres_restart" : 500,
                 "ksp_gmres_modifiedgramschmidt": None,
                 "pc_hypre_type" : "boomeramg",
+                "pc_hypre_boomeramg_coarsen_type" : "HMIS",
+                "pc_hypre_boomeramg_strong_threshold" : 0.25,
+                #"pc_hypre_boomeramg_grid_sweeps_all" : 1,
+                #"pc_hypre_boomeramg_max_levels" : 25,
                 "ksp_atol" : 1e-10,
                 "ksp_rtol" : 1e-10,
                 "pc_mg_cycles" : 4,
