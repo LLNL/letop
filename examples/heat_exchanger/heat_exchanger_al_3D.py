@@ -13,8 +13,6 @@ def main():
     output_dir = "heat_exchanger/"
 
     mesh = Mesh('./3D_mesh.msh')
-    mh = MeshHierarchy(mesh, 1)
-    mesh = mh[-1]
 
     S = VectorFunctionSpace(mesh, "CG", 1)
     s = Function(S,name="deform")
@@ -39,7 +37,7 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = False
+    iterative = True
     if iterative:
         alphamax = 2.5 * mu / (2e-3)
 
@@ -80,20 +78,61 @@ def main():
         #    "pc_factor_mat_solver_type" : "mumps"
         #}
         # Penalty term
+       # temperature_parameters = {
+       #             "mat_type" : "aij",
+       #             "ksp_monitor_true_residual": None,
+       #             "ksp_converged_reason": None,
+       #             "ksp_max_it" : 1000,
+       #             "ksp_norm_type" : "unpreconditioned",
+       #             "ksp_atol" : 1e-9,
+       #             "ksp_atol" : 1e-9,
+       #             "ksp_type" : "fgmres",
+       #             "ksp_gmres_restart" : 1000,
+       #             "pc_type" : "gamg",
+       #             "pc_mg_type" : "full",
+       #             "pc_gamg_type" : "agg",
+       #             "pc_gamg_square_graph" : 1,
+       #             "ksp_monitor_true_residual": None,
+       #             "mg_levels_esteig_ksp_type" : "gmres",
+       #             "mg_levels_ksp_type" : "chebyshev",
+       #             "mg_levels_ksp_chebyshev_esteig_steps" : 20,
+       #             "mg_levels_pc_type" : "sor",
+       #             "pc_gamg_agg_nsmooths" : 10,
+       #             "pc_gamg_threshold" : 0.1, # 0.4 working before
+       #         }
+        #temperature_parameters = {
+        #        "ksp_type" : "fgmres",
+        #        "ksp_max_it": 100000,
+        #        "pc_type" : "ml",
+        #        "ksp_atol" : 1e-10,
+        #        "ksp_norm_type" : "unpreconditioned",
+        #        "ksp_rtol" : 1e-10,
+        #        "pc_mg_cycles" : 2,
+        #        "ksp_monitor_true_residual": None,
+        #        "ksp_converged_reason": None,
+        #        "snes_monitor": None,
+        #        #"pc_mg_type" : "full",
+        #        "pc_ml_Threshold" : 0.8,
+        #        #"pc_ml_maxNlevels" : 5,
+        #        "pc_ml_maxCoarseSize" : 10,
+        #    }
         temperature_parameters = {
                 "ksp_type" : "fgmres",
-                "ksp_max_it": 4000,
-                "pc_type" : "ml",
-                "ksp_rtol" : 1e-7,
+                "ksp_max_it": 1000,
+                "pc_type" : "hypre",
+                "ksp_monitor_true_residual": None,
+                "ksp_gmres_restart" : 500,
+                "ksp_gmres_modifiedgramschmidt": None,
+                "pc_hypre_type" : "boomeramg",
+                "ksp_atol" : 1e-10,
+                "ksp_rtol" : 1e-10,
                 "pc_mg_cycles" : 4,
                 "ksp_converged_reason": None,
                 "snes_monitor": None,
-                "pc_ml_Threshold" : 0.01,
-                #"pc_ml_maxNlevels" : 5,
-                "pc_ml_maxCoarseSize" : 10,
+                "pc_mg_type" : "full"
             }
     else:
-        alphamax = 2.5 * mu / (2e-6)
+        alphamax = 2.5 * mu / (2e-3)
         parameters = {
             "mat_type" : "aij",
             "ksp_type" : "preonly",
@@ -188,7 +227,7 @@ def main():
 
     # Penalty term
     alpha = Constant(50000.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
-    alpha = Constant(500.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
+    alpha = Constant(50000.0) # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
     # Bilinear form
     a_int = dot(grad(w), ks*grad(t) - cp*(u1 + u2)*t)*dx
 

@@ -1,23 +1,23 @@
 import pygmsh as pg
-from params3D import height, depth, width, dist_center, inlet_width, inlet_depth, line_sep, ymin1, ymax2
+from params3D import height, depth, width, dist_center, inlet_width, inlet_depth, line_sep, ymin1, ymin2
 from params3D import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, INLET1, INLET2, OUTLET1, OUTLET2, WALLS, DOMAIN
 
 def main():
     #geom = pg.built_in.Geometry()
-    size = 0.2;
+    size = 0.08;
     geom = pg.opencascade.Geometry(
             characteristic_length_min=size, characteristic_length_max=size)
 
 
     main_rect = geom.add_box([0.0, 0.0, 0.0], [width, height, depth])
     mouth_inlet1 = geom.add_box([-inlet_depth, ymin1, 0.0], [inlet_depth, inlet_width, inlet_width])
-    mouth_inlet2 = geom.add_box([-inlet_depth, ymax2, 0.0], [inlet_depth, inlet_width, inlet_width])
+    mouth_inlet2 = geom.add_box([-inlet_depth, ymin2, 0.0], [inlet_depth, inlet_width, inlet_width])
 
     mouth_outlet1 = geom.add_box([width, ymin1, 0.0], [inlet_depth, inlet_width, inlet_width])
-    mouth_outlet2 = geom.add_box([width, ymax2, 0.0], [inlet_depth, inlet_width, inlet_width])
+    mouth_outlet2 = geom.add_box([width, ymin2, 0.0], [inlet_depth, inlet_width, inlet_width])
 
     print("ymin1 :{}".format(ymin1))
-    print("ymax2 :{}".format(ymax2))
+    print("ymin2 :{}".format(ymin2))
 
     geom.add_physical(mouth_inlet1, INMOUTH1)
     geom.add_physical(mouth_inlet2, INMOUTH2)
