@@ -6,13 +6,15 @@ from ufl import min_value, max_value
 
 from lestofire import LevelSetLagrangian, AugmentedLagrangianOptimization, RegularizationSolver
 
-from parameters_heat_exch_3D import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width, ymax1, ymax2,
+from params3D import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width, ymin1, ymin2,
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
 
 def main():
     output_dir = "heat_exchanger/"
 
-    mesh = Mesh('./3D_mesh_heat_exchanger.msh')
+    mesh = Mesh('./3D_mesh.msh')
+    mh = MeshHierarchy(mesh, 1)
+    mesh = mh[-1]
 
     S = VectorFunctionSpace(mesh, "CG", 1)
     s = Function(S,name="deform")
@@ -37,18 +39,9 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = True
+    iterative = False
     if iterative:
         alphamax = 2.5 * mu / (2e-3)
-        fieldsplit_1_mg = {
-                    "ksp_type" : "preonly",
-                    "pc_type" : "mg",
-                    "ksp_monitor_true_residual": None,
-                    #"mg_levels_esteig_ksp_type" : "cg",
-                    "mg_levels_ksp_type" : "chebyshev",
-                    #"mg_levels_ksp_chebyshev_esteig_steps" : 10,
-                    "mg_levels_pc_type" : "sor",
-        }
 
         fieldsplit_0_gamg = {
                     "ksp_type" : "preonly",
@@ -59,8 +52,8 @@ def main():
                     "mg_levels_ksp_type" : "chebyshev",
                     "mg_levels_ksp_chebyshev_esteig_steps" : 10,
                     "mg_levels_pc_type" : "sor",
-                    "pc_gamg_agg_nsmooths" : 4,
-                    "pc_gamg_threshold" : 0.8, # 0.4 working before
+                    "pc_gamg_agg_nsmooths" : 2,
+                    "pc_gamg_threshold" : 0.5, # 0.4 working before
         }
         stokes_parameters = {
                 "mat_type" : "aij",
@@ -133,8 +126,8 @@ def main():
         return a_fluid*dx + hs(phi, epsilon)*darcy_term*dx(0) + alphamax*darcy_term*dx(BLOCK_MOUTH)
 
     # Dirichelt boundary conditions
-    inflow1 = as_vector([u_inflow*sin(z * pi / inlet_width), sin((y - ymax1) * pi / inlet_width), 0.0])
-    inflow2 = as_vector([u_inflow*sin(z * pi / inlet_width), sin((y - ymax2) * pi / inlet_width), 0.0])
+    inflow1 = as_vector([u_inflow*sin(z * pi / inlet_width) * sin((y - ymin1) * pi / inlet_width), 0.0, 0.0])
+    inflow2 = as_vector([u_inflow*sin(z * pi / inlet_width) * sin((y - ymin2) * pi / inlet_width), 0.0, 0.0])
 
     noslip = Constant((0.0, 0.0, 0.0))
 
@@ -162,14 +155,14 @@ def main():
     solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters) #, nullspace=nullspace)
     solver_stokes1.solve()
 
-    u1, _ = Control(U2).tape_value().split()
+    u1, _ = Control(U1).tape_value().split()
     u1.rename("Velocity")
     File("u1.pvd").write(u1)
 
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
     solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
     solver_stokes2.solve()
-    u2, _ = Control(U1).tape_value().split()
+    u2, _ = Control(U2).tape_value().split()
     u2.rename("Velocity")
     File("u2.pvd").write(u2)
 
@@ -227,6 +220,7 @@ def main():
     solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
     File("t.pvd").write(t)
+    exit()
 
 
     Power1 = assemble(p1*ds(INLET1)) - 2.0
