@@ -6,7 +6,7 @@ from ufl import min_value, max_value
 
 from lestofire import LevelSetLagrangian, AugmentedLagrangianOptimization, RegularizationSolver
 
-from parameters_heat_exch import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
+from params import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
 
 def main():
