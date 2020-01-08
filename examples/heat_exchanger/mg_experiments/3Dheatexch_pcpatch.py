@@ -4,7 +4,7 @@ from ufl import conditional, And
 
 distribution_parameters={"partition": True, "overlap_type": (DistributedMeshOverlapType.VERTEX, 3)}
 
-from parameters_heat_exch import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
+from params import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width, ymax1)
 
 refinements = [2]
@@ -32,7 +32,7 @@ for nref in refinements:
     (x, y, z) = SpatialCoordinate(mesh)
 
     from ufl import gt, lt
-    alpha = Constant(1.0)*conditional(
+    alpha = Constant(10000.0)*conditional(
                             And(lt(y, 1.2),
                                 And(gt(y, -0.4),
                                     And(lt(x, 0.8), gt(x, 0.3)))), 1, 0)
@@ -46,7 +46,7 @@ for nref in refinements:
     )
 
     u_inflow = 2e-1
-    inflow1 = as_vector([u_inflow*sin(z * pi / inlet_width), sin((y - ymax1) * pi / inlet_width), 0.0])
+    inflow1 = as_vector([u_inflow*sin(z * pi / inlet_width) * sin((y - ymax1) * pi / inlet_width), 0.0, 0.0])
     noslip = Constant((0.0, 0.0, 0.0))
     bcs1_1 = DirichletBC(Z.sub(0), noslip, WALLS)
     bcs1_2 = DirichletBC(Z.sub(0), inflow1, INLET1)
@@ -54,14 +54,6 @@ for nref in refinements:
     bcs1_4 = DirichletBC(Z.sub(0), noslip, INLET2)
     bcs1_5 = DirichletBC(Z.sub(0), noslip, OUTLET2)
     bcs = [bcs1_1,bcs1_2,bcs1_3,bcs1_4, bcs1_5]
-
-    # Configure here
-    eigenvalue_estimates = (0.8, 8.5)
-    r_weight = 0.1
-    inclusive = True
-    natural_weights = False
-    chebyshev_its = 1
-    # End configuration
 
     parameters = {
         "mat_type": "matfree",
