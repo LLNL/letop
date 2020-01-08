@@ -4,7 +4,7 @@ from params3D import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, INLET1, INLET2, O
 
 def main():
     #geom = pg.built_in.Geometry()
-    size = 0.03;
+    size = 0.8;
     geom = pg.opencascade.Geometry(
             characteristic_length_min=size, characteristic_length_max=size)
 
