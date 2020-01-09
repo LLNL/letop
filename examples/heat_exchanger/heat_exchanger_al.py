@@ -12,7 +12,7 @@ from params import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
 def main():
     output_dir = "heat_exchanger/"
 
-    mesh = Mesh('./mesh_heat_exchanger.msh')
+    mesh = Mesh('./2D_mesh.msh')
 
     S = VectorFunctionSpace(mesh, "CG", 1)
     s = Function(S,name="deform")
@@ -40,7 +40,7 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = True
+    iterative = False
     if iterative:
         alphamax = 2.5 * mu / (2e-3)
         fieldsplit_1_mg = {
@@ -168,12 +168,6 @@ def main():
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
     solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
     solver_stokes2.solve()
-    u1, _ = Control(U2).tape_value().split()
-    u2, _ = Control(U1).tape_value().split()
-    u1.rename("Velocity")
-    u2.rename("Velocity")
-    File("u2.pvd").write(u2)
-    File("u1.pvd").write(u1)
 
     # Convection difussion equation
     ks = Constant(1e0)
@@ -227,7 +221,6 @@ def main():
     problem = NonlinearVariationalProblem(eT, t)
     solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
-    File("t.pvd").write(t)
 
 
     Power1 = assemble(p1*ds(INLET1)) - 2.0
@@ -236,8 +229,10 @@ def main():
 
     U1control = Control(U1)
     U2control = Control(U2)
-    u1_pvd = File("u1.pvd")
-    u2_pvd = File("u2.pvd")
+    u1_pvd = File(output_dir + "u1.pvd")
+    u2_pvd = File(output_dir + "u2.pvd")
+    tcontrol = Control(t)
+    t_pvd = File(output_dir + "t.pvd")
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
         u1, _ = U1control.tape_value().split()
@@ -246,12 +241,12 @@ def main():
         u2.rename("Velocity")
         u1_pvd.write(u1)
         u2_pvd.write(u2)
+        t_pvd.write(tcontrol.tape_value())
 
 
     c = Control(s)
     Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e3, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
     Jhat_v = Jhat(phi)
-    exit()
     print("Initial cost function value {:.5f}".format(Jhat_v))
     print("Power drop 1 {:.5f}".format(Power1))
     print("Power drop 2 {:.5f}".format(Power2))
