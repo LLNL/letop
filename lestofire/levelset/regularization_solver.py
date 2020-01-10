@@ -36,7 +36,8 @@ class RegularizationSolver(object):
                      dx(sim_domain), {'f': (I_B, WRITE)}, is_loopy_kernel=True)
 
             I_cg_B = Function(S)
-            par_loop(('{[i, j] : 0 <= i < A.dofs and 0 <= j < 2}', 'A[i, j] = fmax(A[i, j], B[0, 0])'),
+            dim = S.mesh().geometric_dimension()
+            par_loop(('{{[i, j] : 0 <= i < A.dofs and 0 <= j < {0} }}'.format(dim), 'A[i, j] = fmax(A[i, j], B[0, 0])'),
                      dx, {'A' : (I_cg_B, RW), 'B': (I_B, READ)}, is_loopy_kernel=True)
 
             import numpy as np
