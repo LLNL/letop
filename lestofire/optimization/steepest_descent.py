@@ -40,6 +40,7 @@ class SteepestDescent(object):
                     'hmin' : 0.01,
                     'dt_scale' : 1.0,
                     'max_iter' : 20,
+                    'n_reinit' : 5,
                     'n_hj_steps': 5}
 
         return default
@@ -67,6 +68,7 @@ class SteepestDescent(object):
         hmin = self.options['hmin']
         dt_scale = self.options['dt_scale']
         n_hj_steps = self.options['n_hj_steps']
+        n_reinit = self.options['n_reinit']
         max_iter = self.options['max_iter']
 
 
@@ -151,7 +153,7 @@ class SteepestDescent(object):
                     self.pvd_output.write(phi)
 
                 # Reinit the level set function every five iterations.
-                if np.mod(It,5) == 0:
+                if np.mod(It, n_reinit) == 0:
                     Dx = hmin
                     phi.assign(reinit_solver.solve(phi, Dx))
 
