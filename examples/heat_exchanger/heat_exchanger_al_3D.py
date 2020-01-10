@@ -45,7 +45,7 @@ def main():
                     "ksp_type" : "preonly",
                     "pc_type" : "gamg",
                     "pc_gamg_type" : "agg",
-                    "ksp_monitor_true_residual": None,
+                    #"ksp_monitor_true_residual": None,
                     "mg_levels_esteig_ksp_type" : "cg",
                     "mg_levels_ksp_type" : "chebyshev",
                     "mg_levels_ksp_chebyshev_esteig_steps" : 10,
@@ -55,7 +55,7 @@ def main():
         }
         stokes_parameters = {
                 "mat_type" : "aij",
-                "ksp_monitor_true_residual": None,
+                #"ksp_monitor_true_residual": None,
                 "ksp_converged_reason": None,
                 "ksp_max_it" : 1000,
                 "ksp_norm_type" : "unpreconditioned",
@@ -120,7 +120,7 @@ def main():
                 "ksp_type" : "fgmres",
                 "ksp_max_it": 2000,
                 "pc_type" : "hypre",
-                "ksp_monitor_true_residual": None,
+                #"ksp_monitor_true_residual": None,
                 "ksp_gmres_restart" : 500,
                 "ksp_gmres_modifiedgramschmidt": None,
                 "pc_hypre_type" : "boomeramg",
@@ -197,14 +197,14 @@ def main():
 
     u1, _ = Control(U1).tape_value().split()
     u1.rename("Velocity")
-    File("u1.pvd").write(u1)
+    File(output_dir + "u1.pvd").write(u1)
 
     problem = LinearVariationalProblem(stokes(phi, INMOUTH1), L, U2, bcs=bcs2)
     solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
     solver_stokes2.solve()
     u2, _ = Control(U2).tape_value().split()
     u2.rename("Velocity")
-    File("u2.pvd").write(u2)
+    File(output_dir + "u2.pvd").write(u2)
 
     # Convection difussion equation
     ks = Constant(1e0)
@@ -259,11 +259,11 @@ def main():
     problem = NonlinearVariationalProblem(eT, t)
     solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
-    File("t.pvd").write(t)
+    File(output_dir + "t.pvd").write(t)
 
 
-    Power1 = assemble(p1*ds(INLET1)) - 2.0
-    Power2 = assemble(p2*ds(INLET2)) - 2.0
+    Power1 = assemble(p1*ds(INLET1)) - 0.1
+    Power2 = assemble(p2*ds(INLET2)) - 0.1
     Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1))
 
     print("Power drop 1 {:.5f}".format(Power1))
@@ -271,8 +271,8 @@ def main():
 
     U1control = Control(U1)
     U2control = Control(U2)
-    u1_pvd = File("u1.pvd")
-    u2_pvd = File("u2.pvd")
+    u1_pvd = File(output_dir + "u1.pvd")
+    u2_pvd = File(output_dir + "u2.pvd")
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
         u1, _ = U1control.tape_value().split()
@@ -285,12 +285,11 @@ def main():
 
     print("Level set")
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e3, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
+    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e5, 4e5], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
     print("Jhat")
     Jhat_v = Jhat(phi)
     print("Initial cost function value {:.5f}".format(Jhat_v))
     dJ = Jhat.derivative()
-    exit()
     Jhat.optimize_tape()
 
     velocity = Function(S)
@@ -311,6 +310,14 @@ def main():
              'n_hj_steps' : 1,
              'max_iter' : 60
              }
+    parameters = {
+        "mat_type" : "aij",
+        "ksp_type" : "preonly",
+        "ksp_monitor_true_residual": None,
+        #"ksp_converged_reason" : None,
+        "pc_type" : "lu",
+        "pc_factor_mat_solver_type" : "mumps"
+        }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
     Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-4)
 

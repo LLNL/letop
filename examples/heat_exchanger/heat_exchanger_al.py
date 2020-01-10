@@ -247,9 +247,9 @@ def main():
     c = Control(s)
     Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e3, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
     Jhat_v = Jhat(phi)
-    print("Initial cost function value {:.5f}".format(Jhat_v))
-    print("Power drop 1 {:.5f}".format(Power1))
-    print("Power drop 2 {:.5f}".format(Power2))
+    print("Initial cost function value {:.5f}".format(Jhat_v), flush=True)
+    print("Power drop 1 {:.5f}".format(Power1), flush=True)
+    print("Power drop 2 {:.5f}".format(Power2), flush=True)
     dJ = Jhat.derivative()
     Jhat.optimize_tape()
 
