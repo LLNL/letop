@@ -232,7 +232,8 @@ def main():
     u1_pvd = File(output_dir + "u1.pvd")
     u2_pvd = File(output_dir + "u2.pvd")
     tcontrol = Control(t)
-    #t_pvd = File(output_dir + "t.pvd")
+    tplot = Function(T)
+    t_pvd = File(output_dir + "t.pvd")
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
         u1, _ = U1control.tape_value().split()
@@ -241,7 +242,8 @@ def main():
         u2.rename("Velocity")
         u1_pvd.write(u1)
         u2_pvd.write(u2)
-        #t_pvd.write(tcontrol.tape_value())
+        tplot.assign(tcontrol.tape_value())
+        t_pvd.write(tplot)
 
 
     c = Control(s)
