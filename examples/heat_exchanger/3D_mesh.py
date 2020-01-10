@@ -21,7 +21,9 @@ def main():
 
     geom.add_physical(mouth_inlet1, INMOUTH1)
     geom.add_physical(mouth_inlet2, INMOUTH2)
-    geom.add_physical([main_rect, mouth_outlet2, mouth_outlet1], DOMAIN)
+    geom.add_physical(mouth_outlet1, OUTMOUTH1)
+    geom.add_physical(mouth_outlet2, OUTMOUTH2)
+    geom.add_physical([main_rect], DOMAIN)
 
     heat_exchanger = geom.boolean_fragments([main_rect], [mouth_inlet1, mouth_inlet2, mouth_outlet1, mouth_outlet2])
 

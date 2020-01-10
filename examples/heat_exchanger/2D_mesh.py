@@ -4,7 +4,7 @@ from params import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, INLET1, INLET2, OUT
 
 def main():
     #geom = pg.built_in.Geometry()
-    size = 0.04;
+    size = 0.02;
     geom = pg.opencascade.Geometry(
             characteristic_length_min=size, characteristic_length_max=size)
 
@@ -21,7 +21,9 @@ def main():
 
     geom.add_physical(mouth_inlet1, INMOUTH1)
     geom.add_physical(mouth_inlet2, INMOUTH2)
-    geom.add_physical([main_rect, mouth_outlet2, mouth_outlet1], DOMAIN)
+    geom.add_physical(mouth_outlet1, OUTMOUTH1)
+    geom.add_physical(mouth_outlet2, OUTMOUTH2)
+    geom.add_physical([main_rect], DOMAIN)
 
     heat_exchanger = geom.boolean_fragments([main_rect], [mouth_inlet1, mouth_inlet2, mouth_outlet1, mouth_outlet2])
 
