@@ -145,7 +145,7 @@ class SteepestDescent(object):
                 ls,alpha,It = [0,alpha0, It+1]
 
                 dJ = self.lagrangian.derivative()
-                self.reg_solver.solve(velocity, dJ, solver_parameters=solver_parameters)
+                self.reg_solver.solve(velocity, dJ)
 
                 phi_old.assign(phi)
                 phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt))

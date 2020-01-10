@@ -11,7 +11,7 @@ from params3D import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width, ym
 
 distribution_parameters={"partition": True, "overlap_type": (DistributedMeshOverlapType.VERTEX, 3)}
 def main():
-    output_dir = "heat_exchanger/"
+    output_dir = "3D/"
 
     nref = 2
     mesh = Mesh("./3D_mesh.msh", distribution_parameters=distribution_parameters)
@@ -279,7 +279,7 @@ def main():
     bcs_vel_4 = DirichletBC(S, noslip, 4)
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
-    reg_solver = RegularizationSolver(S, mesh, beta=1e3, dx=dx, sim_domain=0)
+    reg_solver = RegularizationSolver(S, mesh, beta=1e3, dx=dx, sim_domain=0, iterative=iterative, output_dir=output_dir)
 
     hmin = 0.00940 # Hard coded from FEniCS
 

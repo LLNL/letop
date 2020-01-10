@@ -35,7 +35,7 @@ class RegularizationSolver(object):
 
     """Solver to regularize the optimization problem"""
 
-    def __init__(self, S, mesh, beta=1e3, gamma=1.0e4, bcs=None, dx=dx, sim_domain=None, iterative=False):
+    def __init__(self, S, mesh, beta=1e3, gamma=1.0e4, bcs=None, dx=dx, sim_domain=None, iterative=False, output_dir="./"):
         n = FacetNormal(mesh)
         theta,xi = [TrialFunction(S), TestFunction( S)]
         self.xi = xi
@@ -76,7 +76,7 @@ class RegularizationSolver(object):
 
         self.Av = assemble(self.a, bcs=self.bcs)
 
-        self.beta_pvd = File("beta.pvd")
+        self.beta_pvd = File(output_dir + "beta.pvd")
 
         if iterative:
             self.parameters = iterative_parameters

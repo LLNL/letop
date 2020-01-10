@@ -10,7 +10,7 @@ from params3D import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width, ym
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
 
 def main():
-    output_dir = "heat_exchanger/"
+    output_dir = "3D/"
 
     mesh = Mesh('./3D_mesh.msh')
 
@@ -37,7 +37,7 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = True
+    iterative = False
     if iterative:
         alphamax = 2.5 * mu / (2e-7)
 
@@ -299,7 +299,7 @@ def main():
     bcs_vel_4 = DirichletBC(S, noslip, 4)
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
-    reg_solver = RegularizationSolver(S, mesh, beta=1e3, dx=dx, sim_domain=0)
+    reg_solver = RegularizationSolver(S, mesh, beta=1e3, dx=dx, sim_domain=0, iterative=iterative, output_dir=output_dir)
 
     hmin = 0.00940 # Hard coded from FEniCS
 
@@ -308,6 +308,7 @@ def main():
              'hj_stab': 1.5,
              'dt_scale' : 1.0,
              'n_hj_steps' : 1,
+             'n_reinit' : 10,
              'max_iter' : 60
              }
     parameters = {
