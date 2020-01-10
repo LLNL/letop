@@ -3,20 +3,39 @@ from firedrake import (LinearVariationalSolver, LinearVariationalProblem, FacetN
                         TestFunction, assemble, solve, par_loop, DirichletBC,
                         WRITE, READ, RW, File)
 from firedrake_adjoint import stop_annotating
+from pyadjoint.enlisting import Enlist
 
 from ufl import (grad, inner, dot, dx, ds)
 
-parameters = {
+direct_parameters = {
     "mat_type" : "aij",
     "ksp_type" : "preonly",
     "pc_type" : "lu",
     "pc_factor_mat_solver_type" : "mumps"
 }
+
+iterative_parameters = {
+    "mat_type" : "aij",
+    "ksp_type" : "cg",
+    "pc_type" : "hypre",
+    "pc_hypre_type" : "boomeramg",
+    "pc_hypre_boomeramg_max_iter" : 200,
+    "pc_hypre_boomeramg_coarsen_type" : "HMIS",
+    "pc_hypre_boomeramg_agg_nl" : 1,
+    "pc_hypre_boomeramg_strong_threshold" : 0.25,
+    "pc_hypre_boomeramg_interp_type" : "ext+i",
+    "pc_hypre_boomeramg_P_max" : 4,
+    "pc_hypre_boomeramg_relax_type_all" : "sequential-Gauss-Seidel",
+    "pc_hypre_boomeramg_grid_sweeps_all" : 1,
+    "pc_hypre_boomeramg_max_levels" : 25,
+    "ksp_monitor_true_residual" : None
+    }
+
 class RegularizationSolver(object):
 
     """Solver to regularize the optimization problem"""
 
-    def __init__(self, S, mesh, beta=1e3, gamma=1.0e4, bcs=[], dx=dx, sim_domain=None):
+    def __init__(self, S, mesh, beta=1e3, gamma=1.0e4, bcs=None, dx=dx, sim_domain=None, iterative=False):
         n = FacetNormal(mesh)
         theta,xi = [TrialFunction(S), TestFunction( S)]
         self.xi = xi
@@ -27,7 +46,10 @@ class RegularizationSolver(object):
         # Dirichlet boundary conditions equal to zero for regions where we want
         # the domain to be static, i.e. zero velocities
 
-        self.bcs = bcs
+        if bcs is None:
+            self.bcs = []
+        else:
+            self.bcs = Enlist(bcs)
         if sim_domain is not None:
             # Heaviside step function in domain of interest
             V_DG0_B = FunctionSpace(mesh, "DG", 0)
@@ -56,7 +78,12 @@ class RegularizationSolver(object):
 
         self.beta_pvd = File("beta.pvd")
 
-    def solve(self, velocity, dJ, solver_parameters=parameters):
+        if iterative:
+            self.parameters = iterative_parameters
+        else:
+            self.parameters = direct_parameters
+
+    def solve(self, velocity, dJ):
 
         with dJ.dat.vec as v:
             v *= -1.0
@@ -66,5 +93,5 @@ class RegularizationSolver(object):
 
         with stop_annotating():
             assemble(self.a, bcs=self.bcs, tensor=self.Av)
-            solve(self.Av, velocity.vector(), dJ, solver_parameters=solver_parameters)
+            solve(self.Av, velocity.vector(), dJ, solver_parameters=self.parameters)
         self.beta_pvd.write(velocity)
