@@ -4,7 +4,7 @@ from ufl import conditional, And
 
 distribution_parameters={"partition": True, "overlap_type": (DistributedMeshOverlapType.VERTEX, 3)}
 
-from parameters_heat_exch import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
+from params import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
 
 

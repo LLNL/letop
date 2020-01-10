@@ -11,5 +11,5 @@ INMOUTH2 = 3
 OUTMOUTH1 = 4
 OUTMOUTH2 = 5
 INLET1, OUTLET1, INLET2, OUTLET2, WALLS, DESIGNBC = 1, 2, 3, 4, 5, 6
-ymax1 = line_sep - (dist_center + inlet_width)
-ymax2 = line_sep + dist_center
+ymin1 = line_sep - (dist_center + inlet_width)
+ymin2 = line_sep + dist_center

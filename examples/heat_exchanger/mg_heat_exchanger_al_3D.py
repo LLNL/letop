@@ -14,8 +14,8 @@ def main():
     output_dir = "heat_exchanger/"
 
     nref = 2
-    mesh = Mesh("./3D_mesh_mg.msh", distribution_parameters=distribution_parameters)
-    mh = MeshHierarchy(mesh, nref, distribution_parameters=distribution_parameters, reorder=True)
+    mesh = Mesh("./3D_mesh.msh", distribution_parameters=distribution_parameters)
+    mh = MeshHierarchy(mesh, nref, distribution_parameters=distribution_parameters)
     mesh = mh[-1]
 
     S = VectorFunctionSpace(mesh, "CG", 1)

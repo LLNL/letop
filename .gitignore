@@ -1,6 +1,7 @@
 *.vtu
 *.pvd
 *.vtk
+*.msh
 .cache
 .vim
 __pycache__
