@@ -111,20 +111,20 @@ class SteepestDescent(object):
                 if self.lagrangian.constraints[0]:
                     fvalue = self.lagrangian.cost_function_value()
                     print('It: {0} Obj: {1:.5f} f(x): {2:.5f} '.
-                                format(It, Jarr[It], fvalue), end='')
+                                format(It, Jarr[It], fvalue), end='', flush=True)
 
                     constr_values = [self.lagrangian.constraint_value(i) for i in range(self.lagrangian.m)]
-                    [print("g[{0}]: {1:.5f} ".format(i, value), end='') for i, value in enumerate(constr_values)]
+                    [print("g[{0}]: {1:.5f} ".format(i, value), end='', flush=True) for i, value in enumerate(constr_values)]
 
                     print('Error: {0:.4E} Step size: {1:.2E} Step iters: {2}'.
-                                format(abs(rel_change_J), alpha, ls), end='')
+                                format(abs(rel_change_J), alpha, ls), end='', flush=True)
                 else:
                     print('It: {0} Obj: {3:.5f} Error: {1:.5f} Step size: {2:.5E} Step iters: {4}'.
-                                format(It, abs(rel_change_J), alpha, Jarr[It], ls), end='')
+                                format(It, abs(rel_change_J), alpha, Jarr[It], ls), end='', flush=True)
                 if ls == ls_max:
-                    print(' \u274C Failed line search')
+                    print(' \u274C Failed line search', flush=True)
                 else:
-                    print(' \u2705')
+                    print(' \u2705', flush=True)
                 #------------ STOPPING CRITERION ---------------------------
                 tolerance_criteria = max(abs(Jarr[It-5:It]-Jarr[It-1])) if It > 20 else 1e2
 

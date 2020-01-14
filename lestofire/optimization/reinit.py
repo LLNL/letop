@@ -54,7 +54,6 @@ class SignedDistanceSolver(object):
         phi = Function(self.PHI)
 
         from firedrake import File
-        phi_pvd = File("reinit.pvd")
         for n in range(self.n_steps):
             solve(a == L, phi , bc, solver_parameters=solver_parameters)
             # Euclidean  norm
@@ -62,8 +61,6 @@ class SignedDistanceSolver(object):
             E = sqrt(abs(assemble(error)))
             print("error:", E)
             phi0.assign(phi)
-
-            phi_pvd.write(phi0)
 
             # Divergence  flag
             if (E_old < E ):
