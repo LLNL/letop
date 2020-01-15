@@ -43,6 +43,7 @@ def test_augmented_lagrangian():
              'dt_scale' : 1e-2,
              'n_hj_steps' : 3,
              'max_iter' : 30,
+             'n_reinit' : 5,
              'stopping_criteria' : 1e-2
              }
 
@@ -56,7 +57,7 @@ def test_augmented_lagrangian():
 
     velocity = Function(S)
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options, pvd_output=phi_pvd)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters)
+    Jarr = opti_solver.solve(phi, velocity, iterative=False)
 
     from numpy.testing import assert_allclose
     analytical_solution = 1.0/2.0 - 1.0/8.0
