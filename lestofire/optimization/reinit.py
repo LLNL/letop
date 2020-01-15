@@ -5,21 +5,36 @@ from firedrake import FunctionSpace, TrialFunction, \
                     Function, \
                     solve, assemble
 
-default_solver_parameters = {
+direct_parameters = {
     "mat_type" : "aij",
     "ksp_type" : "preonly",
     "pc_type" : "lu",
     "pc_factor_mat_solver_type" : "mumps"
-    }
+}
+
+iterative_parameters = {
+        "ksp_type" : "cg",
+        "ksp_max_it": 2000,
+        "ksp_atol": 1e-9,
+        "ksp_rtol": 1e-9,
+        "pc_type" : "bjacobi",
+        "ksp_converged_reason": None
+}
+
 class SignedDistanceSolver(object):
-    def __init__(self, mesh, PHI, alpha=10.0, dt=1e-6, n_steps=10):
+    def __init__(self, mesh, PHI, alpha=10.0, dt=1e-6, n_steps=10, iterative=False):
         self.PHI = PHI
         self.mesh = mesh
         self.alpha = alpha
         self.dt = dt
         self.n_steps = n_steps
 
-    def solve(self, phi_n, Dx, solver_parameters=default_solver_parameters):
+        if iterative:
+            self.parameters = iterative_parameters
+        else:
+            self.parameters = direct_parameters
+
+    def solve(self, phi_n, Dx):
         # phi_n     - is the  level  set  field  which  comes  from of the  main  algorithm
         # mesh - mesh  description
         # Dx    - mesh  size in the x-direction
@@ -55,7 +70,7 @@ class SignedDistanceSolver(object):
 
         from firedrake import File
         for n in range(self.n_steps):
-            solve(a == L, phi , bc, solver_parameters=solver_parameters)
+            solve(a == L, phi , bc, solver_parameters=self.parameters, options_prefix="signed_")
             # Euclidean  norm
             error = (((phi - phi0)/k)**2)*dx
             E = sqrt(abs(assemble(error)))

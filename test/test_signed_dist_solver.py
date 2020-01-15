@@ -16,9 +16,10 @@ def mesh():
 def phicg1(mesh):
     return FunctionSpace(mesh, 'CG', 1)
 
-def test_reinit(mesh, phicg1):
+@pytest.mark.parametrize(('iterative'), [False, True])
+def test_reinit(mesh, phicg1, iterative):
 
-    solver = SignedDistanceSolver(mesh, phicg1, dt=1e-6, n_steps=100)
+    solver = SignedDistanceSolver(mesh, phicg1, dt=1e-6, n_steps=100, iterative=iterative)
     X = SpatialCoordinate(mesh)
 
     import numpy as np
