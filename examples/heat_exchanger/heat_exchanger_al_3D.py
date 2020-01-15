@@ -37,7 +37,7 @@ def main():
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
 
-    iterative = False
+    iterative = True
     if iterative:
         alphamax = 2.5 * mu / (2e-7)
 

@@ -76,7 +76,7 @@ class SteepestDescent(object):
         phi_old = Function(PHI)
         mesh = PHI.mesh()
         hj_solver = HJStabSolver(mesh, PHI, c2_param=hj_stab, iterative=iterative)
-        reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6)
+        reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6, iterative=iterative)
         ## Line search parameters
         alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.01]
         alpha0 = alpha0_init

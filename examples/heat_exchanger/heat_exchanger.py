@@ -251,7 +251,7 @@ def main():
              'max_iter' : 60
              }
     opti_solver = SteepestDescent(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-10)
+    Jarr = opti_solver.solve(phi, velocity, iterative=iterative, tolerance=1e-10)
 
     from numpy.testing import assert_allclose
     assert_allclose(Jarr[19], -46302.57412, rtol=1e-3, atol=1e-6, err_msg='Optimization broken')

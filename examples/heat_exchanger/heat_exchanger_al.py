@@ -10,7 +10,7 @@ from params import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
                                 WALLS, INLET1, INLET2, OUTLET1, OUTLET2, width)
 
 def main():
-    output_dir = "heat_exchanger/"
+    output_dir = "2D/"
 
     mesh = Mesh('./2D_mesh.msh')
 
@@ -262,7 +262,7 @@ def main():
     bcs_vel_4 = DirichletBC(S, noslip, 4)
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
-    reg_solver = RegularizationSolver(S, mesh, beta=1e3, dx=dx, sim_domain=0)
+    reg_solver = RegularizationSolver(S, mesh, beta=1e3, gamma=1e4, dx=dx, sim_domain=0, output_dir=output_dir)
 
     hmin = 0.00940 # Hard coded from FEniCS
 
@@ -271,11 +271,11 @@ def main():
              'hj_stab': 1.5,
              'dt_scale' : 1.0,
              'n_hj_steps' : 1,
-             'n_reinit' : 10,
+             'n_reinit' : 5,
              'max_iter' : 60
              }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-4)
+    Jarr = opti_solver.solve(phi, velocity, iterative=iterative, tolerance=1e-4)
 
 
 if __name__ == '__main__':
