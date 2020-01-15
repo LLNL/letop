@@ -1,6 +1,6 @@
 version: 2.1
 jobs:
-  test-lestofire:
+  build:
     docker: 
       - image: salazardetroya/pyadjoint-firedrake
     steps:
@@ -24,8 +24,8 @@ jobs:
             gmsh -3 test/3D_mesh.geo
             pytest test/
 
-workflows:
-  version: 2.1
-  all:
-    jobs:
-      - test-lestofire
+            #workflows:
+            #  version: 2.1
+            #  all:
+            #    jobs:
+            #      - test-lestofire
