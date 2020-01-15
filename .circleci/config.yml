@@ -9,11 +9,11 @@ jobs:
           name: install dependencies
           command: |
             export DEBIAN_FRONTEND=noninteractive
-            apt-get update
-            apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
-            pip3 install roltrilinos ROL
-            pip3 install protobuf==3.8.0
-            pip3 install --upgrade numpy
+            sudo apt-get update
+            sudo apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
+            pip3 install roltrilinos ROL --user
+            pip3 install protobuf==3.8.0 --user
+            pip3 install --upgrade numpy --user
             pip3 install -e .
         
       # run tests!
