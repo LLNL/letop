@@ -20,12 +20,10 @@ jobs:
           name: Run tests
           command: |
             source /home/firedrake/firedrake/bin/activate
-            pip3 install -e .
-            ls -atrl test/
-            gmsh -2 test/2D_mesh.geo
-            gmsh -3 test/3D_mesh.geo
-            ls -atrl test/
-            pytest test/
+            pip3 install -e ../
+            gmsh -2 2D_mesh.geo
+            gmsh -3 3D_mesh.geo
+            pytest .
 
             #workflows:
             #  version: 2.1
