@@ -18,6 +18,7 @@ jobs:
       # run tests!
       - run:
           name: Run tests
+          working_directory: test/
           command: |
             source /home/firedrake/firedrake/bin/activate
             pip3 install -e ../
