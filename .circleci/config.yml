@@ -14,13 +14,13 @@ jobs:
             pip3 install roltrilinos ROL --user
             pip3 install protobuf==3.8.0 --user
             pip3 install --upgrade numpy --user
-            pip3 install .[all] --user
         
       # run tests!
       - run:
           name: Run tests
           command: |
             source /home/firedrake/firedrake/bin/activate
+            pip3 install .[all] --user
             gmsh -2 test/2D_mesh.geo
             gmsh -3 test/3D_mesh.geo
             pytest test/
