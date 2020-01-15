@@ -1,0 +1,31 @@
+version: 2.1
+jobs:
+  test-lestofire:
+    docker: 
+      - image: salazardetroya/pyadjoint-firedrake
+    steps:
+      - checkout # check out the code in the project directory
+      - run:
+          name: install dependencies
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
+            pip3 install roltrilinos ROL
+            pip3 install protobuf==3.8.0
+            pip3 install --upgrade numpy
+            pip3 install -e .
+        
+      # run tests!
+      - run:
+          name: Run tests
+          command: |
+            gmsh -2 test/2D_mesh.geo
+            gmsh -3 test/3D_mesh.geo
+            pytest test/
+
+workflows:
+  version: 2.1
+  all:
+    jobs:
+      - test-lestofire
