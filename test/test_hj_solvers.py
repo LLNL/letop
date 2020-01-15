@@ -60,9 +60,10 @@ def time_loop(mesh, X, hj_solver, phicg1, phicg1_vector):
         print("Error: {0:.12f}".format(error_phi))
     return error_phi
 
-def test_stab_solver(mesh, phicg1, phi_x0, X, phicg1_vector):
+@pytest.mark.parametrize(('iterative'), [False, True])
+def test_stab_solver(mesh, phicg1, phi_x0, X, phicg1_vector, iterative):
     bc = DirichletBC(phicg1, phi_x0, 1)
-    hj_solver = HJStabSolver(mesh, phicg1, c2_param=0.2, bc=bc)
+    hj_solver = HJStabSolver(mesh, phicg1, c2_param=0.2, bc=bc, iterative=iterative)
     error_phi = time_loop(mesh, X, hj_solver,phicg1, phicg1_vector)
 
     error_stab_after_50 = 0.08070355337702109

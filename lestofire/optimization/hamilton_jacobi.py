@@ -8,16 +8,32 @@ from firedrake import FunctionSpace, TrialFunction,  \
                     LinearVariationalSolver, VectorFunctionSpace
 
 
-default_solver_parameters = {
+direct_parameters = {
     "mat_type" : "aij",
     "ksp_type" : "preonly",
-    #"ksp_converged_reason" : None,
     "pc_type" : "lu",
     "pc_factor_mat_solver_type" : "mumps"
+}
+
+iterative_parameters = {
+    "mat_type" : "aij",
+    "ksp_type" : "cg",
+    "pc_type" : "hypre",
+    "pc_hypre_type" : "boomeramg",
+    "pc_hypre_boomeramg_max_iter" : 200,
+    "pc_hypre_boomeramg_coarsen_type" : "HMIS",
+    "pc_hypre_boomeramg_agg_nl" : 1,
+    "pc_hypre_boomeramg_strong_threshold" : 0.25,
+    "pc_hypre_boomeramg_interp_type" : "ext+i",
+    "pc_hypre_boomeramg_P_max" : 4,
+    "pc_hypre_boomeramg_relax_type_all" : "sequential-Gauss-Seidel",
+    "pc_hypre_boomeramg_grid_sweeps_all" : 1,
+    "pc_hypre_boomeramg_max_levels" : 25,
+    "ksp_monitor_true_residual" : None
     }
 class HJStabSolver(object):
     def __init__(self, mesh, PHI, c2_param=0.05, f=Constant(0.0), bc=None,
-                    solver_parameters=default_solver_parameters):
+                    iterative=False):
         self.PHI = PHI
         self.mesh = mesh
         self.c2 = c2_param
@@ -43,7 +59,11 @@ class HJStabSolver(object):
 
         self.phi_sol = Function(self.PHI)
         self.problem = LinearVariationalProblem(self.a, self.L, self.phi_sol, bcs=bc)
-        self.solver = LinearVariationalSolver(self.problem, solver_parameters=default_solver_parameters)
+
+        if iterative:
+            self.parameters = iterative_parameters
+        else:
+            self.parameters = direct_parameters
 
     def solve(self, beta, phi_n, steps=5, t=0, dt=1.0):
 
@@ -51,7 +71,8 @@ class HJStabSolver(object):
         self.phi_n.assign(phi_n)
         self.dt.assign(Constant(dt))
 
-        self.solver = LinearVariationalSolver(self.problem, solver_parameters=default_solver_parameters)
+
+        self.solver = LinearVariationalSolver(self.problem, solver_parameters=direct_parameters)
 
         for i in range(steps):
             self.solver.solve()

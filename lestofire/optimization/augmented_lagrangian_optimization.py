@@ -37,7 +37,7 @@ class AugmentedLagrangianOptimization(object):
         self.opti_solver = SteepestDescent(lagrangian, reg_solver, options=options)
 
 
-    def solve(self, phi, velocity, solver_parameters=parameters, tolerance=5e-3):
+    def solve(self, phi, velocity, iterative=False, tolerance=5e-3):
         it_max = 100
         it = 0
         stop_value = 1e-1
@@ -50,7 +50,7 @@ class AugmentedLagrangianOptimization(object):
             c_penalties = [self.lagrangian.penalty(i) for i in m_constr]
             [print(colored("Lagr[{0}]: {1:.5f}. c[{0}]: {2:.5f}".format(i, lagr, penalty), 'green'), flush=True)
                     for i, (lagr, penalty) in enumerate(zip(lagr_mults, c_penalties)) ]
-            Jarr = self.opti_solver.solve(phi, velocity, solver_parameters, tolerance)
+            Jarr = self.opti_solver.solve(phi, velocity, iterative=iterative, tolerance=tolerance)
 
             if tolerance > 1e-5:
                 tolerance *= 0.5*0.8
