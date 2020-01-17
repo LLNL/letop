@@ -1,5 +1,5 @@
 # My dev environment for pyadjoint
-FROM pyadjoint:firedrake
+FROM salazardetroya/pyadjoint-firedrake
 MAINTAINER miguelito 
 
 USER root
@@ -64,6 +64,10 @@ RUN pip3 install tensorflow==1.15.0
 RUN pip3 install protobuf==3.7.1
 RUN pip3 install --upgrade numpy
 
+RUN apt-get -y install build-essential pkg-config python-dev python-six cython python-numpy coinor-libipopt1v5 coinor-libipopt-dev
+RUN /bin/bash -l -c "source /home/firedrake/firedrake/bin/activate && GIT_SSL_NO_VERIFY=true pip3 install git+https://github.com/matthias-k/cyipopt.git"
+
+RUN apt-get -y install language-pack-en-base
 
 USER firedrake
 
