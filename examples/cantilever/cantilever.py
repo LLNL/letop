@@ -22,6 +22,13 @@ def main():
     phi.rename("LevelSet")
     File(output_dir + "phi_initial.pvd").write(phi)
 
+
+    lx = 15.0
+    ly = 5.0
+    phi_mat = -cos(6.0/lx*pi*x) * cos(4.0*pi*y) - 0.6\
+                + max_value(200.0*(0.01-x**2-(y-ly/2)**2),.0)\
+                + max_value(100.0*(x+y-lx-ly+0.1),.0) + max_value(100.0*(x-y-lx+0.1),.0)
+
     mu = Constant(1e2)
     rho_min = 1e-5
     beta = Constant(100000.0)
