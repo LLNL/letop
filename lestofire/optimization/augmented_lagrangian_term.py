@@ -1,4 +1,4 @@
-from firedrake_adjoint import assemble, Constant
+from firedrake import assemble, Constant
 
 from ufl import max_value
 

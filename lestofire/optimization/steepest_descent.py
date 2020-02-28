@@ -3,6 +3,7 @@ import numpy as np
 from termcolor import colored
 
 from lestofire.optimization import HJStabSolver, SignedDistanceSolver
+from lestofire.utils import petsc_print
 
 parameters = {
         "mat_type" : "aij",
@@ -110,21 +111,21 @@ class SteepestDescent(object):
             else:
                 if self.lagrangian.constraints[0]:
                     fvalue = self.lagrangian.cost_function_value()
-                    print('It: {0} Obj: {1:.5f} f(x): {2:.5f} '.
-                                format(It, Jarr[It], fvalue), end='', flush=True)
+                    petsc_print('It: {0} Obj: {1:.5f} f(x): {2:.5f} '.
+                                format(It, Jarr[It], fvalue), end='')
 
                     constr_values = [self.lagrangian.constraint_value(i) for i in range(self.lagrangian.m)]
-                    [print("g[{0}]: {1:.5f} ".format(i, value), end='', flush=True) for i, value in enumerate(constr_values)]
+                    [petsc_print("g[{0}]: {1:.5f} ".format(i, value), end='') for i, value in enumerate(constr_values)]
 
-                    print('Error: {0:.4E} Step size: {1:.2E} Step iters: {2}'.
-                                format(abs(rel_change_J), alpha, ls), end='', flush=True)
+                    petsc_print('Error: {0:.4E} Step size: {1:.2E} Step iters: {2}'.
+                                format(abs(rel_change_J), alpha, ls), end='')
                 else:
-                    print('It: {0} Obj: {3:.5f} Error: {1:.5f} Step size: {2:.5E} Step iters: {4}'.
-                                format(It, abs(rel_change_J), alpha, Jarr[It], ls), end='', flush=True)
+                    petsc_print('It: {0} Obj: {3:.5f} Error: {1:.5f} Step size: {2:.5E} Step iters: {4}'.
+                                format(It, abs(rel_change_J), alpha, Jarr[It], ls), end='')
                 if ls == ls_max:
-                    print(' \u274C Failed line search', flush=True)
+                    petsc_print(' \u274C Failed line search')
                 else:
-                    print(' \u2705', flush=True)
+                    petsc_print(' \u2705')
                 #------------ STOPPING CRITERION ---------------------------
                 tolerance_criteria = max(abs(Jarr[It-5:It]-Jarr[It-1])) if It > 20 else 1e2
 
@@ -133,8 +134,8 @@ class SteepestDescent(object):
                 if It > 2 and abs(rel_change_J) < tolerance and ls < ls_max:
                     stop = True
 
-                if It > 20 and tolerance_criteria < tolerance*Jarr[It-1]/Nx**2/10 and ls < ls_max:
-                    stop = True
+                #if It > 20 and tolerance_criteria < tolerance*Jarr[It-1]/Nx**2/10 and ls < ls_max:
+                #    stop = True
 
                 #print('Compliance            : %.2f' % )
                 #print('Volume fraction       : %.2f' % (vol/(lx*ly)))

@@ -6,6 +6,7 @@ from .optimization import HJStabSolver, HJSUPG, SignedDistanceSolver, SteepestDe
                         augmented_lagrangian, AugmentedLagrangianOptimization, max_fvalue, \
                         augmented_lagrangian_float
 from .levelset import LevelSetLagrangian, RegularizationSolver
+from .utils import petsc_print
 
 __all__ = [
     "__author__",

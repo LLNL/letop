@@ -236,8 +236,9 @@ def main():
     t_pvd = File(output_dir + "t.pvd")
     def deriv_cb(phi):
         phi_pvd.write(phi[0])
-        u1, _ = U1control.tape_value().split()
-        u2, _ = U2control.tape_value().split()
+        with stop_annotating():
+            u1, _ = U1control.tape_value().split()
+            u2, _ = U2control.tape_value().split()
         u1.rename("Velocity")
         u2.rename("Velocity")
         u1_pvd.write(u1)

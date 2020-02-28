@@ -55,7 +55,6 @@ def main():
         }
         stokes_parameters = {
                 "mat_type" : "aij",
-                #"ksp_monitor_true_residual": None,
                 "ksp_converged_reason": None,
                 "ksp_max_it" : 1000,
                 "ksp_norm_type" : "unpreconditioned",
@@ -320,7 +319,7 @@ def main():
         "pc_factor_mat_solver_type" : "mumps"
         }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
-    Jarr = opti_solver.solve(phi, velocity, solver_parameters=parameters, tolerance=1e-4)
+    Jarr = opti_solver.solve(phi, velocity, iterative=iterative, tolerance=1e-4)
 
 
 if __name__ == '__main__':
