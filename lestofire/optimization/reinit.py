@@ -77,7 +77,7 @@ class SignedDistanceSolver(object):
             error = (((phi - phi0)/k)**2)*dx
             E = sqrt(abs(assemble(error)))
             petsc_print("error:", E)
-            phi0.assign(phi)
+            phi0.assign(phi, annotate=False)
 
             # Divergence  flag
             if (E_old < E ):

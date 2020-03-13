@@ -106,8 +106,8 @@ class SteepestDescent(object):
             if It > 0 and Jarr[It] > Jarr[It-1] and ls < ls_max:
                 ls   += 1
                 alpha *= gamma
-                phi.assign(phi_old)
-                phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt))
+                phi.assign(phi_old, annotate=False)
+                phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt), annotate=False)
             else:
                 if self.lagrangian.constraints[0]:
                     fvalue = self.lagrangian.cost_function_value()
@@ -148,14 +148,14 @@ class SteepestDescent(object):
                 dJ = self.lagrangian.derivative()
                 self.reg_solver.solve(velocity, dJ)
 
-                phi_old.assign(phi)
-                phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt))
+                phi_old.assign(phi, annotate=False)
+                phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt), annotate=False)
                 if self.pvd_output:
                     self.pvd_output.write(phi)
 
                 # Reinit the level set function every five iterations.
                 if np.mod(It, n_reinit) == 0:
                     Dx = hmin
-                    phi.assign(reinit_solver.solve(phi, Dx))
+                    phi.assign(reinit_solver.solve(phi, Dx), annotate=False)
 
         return Jarr
