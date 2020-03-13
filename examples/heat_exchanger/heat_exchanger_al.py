@@ -107,8 +107,8 @@ def main():
         parameters = {
             "mat_type" : "aij",
             "ksp_type" : "preonly",
-            "ksp_monitor_true_residual": None,
-            #"ksp_converged_reason" : None,
+            #"ksp_monitor_true_residual": None,
+            "ksp_converged_reason" : None,
             "pc_type" : "lu",
             "pc_factor_mat_solver_type" : "mumps"
             }
@@ -239,11 +239,11 @@ def main():
         with stop_annotating():
             u1, _ = U1control.tape_value().split()
             u2, _ = U2control.tape_value().split()
+            tplot.assign(tcontrol.tape_value())
         u1.rename("Velocity")
         u2.rename("Velocity")
         u1_pvd.write(u1)
         u2_pvd.write(u2)
-        tplot.assign(tcontrol.tape_value())
         t_pvd.write(tplot)
 
 
