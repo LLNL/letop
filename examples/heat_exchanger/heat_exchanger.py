@@ -12,7 +12,7 @@ from params import (INMOUTH2, INMOUTH1, line_sep, dist_center, inlet_width,
 def main():
     output_dir = "heat_exchanger_unconstrained/"
 
-    mesh = Mesh('./mesh_heat_exchanger.msh')
+    mesh = Mesh('./2D_mesh.msh')
     #meshes = MeshHierarchy(mesh, 2)
     #mesh = meshes[-1]
 
@@ -248,6 +248,7 @@ def main():
              'hj_stab': 1.0,
              'dt_scale' : 1.0,
              'n_hj_steps' : 3,
+             'n_reinit' : 5,
              'max_iter' : 60
              }
     opti_solver = SteepestDescent(Jhat, reg_solver, options=options)

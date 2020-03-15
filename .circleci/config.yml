@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   build:
     docker: 
-      - image: salazardetroya/pyadjoint-firedrake
+      - image: firedrakeproject/firedrake:latest
     steps:
       - checkout # check out the code in the project directory
       - run:
@@ -17,6 +17,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
             pip3 install roltrilinos ROL --user
+            pip3 install termcolor --user
             pip3 install protobuf==3.8.0 --user
             pip3 install --upgrade numpy --user
         

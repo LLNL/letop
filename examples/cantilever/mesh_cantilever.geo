@@ -1,16 +1,18 @@
 size = 0.1;
+width = 2.0;
+height = 1.0;
 p0 = newp;
 Point(p0) = {0.0, 0.0, 0.0, size};
 p1 = newp;
-Point(p1) = {15.0, 0.0, 0.0, size};
+Point(p1) = {width, 0.0, 0.0, size};
 p2 = newp;
-Point(p2) = {15.0, 2, 0.0, size};
+Point(p2) = {width, 15.0/32.0 * height, 0.0, size};
 p3 = newp;
-Point(p3) = {15.0, 3, 0.0, size};
+Point(p3) = {width, 17.0/32.0 * height, 0.0, size};
 p4 = newp;
-Point(p4) = {15.0, 5, 0.0, size};
+Point(p4) = {width, height, 0.0, size};
 p5 = newp;
-Point(p5) = {0.0, 5.0, 0.0, size};
+Point(p5) = {0.0, height, 0.0, size};
 
 l0 = newl;
 Line(l0) = {p0, p1};

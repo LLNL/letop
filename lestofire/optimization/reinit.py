@@ -5,6 +5,8 @@ from firedrake import FunctionSpace, TrialFunction, \
                     Function, \
                     solve, assemble
 
+from lestofire.utils import petsc_print
+
 direct_parameters = {
     "mat_type" : "aij",
     "ksp_type" : "preonly",
@@ -74,13 +76,13 @@ class SignedDistanceSolver(object):
             # Euclidean  norm
             error = (((phi - phi0)/k)**2)*dx
             E = sqrt(abs(assemble(error)))
-            print("error:", E)
-            phi0.assign(phi)
+            petsc_print("error:", E)
+            phi0.assign(phi, annotate=False)
 
             # Divergence  flag
             if (E_old < E ):
                 fail = 1
-                print("*Diverges_at_the_re -initialization_level*", cont)
+                petsc_print("*Diverges_at_the_re -initialization_level*", cont)
                 break
             cont  +=1
             E_old = E

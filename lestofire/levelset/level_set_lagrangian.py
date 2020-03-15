@@ -65,7 +65,6 @@ class LevelSetLagrangian(object):
                 penalty_value = Enlist(penalty_value)
                 self.m = len(self.constraints)
                 from firedrake import FunctionSpace, dx
-                from firedrake_adjoint import Function, Constant, assemble
                 from pyadjoint.placeholder import Placeholder
 
                 self.lagr_mult = [AdjFloat(lagrange_multiplier[i]) for i in range(self.m)]
