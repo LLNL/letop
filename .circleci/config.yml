@@ -9,14 +9,15 @@ jobs:
           name: install dependencies
           command: |
             export DEBIAN_FRONTEND=noninteractive
-            sudo apt-get update
+            apt-get update
             apt-get install -y wget
-            sudo apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
+            apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
             wget http://gmsh.info/bin/Linux/gmsh-4.4.1-Linux64.tgz 
+            mkdir -p /home/firedrake/gmsh/bin/
             tar -xvf gmsh-4.4.1-Linux64.tgz && \
-            sudo mv gmsh-4.4.1-Linux64/bin/* /usr/local/bin/ && \
-            sudo mv gmsh-4.4.1-Linux64/share/doc/ /usr/local/share/doc/ && \
-            sudo mv gmsh-4.4.1-Linux64/share/man/ /usr/local/share/man/
+            mv gmsh-4.4.1-Linux64/bin/* /home/firedrake/gmsh/bin/
+            #sudo mv gmsh-4.4.1-Linux64/share/doc/ /usr/local/share/doc/ && \
+            #sudo mv gmsh-4.4.1-Linux64/share/man/ /usr/local/share/man/
             pip3 install roltrilinos ROL --user
             pip3 install termcolor --user
             pip3 install protobuf==3.8.0 --user
@@ -32,9 +33,3 @@ jobs:
             gmsh -2 2D_mesh.geo
             gmsh -3 3D_mesh.geo
             pytest .
-
-            #workflows:
-            #  version: 2.1
-            #  all:
-            #    jobs:
-            #      - test-lestofire
