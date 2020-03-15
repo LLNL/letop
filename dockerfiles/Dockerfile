@@ -1,5 +1,6 @@
 # My dev environment for pyadjoint
-FROM salazardetroya/pyadjoint-firedrake
+#FROM salazardetroya/pyadjoint-firedrake
+FROM pyadjoint:firedrake
 MAINTAINER miguelito 
 
 USER root

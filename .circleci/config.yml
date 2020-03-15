@@ -8,14 +8,15 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            wget http://gmsh.info/bin/Linux/gmsh-4.4.1-Linux64.tgz 
-            tar -xvf gmsh-4.4.1-Linux64.tgz && \
-            mv gmsh-4.4.1-Linux64/bin/* /usr/local/bin/ && \
-            mv gmsh-4.4.1-Linux64/share/doc/ /usr/local/share/doc/ && \
-            mv gmsh-4.4.1-Linux64/share/man/ /usr/local/share/man/
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
+            apt-get install -y wget
             sudo apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
+            wget http://gmsh.info/bin/Linux/gmsh-4.4.1-Linux64.tgz 
+            tar -xvf gmsh-4.4.1-Linux64.tgz && \
+            sudo mv gmsh-4.4.1-Linux64/bin/* /usr/local/bin/ && \
+            sudo mv gmsh-4.4.1-Linux64/share/doc/ /usr/local/share/doc/ && \
+            sudo mv gmsh-4.4.1-Linux64/share/man/ /usr/local/share/man/
             pip3 install roltrilinos ROL --user
             pip3 install termcolor --user
             pip3 install protobuf==3.8.0 --user
