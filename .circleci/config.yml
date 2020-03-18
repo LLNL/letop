@@ -4,12 +4,10 @@ jobs:
     machine: true
     steps:
       - checkout
-      - run:
-        working_directory: docker/
-        command: |
+      - run: |
           echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
                 # build the application image
-          docker build -t lestofire:env .
+          docker build -t lestofire:env -f docker/Dockerfile .
           docker push lestofire:env
   build:
     docker: 
