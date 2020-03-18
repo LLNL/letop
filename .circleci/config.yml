@@ -1,5 +1,16 @@
 version: 2.1
 jobs:
+  build_env:
+    machine: true
+    steps:
+      - checkout
+      - run:
+        working_directory: docker/
+        command: |
+          echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
+                # build the application image
+          docker build -t lestofire:env .
+          docker push lestofire:env
   build:
     docker: 
       - image: firedrakeproject/firedrake:latest
@@ -33,3 +44,8 @@ jobs:
             gmsh -2 2D_mesh.geo
             gmsh -3 3D_mesh.geo
             pytest .
+workflows:
+  version: 2
+  all:
+    jobs:
+      - build_env
