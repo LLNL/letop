@@ -1,6 +1,5 @@
 from firedrake import Function, File
 import numpy as np
-from termcolor import colored
 
 from lestofire.optimization import HJStabSolver, SignedDistanceSolver
 from lestofire.utils import petsc_print

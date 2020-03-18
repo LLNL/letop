@@ -17,8 +17,8 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            source /home/firedrake/firedrake/bin/activate
             pip3 install roltrilinos ROL --user
-            pip3 install termcolor --user
             pip3 install protobuf==3.8.0 --user
             pip3 install --upgrade numpy --user
         

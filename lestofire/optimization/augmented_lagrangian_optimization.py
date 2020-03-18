@@ -1,6 +1,5 @@
 from lestofire.optimization import SteepestDescent
 
-from termcolor import colored
 
 
 parameters = {
@@ -42,13 +41,14 @@ class AugmentedLagrangianOptimization(object):
         it = 0
         stop_value = 1e-1
         while stop_value > self.stopping_criteria and it < it_max:
-            print(colored("Outer It.: {:d} ".format(it), 'green'), flush=True)
+
+            print("\x1b[32mOuter It.: {:d} \x1b[0m".format(it), flush=True)
             it = it + 1
 
             m_constr = range(self.lagrangian.m)
             lagr_mults = [self.lagrangian.lagrange_multiplier(i) for i in m_constr]
             c_penalties = [self.lagrangian.penalty(i) for i in m_constr]
-            [print(colored("Lagr[{0}]: {1:.5f}. c[{0}]: {2:.5f}".format(i, lagr, penalty), 'green'), flush=True)
+            [print("\x1b[32mLagr[{0}]: {1:.5f}. c[{0}]: {2:.5f} \x1b[0m".format(i, lagr, penalty), flush=True)
                     for i, (lagr, penalty) in enumerate(zip(lagr_mults, c_penalties)) ]
             Jarr = self.opti_solver.solve(phi, velocity, iterative=iterative, tolerance=tolerance)
 
@@ -57,6 +57,6 @@ class AugmentedLagrangianOptimization(object):
 
             self.lagrangian.update_augmented_lagrangian()
             stop_value = self.lagrangian.stop_criteria()
-            print(colored("Stopping criteria {0:.5f}".format(stop_value), 'blue'), flush=True)
+            print("\x1b[32mStopping criteria {0:.5f} \x1b[0m".format(stop_value), flush=True)
 
         return Jarr
