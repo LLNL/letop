@@ -7,8 +7,8 @@ jobs:
       - run: |
           echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
                 # build the application image
-          docker build -t lestofire:env -f docker/Dockerfile .
-          docker push lestofire:env
+          docker build -t salazardetroya/lestofire:env -f docker/Dockerfile .
+          docker push salazardetroya/lestofire:env
   build:
     docker: 
       - image: firedrakeproject/firedrake:latest
