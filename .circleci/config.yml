@@ -11,22 +11,12 @@ jobs:
           docker push salazardetroya/lestofire:env
   build:
     docker: 
-      - image: firedrakeproject/firedrake:latest
+      - image: salazardetroya/lestofire:env
     steps:
       - checkout # check out the code in the project directory
       - run:
           name: install dependencies
           command: |
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update
-            apt-get install -y wget
-            apt-get install -y  python-dev graphviz libgraphviz-dev pkg-config patchelf
-            wget http://gmsh.info/bin/Linux/gmsh-4.4.1-Linux64.tgz 
-            mkdir -p /home/firedrake/gmsh/bin/
-            tar -xvf gmsh-4.4.1-Linux64.tgz && \
-            mv gmsh-4.4.1-Linux64/bin/* /home/firedrake/gmsh/bin/
-            #sudo mv gmsh-4.4.1-Linux64/share/doc/ /usr/local/share/doc/ && \
-            #sudo mv gmsh-4.4.1-Linux64/share/man/ /usr/local/share/man/
             pip3 install roltrilinos ROL --user
             pip3 install termcolor --user
             pip3 install protobuf==3.8.0 --user
@@ -47,3 +37,4 @@ workflows:
   all:
     jobs:
       - build_env
+      - build
