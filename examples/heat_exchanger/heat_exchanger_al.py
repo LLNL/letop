@@ -31,7 +31,7 @@ def main():
     phi = interpolate(phi_expr , PHI)
     phi.rename("LevelSet")
     phi_pvd = File(output_dir + "phi_evolution.pvd")
-    phi_pvd.write(phi)
+    #phi_pvd.write(phi)
 
     mu = Constant(1e-2)                   # viscosity
     alphamin = 1e-12
@@ -269,8 +269,8 @@ def main():
 
     options = {
              'hmin' : 0.00940,
-             'hj_stab': 1.5,
-             'dt_scale' : 1.0,
+             'hj_stab': 0.5,
+             'dt_scale' : 1.5,
              'n_hj_steps' : 1,
              'n_reinit' : 5,
              'max_iter' : 60
