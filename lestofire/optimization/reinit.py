@@ -4,6 +4,7 @@ from firedrake import FunctionSpace, TrialFunction, \
                     dx, grad, inner, dot, \
                     Function, \
                     solve, assemble
+from pyadjoint.tape import no_annotations
 
 from lestofire.utils import petsc_print
 
@@ -36,6 +37,7 @@ class SignedDistanceSolver(object):
         else:
             self.parameters = direct_parameters
 
+    @no_annotations
     def solve(self, phi_n, Dx):
         # phi_n     - is the  level  set  field  which  comes  from of the  main  algorithm
         # mesh - mesh  description
@@ -72,10 +74,10 @@ class SignedDistanceSolver(object):
 
         from firedrake import File
         for n in range(self.n_steps):
-            solve(a == L, phi , bc, solver_parameters=self.parameters, options_prefix="signed_")
+            solve(a == L, phi , bc, solver_parameters=self.parameters, options_prefix="signed_", annotate=False)
             # Euclidean  norm
             error = (((phi - phi0)/k)**2)*dx
-            E = sqrt(abs(assemble(error)))
+            E = sqrt(abs(assemble(error, annotate=False)))
             petsc_print("error:", E)
             phi0.assign(phi, annotate=False)
 

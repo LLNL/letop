@@ -68,7 +68,7 @@ class HJStabSolver(object):
         self.solver = LinearVariationalSolver(self.problem, solver_parameters=self.parameters, options_prefix='hjsolver_')
 
         for i in range(steps):
-            self.solver.solve()
+            self.solver.solve(annotate=False)
             self.phi_n.assign(self.phi_sol, annotate=False)
 
         return self.phi_n
@@ -108,9 +108,9 @@ class HJSUPG(object):
             phi_new = Function(self.PHI)
 
             if self.bc is None:
-                solve(lhs(F)==rhs(F), phi_new)
+                solve(lhs(F)==rhs(F), phi_new, annotate=False)
             else:
-                solve(lhs(F)==rhs(F), phi_new, bcs=self.bc)
+                solve(lhs(F)==rhs(F), phi_new, bcs=self.bc, annotate=False)
             phi_n.assign(phi_new, annotate=False)
 
         return phi_n
@@ -142,9 +142,9 @@ class HJDG(object):
             phi_new = Function(self.PHI)
 
             if bc is None:
-                solve(lhs(F)==rhs(F), phi_new)
+                solve(lhs(F)==rhs(F), phi_new, annotate=False)
             else:
-                solve(lhs(F)==rhs(F), phi_new, bcs=bc)
+                solve(lhs(F)==rhs(F), phi_new, bcs=bc, annotate=False)
             phi_n.assign(phi_new, annotate=False)
 
         return phi_n

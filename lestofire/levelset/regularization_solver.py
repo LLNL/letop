@@ -93,5 +93,5 @@ class RegularizationSolver(object):
 
         with stop_annotating():
             assemble(self.a, bcs=self.bcs, tensor=self.Av)
-            solve(self.Av, velocity.vector(), dJ, solver_parameters=self.parameters)
+            solve(self.Av, velocity.vector(), dJ, solver_parameters=self.parameters, annotate=False)
         self.beta_pvd.write(velocity)

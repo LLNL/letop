@@ -37,7 +37,7 @@ class AugmentedLagrangianOptimization(object):
 
 
     def solve(self, phi, velocity, iterative=False, tolerance=5e-3):
-        it_max = 100
+        it_max = 10
         it = 0
         stop_value = 1e-1
         while stop_value > self.stopping_criteria and it < it_max:
