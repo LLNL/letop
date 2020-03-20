@@ -54,11 +54,16 @@ class RegularizationSolver(object):
             # Heaviside step function in domain of interest
             V_DG0_B = FunctionSpace(mesh, "DG", 0)
             I_B = Function(V_DG0_B)
-            par_loop(('{[i] : 0 <= i < f.dofs}', 'f[i, 0] = 1.0'),
+            I_B.assign(1.0, annotate=False)
+            par_loop(('{[i] : 0 <= i < f.dofs}', 'f[i, 0] = 0.0'),
                      dx(sim_domain), {'f': (I_B, WRITE)}, is_loopy_kernel=True)
 
             I_cg_B = Function(S)
             dim = S.mesh().geometric_dimension()
+            #Assume that `A` is a :class:`.Function` in CG1 and `B` is a
+            #:class:`.Function` in DG0. Then the following code sets each DoF in
+            #`A` to the maximum value that `B` attains in the cells adjacent to
+            #that DoF::
             par_loop(('{{[i, j] : 0 <= i < A.dofs and 0 <= j < {0} }}'.format(dim), 'A[i, j] = fmax(A[i, j], B[0, 0])'),
                      dx, {'A' : (I_cg_B, RW), 'B': (I_B, READ)}, is_loopy_kernel=True)
 
@@ -70,7 +75,7 @@ class RegularizationSolver(object):
                     super(MyBC, self).__init__(V, value, 0)
                     # Override the "nodes" property which says where the boundary
                     # condition is to be applied.
-                    self.nodes = np.unique(np.where(markers.dat.data_ro_with_halos == 0)[0])
+                    self.nodes = np.unique(np.where(markers.dat.data_ro_with_halos > 0)[0])
 
             self.bcs.append(MyBC(S, 0, I_cg_B ))
 
