@@ -223,9 +223,10 @@ def main():
     solver_temp.solve()
 
 
-    Power1 = assemble(p1*ds(INLET1)) - 2.0
-    Power2 = assemble(p2*ds(INLET2)) - 2.0
-    Jform = assemble(Constant(-1e5)*inner(t*u1, n)*ds(OUTLET1))
+    power_drop = 1.0
+    Power1 = assemble(p1*ds(INLET1)) - power_drop
+    Power2 = assemble(p2*ds(INLET2)) - power_drop
+    Jform = assemble(Constant(-20.0*cp_value)*inner(t*u1, n)*ds(OUTLET1))
 
     U1control = Control(U1)
     U2control = Control(U2)
@@ -248,7 +249,7 @@ def main():
 
 
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[4e3, 4e3], penalty_value=[1e1, 1e1], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
+    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb, lagrange_multiplier=[2e3, 2e3], penalty_value=[5, 5], penalty_update=[2.0, 2.0], constraint=[Power1, Power2], method='AL')
     Jhat_v = Jhat(phi)
     print("Initial cost function value {:.5f}".format(Jhat_v), flush=True)
     print("Power drop 1 {:.5f}".format(Power1), flush=True)
@@ -263,12 +264,12 @@ def main():
     bcs_vel_4 = DirichletBC(S, noslip, 4)
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
-    reg_solver = RegularizationSolver(S, mesh, beta=1e3, gamma=1e4, dx=dx, sim_domain=0, output_dir=output_dir)
+    reg_solver = RegularizationSolver(S, mesh, beta=1e3, gamma=1e5, dx=dx, sim_domain=0, output_dir=output_dir)
 
     hmin = 0.00940 # Hard coded from FEniCS
 
     options = {
-             'hmin' : 0.00940,
+             'hmin' : 0.00240,
              'hj_stab': 0.5,
              'dt_scale' : 1.5,
              'n_hj_steps' : 1,
