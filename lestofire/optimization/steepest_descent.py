@@ -76,7 +76,7 @@ class SteepestDescent(object):
         phi_old = Function(PHI)
         mesh = PHI.mesh()
         hj_solver = HJStabSolver(mesh, PHI, c2_param=hj_stab, iterative=iterative)
-        reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-6, iterative=iterative)
+        reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=iterative)
         ## Line search parameters
         alpha0_init,ls,ls_max,gamma,gamma2 = [0.5,0,8,0.1,0.01]
         alpha0 = alpha0_init
@@ -130,7 +130,7 @@ class SteepestDescent(object):
 
                 rel_change_J = abs(Jarr[It-2] - Jarr[It-1]) / Jarr[0] if It > 1 else 1e2
                 #print("Relative change in J: {0:.4E}, stopping criteria steepest descent: {1:.4E}".format(rel_change_J, tolerance))
-                if It > 2 and abs(rel_change_J) < tolerance and ls < ls_max:
+                if It > 2 and abs(rel_change_J) < tolerance: # and ls < ls_max:
                     stop = True
 
                 #if It > 20 and tolerance_criteria < tolerance*Jarr[It-1]/Nx**2/10 and ls < ls_max:
