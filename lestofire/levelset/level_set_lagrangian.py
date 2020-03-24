@@ -31,18 +31,25 @@ class LevelSetLagrangian(object):
 
     """
 
-    def __init__(self, functional, controls, level_set,
-                 constraint=None, method=None,
-                 scale=1.0, tape=None,
-                 lagrange_multiplier=1e5,
-                 penalty_value=1e5,
-                 penalty_update=2.0,
-                 eval_cb_pre=lambda *args: None,
-                 eval_cb_post=lambda *args: None,
-                 derivative_cb_pre=lambda *args: None,
-                 derivative_cb_post=lambda *args: None,
-                 hessian_cb_pre=lambda *args: None,
-                 hessian_cb_post=lambda *args: None):
+    def __init__(
+        self,
+        functional,
+        controls,
+        level_set,
+        constraint=None,
+        method=None,
+        scale=1.0,
+        tape=None,
+        lagrange_multiplier=1e5,
+        penalty_value=1e5,
+        penalty_update=2.0,
+        eval_cb_pre=lambda *args: None,
+        eval_cb_post=lambda *args: None,
+        derivative_cb_pre=lambda *args: None,
+        derivative_cb_post=lambda *args: None,
+        hessian_cb_pre=lambda *args: None,
+        hessian_cb_post=lambda *args: None,
+    ):
         self.functional = functional
         self.cost_function = self.functional
         self.constraints = Enlist(constraint)
@@ -67,20 +74,27 @@ class LevelSetLagrangian(object):
                 from firedrake import FunctionSpace, dx
                 from pyadjoint.placeholder import Placeholder
 
-                self.lagr_mult = [AdjFloat(lagrange_multiplier[i]) for i in range(self.m)]
-                self.lagr_mult_ph = [Placeholder(self.lagr_mult[i]) for i in range(self.m)]
+                self.lagr_mult = [
+                    AdjFloat(lagrange_multiplier[i]) for i in range(self.m)
+                ]
+                self.lagr_mult_ph = [
+                    Placeholder(self.lagr_mult[i]) for i in range(self.m)
+                ]
                 self.c = [AdjFloat(penalty_value[i]) for i in range(self.m)]
                 self.c_ph = [Placeholder(self.c[i]) for i in range(self.m)]
 
                 for i in range(self.m):
-                    self.functional += augmented_lagrangian_float(self.constraints[i], self.lagr_mult[i], self.c[i])
+                    self.functional += augmented_lagrangian_float(
+                        self.constraints[i], self.lagr_mult[i], self.c[i]
+                    )
             else:
-                raise RuntimeError("Constrained specified but not the method to handle it")
+                raise RuntimeError(
+                    "Constrained specified but not the method to handle it"
+                )
 
         # TODO Check that the level set is in the tape.
         # Actually, not even pyadjoint checks if the given Control is in the
         # tape.
-
 
     def stop_criteria(self):
         """ This method is only used for the Augmented Lagrangian method
@@ -92,39 +106,61 @@ class LevelSetLagrangian(object):
         with stop_annotating():
             for i in range(self.m):
                 constraint_value = self.constraint_value(i)
-                stop_criteria += abs(constraint_value * float(self.lagr_mult_ph[i].saved_output))
+                stop_criteria += abs(
+                    constraint_value
+                    * float(self.lagr_mult[i].block_variable.saved_output)
+                )
         return stop_criteria
-
 
     def constraint_value(self, i):
         constraint_value = Control(self.constraints[i]).tape_value()
         return constraint_value
 
-
     def cost_function_value(self):
         cost_func_value = Control(self.cost_function).tape_value()
         return cost_func_value
 
-
     def lagrange_multiplier(self, i):
-        return float(self.lagr_mult_ph[i].saved_output)
+        return float(self.lagr_mult[i].block_variable.saved_output)
 
     def penalty(self, i):
-        return float(self.c_ph[i].saved_output)
+        return float(self.c[i].block_variable.saved_output)
 
-    def update_augmented_lagrangian(self):
+    @no_annotations
+    def update_penalty(self):
+        assert self.constraints is not None
+        assert self.method is "AL"
+        from ufl import max_value
+
+        for i in range(self.m):
+            self.c[i].block_variable.set_value(
+                AdjFloat(
+                    float(self.c[i].block_variable.saved_output)
+                    * self.penalty_update[i]
+                )
+            )
+
+    @no_annotations
+    def update_lagrangian(self):
         """ This method is only used for the Augmented Lagrangian method
         """
         assert self.constraints is not None
         assert self.method is "AL"
         from ufl import max_value
 
-
-        with stop_annotating():
-            for i in range(self.m):
-                constraint_value = self.constraint_value(i)
-                self.lagr_mult_ph[i].set_value(AdjFloat(max(float(self.lagr_mult_ph[i].saved_output + self.c_ph[i].saved_output*constraint_value), 0.0)))
-                self.c_ph[i].set_value(AdjFloat(float(self.c_ph[i].saved_output)* self.penalty_update[i]))
+        for i in range(self.m):
+            constraint_value = self.constraint_value(i)
+            self.lagr_mult[i].block_variable.set_value(
+                AdjFloat(
+                    max(
+                        float(
+                            self.lagr_mult[i].block_variable.saved_output
+                            + self.c[i].block_variable.saved_output * constraint_value
+                        ),
+                        0.0,
+                    )
+                )
+            )
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.
@@ -145,16 +181,20 @@ class LevelSetLagrangian(object):
         # Call callback
         self.derivative_cb_pre(self.level_set)
 
-        derivatives = compute_gradient(self.functional,
-                                       self.controls,
-                                       options=options,
-                                       tape=self.tape,
-                                       adj_value=self.scale)
+        derivatives = compute_gradient(
+            self.functional,
+            self.controls,
+            options=options,
+            tape=self.tape,
+            adj_value=self.scale,
+        )
 
         # Call callback
-        self.derivative_cb_post(self.functional.block_variable.checkpoint,
-                                self.level_set.delist(derivatives),
-                                self.level_set)
+        self.derivative_cb_post(
+            self.functional.block_variable.checkpoint,
+            self.level_set.delist(derivatives),
+            self.level_set,
+        )
 
         return self.level_set.delist(derivatives)
 
@@ -179,12 +219,16 @@ class LevelSetLagrangian(object):
         # Call callback
         self.hessian_cb_pre(self.level_set)
 
-        r = compute_hessian(self.functional, self.controls, m_dot, options=options, tape=self.tape)
+        r = compute_hessian(
+            self.functional, self.controls, m_dot, options=options, tape=self.tape
+        )
 
         # Call callback
-        self.hessian_cb_post(self.functional.block_variable.checkpoint,
-                             self.level_set.delist(r),
-                             self.level_set)
+        self.hessian_cb_post(
+            self.functional.block_variable.checkpoint,
+            self.level_set.delist(r),
+            self.level_set,
+        )
 
         return self.level_set.delist(r)
 
@@ -239,8 +283,7 @@ class LevelSetLagrangian(object):
     # TODO fix this to avoid deleting the level set
     def optimize_tape(self):
         self.tape.optimize(
-            controls=self.controls + self.level_set,
-            functionals=[self.functional]
+            controls=self.controls + self.level_set, functionals=[self.functional]
         )
 
     def marked_controls(self):
