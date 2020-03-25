@@ -56,12 +56,16 @@ def main():
     phi_pvd = File(output_dir + "phi_evolution.pvd")
     # phi_pvd.write(phi)
 
-    mu = Constant(1e-2)  # viscosity
+    mu = Constant(1e-1)  # viscosity
     alphamin = 1e-12
     epsilon = Constant(10000.0)
-    u_inflow = 2e-1
+    u_inflow = 2e-2
     tin1 = Constant(10.0)
     tin2 = Constant(100.0)
+
+    Re = u_inflow * width / mu.values()[0]
+    print("Reynolds number: {:.5f}".format(Re), flush=True)
+
 
     iterative = False
     if iterative:
@@ -126,7 +130,7 @@ def main():
             "pc_ml_maxCoarseSize": 10,
         }
     else:
-        alphamax = 2.5 * mu / (2e-6)
+        alphamax = 2.5 * mu / (2e-5)
         parameters = {
             "mat_type": "aij",
             "ksp_type": "preonly",
@@ -282,10 +286,11 @@ def main():
     )
     solver_temp.solve()
 
-    power_drop = 3.0
+    power_drop = 1e-1
     Power1 = assemble(p1 * ds(INLET1)) - power_drop
     Power2 = assemble(p2 * ds(INLET2)) - power_drop
-    Jform = assemble(Constant(-20.0 * cp_value) * inner(t * u1, n) * ds(OUTLET1))
+    scale_factor = 10
+    Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
     U1control = Control(U1)
     U2control = Control(U2)
@@ -313,7 +318,7 @@ def main():
         c,
         phi,
         derivative_cb_pre=deriv_cb,
-        lagrange_multiplier=[4e3, 4e3],
+        lagrange_multiplier=[4e2, 4e2],
         penalty_value=[50, 50],
         penalty_update=[10.0, 10.0],
         constraint=[Power1, Power2],
@@ -324,7 +329,10 @@ def main():
     print("Power drop 1 {:.5f}".format(Power1), flush=True)
     print("Power drop 2 {:.5f}".format(Power2), flush=True)
     dJ = Jhat.derivative()
-    Jhat.optimize_tape()
+    tape = get_working_tape()
+    #tape.visualise()
+
+    #Jhat.optimize_tape()
 
     velocity = Function(S)
     bcs_vel_1 = DirichletBC(S, noslip, 1)
@@ -334,14 +342,14 @@ def main():
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
     reg_solver = RegularizationSolver(
-        S, mesh, beta=1e3, gamma=1e5, dx=dx, sim_domain=0, output_dir=output_dir
+        S, mesh, beta=5e1, gamma=1e5, dx=dx, sim_domain=0, output_dir=output_dir
     )
 
     hmin = 0.00940  # Hard coded from FEniCS
 
     options = {
-        "hmin": 0.0140,
-        "hj_stab": 1.1,
+        "hmin": 0.00840,
+        "hj_stab": 0.9,
         "dt_scale": 1.5,
         "n_hj_steps": 1,
         "n_reinit": 5,
@@ -349,6 +357,7 @@ def main():
     }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
     Jarr = opti_solver.solve(phi, velocity, iterative=iterative, tolerance=1e-4)
+    tape.visualise(output="after")
 
 
 if __name__ == "__main__":
