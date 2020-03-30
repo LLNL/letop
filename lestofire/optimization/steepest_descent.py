@@ -62,7 +62,7 @@ class SteepestDescent(object):
 
         return options
 
-    def solve(self, phi, velocity, iterative=False, tolerance=1e-6):
+    def solve(self, phi, velocity, iterative=False, tolerance=1e-6, It0=0):
 
         hj_stab = self.options['hj_stab']
         hmin = self.options['hmin']
@@ -70,6 +70,7 @@ class SteepestDescent(object):
         n_hj_steps = self.options['n_hj_steps']
         n_reinit = self.options['n_reinit']
         max_iter = self.options['max_iter']
+
 
 
         PHI = phi.function_space()
@@ -84,7 +85,9 @@ class SteepestDescent(object):
 
         ## Stopping criterion parameters
         Nx = 100
-        It,stop = [0, False]
+        It = 0
+        global_It = It0
+        stop = False
 
         Jarr = np.zeros(max_iter)
 
@@ -111,7 +114,7 @@ class SteepestDescent(object):
                 if self.lagrangian.constraints[0]:
                     fvalue = self.lagrangian.cost_function_value()
                     petsc_print('It: {0} Obj: {1:.5f} f(x): {2:.5f} '.
-                                format(It, Jarr[It], fvalue), end='')
+                                format(global_It + It, Jarr[It], fvalue), end='')
 
                     constr_values = [self.lagrangian.constraint_value(i) for i in range(self.lagrangian.m)]
                     [petsc_print("g[{0}]: {1:.5f} ".format(i, value), end='') for i, value in enumerate(constr_values)]
@@ -120,7 +123,7 @@ class SteepestDescent(object):
                                 format(abs(rel_change_J), alpha, ls), end='')
                 else:
                     petsc_print('It: {0} Obj: {3:.5f} Error: {1:.5f} Step size: {2:.5E} Step iters: {4}'.
-                                format(It, abs(rel_change_J), alpha, Jarr[It], ls), end='')
+                                format(global_It + It, abs(rel_change_J), alpha, Jarr[It], ls), end='')
                 if ls == ls_max:
                     petsc_print(' \u274C Failed line search')
                 else:
@@ -157,4 +160,4 @@ class SteepestDescent(object):
                     Dx = hmin
                     phi.assign(reinit_solver.solve(phi, Dx), annotate=False)
 
-        return Jarr
+        return Jarr, It

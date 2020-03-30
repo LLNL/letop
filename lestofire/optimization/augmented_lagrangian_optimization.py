@@ -41,6 +41,7 @@ class AugmentedLagrangianOptimization(object):
         it = 0
         stop_value = 1e-1
         tol_f = 1.0 / self.lagrangian.penalty(0) ** 0.1
+        it_inner = 0
         while stop_value > self.stopping_criteria and it < it_max:
 
             print("\x1b[32mOuter It.: {:d} \x1b[0m".format(it), flush=True)
@@ -58,9 +59,10 @@ class AugmentedLagrangianOptimization(object):
                 )
                 for i, (lagr, penalty) in enumerate(zip(lagr_mults, c_penalties))
             ]
-            Jarr = self.opti_solver.solve(
-                phi, velocity, iterative=iterative, tolerance=tolerance
+            Jarr, n_iter = self.opti_solver.solve(
+                phi, velocity, iterative=iterative, tolerance=tolerance, It0=it_inner
             )
+            it_inner += n_iter
 
             # Check for constraint satisfaction
             feasibility = sum(

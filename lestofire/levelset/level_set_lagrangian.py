@@ -54,6 +54,7 @@ class LevelSetLagrangian(object):
         self.cost_function = self.functional
         self.constraints = Enlist(constraint)
         self.penalty_update = Enlist(penalty_update)
+        self.penalty_max = 5e9
         self.method = method
         self.tape = get_working_tape() if tape is None else tape
         self.controls = Enlist(controls)
@@ -77,11 +78,12 @@ class LevelSetLagrangian(object):
                 self.lagr_mult = [
                     AdjFloat(lagrange_multiplier[i]) for i in range(self.m)
                 ]
-                self.lagr_mult_ph = [
-                    Placeholder(self.lagr_mult[i]) for i in range(self.m)
-                ]
+                for i in range(self.m):
+                    Placeholder(self.lagr_mult[i])
+
                 self.c = [AdjFloat(penalty_value[i]) for i in range(self.m)]
-                self.c_ph = [Placeholder(self.c[i]) for i in range(self.m)]
+                for i in range(self.m):
+                    Placeholder(self.c[i])
 
                 for i in range(self.m):
                     self.functional += augmented_lagrangian_float(
@@ -134,9 +136,9 @@ class LevelSetLagrangian(object):
 
         for i in range(self.m):
             self.c[i].block_variable.set_value(
-                AdjFloat(
+                AdjFloat(min(
                     float(self.c[i].block_variable.saved_output)
-                    * self.penalty_update[i]
+                    * self.penalty_update[i], self.penalty_max)
                 )
             )
 
