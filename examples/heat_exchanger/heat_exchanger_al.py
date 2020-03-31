@@ -357,7 +357,6 @@ def main():
     }
     opti_solver = AugmentedLagrangianOptimization(Jhat, reg_solver, options=options)
     Jarr = opti_solver.solve(phi, velocity, iterative=iterative, tolerance=1e-4)
-    tape.visualise(output="after")
 
 
 if __name__ == "__main__":

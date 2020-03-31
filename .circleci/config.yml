@@ -31,8 +31,8 @@ jobs:
             pip3 install -e ../
             gmsh -2 2D_mesh.geo
             gmsh -3 3D_mesh.geo
-            pytest .
             ./run_examples.sh ${VIRTUAL_ENV}
+            pytest .
 workflows:
   version: 2
   all:
