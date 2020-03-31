@@ -6,7 +6,10 @@ from numpy.testing import assert_allclose
 TestExample = namedtuple('TestExample', ['folder', 'n_iter', 'value'])
 
 
-test_collection = [TestExample(folder='heat_exchanger', n_iter=88, value=-5783.83288)]
+# Comparison of final iterations is pointless. These are highly nonlinear
+# problems and a small difference can create a noticeably difference in the
+# final number of iterations and the cost function value.
+test_collection = [TestExample(folder='heat_exchanger', n_iter=10, value=-5881.53739)]
 
 def run_check(output_file, folder):
 
@@ -20,7 +23,7 @@ def run_check(output_file, folder):
 
     with open(output_file, 'r') as read_test:
         all_iters = re.findall('It: ([0-9]*) Obj: (-?[0-9]*.[0-9]*)', read_test.read())
-        last_iter = all_iters[-1]
+        last_iter = all_iters[10]
         assert current_test.n_iter == int(last_iter[0]), 'Number of iterations for {} is not matching'.format(current_test.folder)
         assert_allclose(float(last_iter[1]), current_test.value, rtol=1e-4, err_msg='Cost function for {} is not matching'.format(current_test.folder))
 
