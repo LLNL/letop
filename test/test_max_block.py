@@ -1,7 +1,7 @@
 from lestofire import max_fvalue, augmented_lagrangian_float
 
-from firedrake import  dx, FunctionSpace, UnitSquareMesh
-from firedrake_adjoint import Constant, Function, assemble, UnitSquareMesh
+from firedrake import  dx, FunctionSpace, UnitSquareMesh, Constant, Function, \
+                        assemble, UnitSquareMesh
 
 from pyadjoint import AdjFloat, ReducedFunctional, Control, get_working_tape
 from pyadjoint.tape import Tape, set_working_tape
