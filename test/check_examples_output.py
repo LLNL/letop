@@ -9,7 +9,8 @@ TestExample = namedtuple('TestExample', ['folder', 'n_iter', 'value'])
 # Comparison of final iterations is pointless. These are highly nonlinear
 # problems and a small difference can create a noticeably difference in the
 # final number of iterations and the cost function value.
-test_collection = [TestExample(folder='heat_exchanger', n_iter=10, value=-5881.53739)]
+test_collection = [TestExample(folder='heat_exchanger', n_iter=10, value=-5865.15033)]
+
 
 def run_check(output_file, folder):
 
