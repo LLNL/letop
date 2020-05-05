@@ -36,9 +36,9 @@ def phi_x0(X):
 
 
 
-def time_loop(mesh, X, hj_solver, phicg1, phicg1_vector):
+def time_loop(mesh, X, hj_solver, phicg1, scale_dt=1.0):
     t = 0.0
-    beta = interpolate(as_vector([1.0, 0.0]), phicg1_vector)
+    beta = as_vector([1.0, 0.0])
     phi_expr = (X[0] - t < 0.2)*(X[1] > 0.5)
     phi_n = interpolate(phi_expr, phicg1)
     import numpy as np
@@ -47,7 +47,7 @@ def time_loop(mesh, X, hj_solver, phicg1, phicg1_vector):
         # CFL step
         phi_expr = (X[0] - t < 0.2)*(X[1] > 0.5)
         maxv = np.max(phi_n.vector()[:])
-        dt = hmin / maxv
+        dt = hmin / maxv * scale_dt
 
         # Solve
         phi_next = hj_solver.solve(beta, phi_n, steps=1, t=t, dt=dt)
@@ -61,18 +61,26 @@ def time_loop(mesh, X, hj_solver, phicg1, phicg1_vector):
     return error_phi
 
 @pytest.mark.parametrize(('iterative'), [False, True])
-def test_stab_solver(mesh, phicg1, phi_x0, X, phicg1_vector, iterative):
+def test_stab_solver(mesh, phicg1, phi_x0, X, iterative):
     bc = DirichletBC(phicg1, phi_x0, 1)
     hj_solver = HJStabSolver(mesh, phicg1, c2_param=0.2, bc=bc, iterative=iterative)
-    error_phi = time_loop(mesh, X, hj_solver,phicg1, phicg1_vector)
+    error_phi = time_loop(mesh, X, hj_solver,phicg1)
 
     error_stab_after_50 = 0.08070355337702109
     assert pytest.approx(error_phi, 1e-5) == error_stab_after_50
 
-def test_supg_solver(mesh, phicg1, phi_x0, X, phicg1_vector):
+def test_supg_solver(mesh, phicg1, phi_x0, X):
     bc = DirichletBC(phicg1, phi_x0, 1)
     hj_solver = HJSUPG(mesh, phicg1, bc=bc)
-    error_phi = time_loop(mesh, X, hj_solver, phicg1, phicg1_vector)
+    error_phi = time_loop(mesh, X, hj_solver, phicg1)
 
     error_supg_after_50 = 0.04416640448327516
     assert pytest.approx(error_phi, 1e-8) == error_supg_after_50
+
+def test_dg(mesh, phi_x0, X):
+    V = FunctionSpace(mesh, 'DG', 1)
+    hj_solver = HJDG(mesh, V, phi_x0)
+    error_phi = time_loop(mesh, X, hj_solver, V, scale_dt=1e-1)
+
+    error_dg_after_50 = 0.013078387496
+    assert pytest.approx(error_phi, 1e-8) == error_dg_after_50
