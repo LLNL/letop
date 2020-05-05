@@ -81,7 +81,10 @@ class RegularizationSolver(object):
 
         self.Av = assemble(self.a, bcs=self.bcs)
 
-        self.beta_pvd = File(output_dir + "beta.pvd")
+        if output_dir is not None:
+            self.beta_pvd = File(output_dir + "beta.pvd")
+        else:
+            self.beta_pvd = None
 
         if iterative:
             self.parameters = iterative_parameters
@@ -99,4 +102,6 @@ class RegularizationSolver(object):
         with stop_annotating():
             assemble(self.a, bcs=self.bcs, tensor=self.Av)
             solve(self.Av, velocity.vector(), dJ, solver_parameters=self.parameters, annotate=False)
-        self.beta_pvd.write(velocity)
+
+        if self.beta_pvd:
+            self.beta_pvd.write(velocity)

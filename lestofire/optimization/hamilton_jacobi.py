@@ -5,7 +5,12 @@ from firedrake import FunctionSpace, TrialFunction,  \
                     grad, jump, avg, inner, \
                     dx, dS, solve, lhs, rhs, dot, ds, \
                     div, LinearVariationalProblem, \
-                    LinearVariationalSolver, VectorFunctionSpace
+                    LinearVariationalSolver, VectorFunctionSpace, \
+                    File, conditional, replace, derivative, VertexBasedLimiter,\
+                    action
+
+from dolfin_dg import LocalLaxFriedrichs, HyperbolicOperator, DGDirichletBC
+
 
 
 direct_parameters = {
@@ -28,6 +33,7 @@ class HJStabSolver(object):
     def __init__(self, mesh, PHI, c2_param=0.05, f=Constant(0.0), bc=None,
                     iterative=False):
         self.PHI = PHI
+        self.PHI_V = VectorFunctionSpace(mesh, 'CG', 1)
         self.mesh = mesh
         self.c2 = c2_param
         self.f = f
