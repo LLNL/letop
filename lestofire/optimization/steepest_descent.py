@@ -109,7 +109,7 @@ class SteepestDescent(object):
                 ls   += 1
                 alpha *= gamma
                 phi.assign(phi_old, annotate=False)
-                phi.assign(hj_solver.solve(velocity, phi, steps=3, dt=dt), annotate=False)
+                phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt), annotate=False)
             else:
                 if self.lagrangian.constraints[0]:
                     fvalue = self.lagrangian.cost_function_value()
