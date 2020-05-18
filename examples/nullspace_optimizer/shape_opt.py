@@ -43,6 +43,7 @@ beta1_pvd = File("beta1.pvd")
 beta2_pvd = File("beta2.pvd")
 newvel_pvd = File("newvel.pvd")
 newvel = Function(S)
+newphi = Function(PHI)
 
 
 def deriv_cb(phi):
@@ -52,7 +53,7 @@ def deriv_cb(phi):
 c = Control(s)
 Jhat = LevelSetLagrangian(Jform, c, phi)
 Vhat = LevelSetLagrangian(VolPen, c, phi)
-reg_solver = RegularizationSolver(S, mesh, beta=1e-2, gamma=1.0e0, dx=dx, output_dir=None)
+reg_solver = RegularizationSolver(S, mesh, beta=1e-2, gamma=1.0e5, dx=dx, output_dir=None)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 dt = 0.5*1e0
 tol = 1e-5
@@ -72,6 +73,7 @@ class InfDimProblem(EuclideanOptimizable):
         self.phi = phi
         self.control = control.control
         self.newphi = Function(phi.function_space())
+        self.i = 0 # iteration count
 
     def fespace(self):
         return self.V
@@ -101,6 +103,8 @@ class InfDimProblem(EuclideanOptimizable):
         """Returns the triplet (dJT(x),dGT(x),dHT(x))
         Is used by nslpace_solve method only if self.inner_product returns
         None"""
+        newphi.assign(x)
+        phi_pvd.write(newphi)
         dJT = self.dJT(x)
         if self.nconstraints == 0:
             dGT = []
@@ -115,7 +119,6 @@ class InfDimProblem(EuclideanOptimizable):
     def retract(self, x, dx):
         dt = 0.1
         self.newphi.assign(hj_solver.solve(Constant(-1.0)*dx, x, steps=1, dt=dt), annotate=False)
-        phi_pvd.write(self.newphi)
         newvel.assign(dx, annotate=False)
         newvel_pvd.write(newvel)
         return self.newphi
