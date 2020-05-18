@@ -32,7 +32,7 @@ def hs(phi, epsilon):
     return Constant(1.0) / (Constant(1.0) + exp(-epsilon * phi)) + Constant(alphamin)
 
 
-scaling = -1.0
+scaling = -100.0
 Jform = assemble(Constant(scaling) * hs(phi, epsilon) * x * dx)
 print("Initial cost function value {}".format(Jform))
 VolPen = assemble(hs(phi, epsilon) * dx(domain=mesh))
@@ -52,10 +52,10 @@ def deriv_cb(phi):
 c = Control(s)
 Jhat = LevelSetLagrangian(Jform, c, phi)
 Vhat = LevelSetLagrangian(VolPen, c, phi)
-reg_solver = RegularizationSolver(S, mesh, beta=1e-1, gamma=1.0e5, dx=dx, output_dir=None)
+reg_solver = RegularizationSolver(S, mesh, beta=1e-2, gamma=1.0e0, dx=dx, output_dir=None)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
-dt = 0.5*5*1e-3
-tol = 1e-6
+dt = 0.5*1e0
+tol = 1e-5
 
 class InfDimProblem(EuclideanOptimizable):
     def __init__(self, phi, Jhat, Hhat, G, control):
@@ -138,7 +138,7 @@ parameters = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
-params = {"alphaC": 0.5, "debug": 5, "alphaJ": 0.5, "dt": dt, "maxtrials": 20, "itnormalisation" : 2, "tol" : tol}
+params = {"alphaC": 0.5, "debug": 5, "alphaJ": 0.5, "dt": dt, "maxtrials": 20, "itnormalisation" : 20, "tol" : tol}
 results = nlspace_solve_shape(InfDimProblem(phi, Jhat, Vhat, Vval, c), params)
 
 velocity = Function(S)
