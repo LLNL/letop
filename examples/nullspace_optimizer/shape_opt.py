@@ -54,8 +54,9 @@ c = Control(s)
 Jhat = LevelSetLagrangian(Jform, c, phi)
 Vhat = LevelSetLagrangian(VolPen, c, phi)
 reg_solver = RegularizationSolver(S, mesh, beta=1e-2, gamma=1.0e5, dx=dx, output_dir=None)
+reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
-dt = 0.5*1e0
+dt = 0.5*5e-1
 tol = 1e-5
 
 class InfDimProblem(EuclideanOptimizable):
@@ -103,8 +104,15 @@ class InfDimProblem(EuclideanOptimizable):
         """Returns the triplet (dJT(x),dGT(x),dHT(x))
         Is used by nslpace_solve method only if self.inner_product returns
         None"""
+        self.i += 1
         newphi.assign(x)
         phi_pvd.write(newphi)
+
+        # Reinit the level set function every five iterations.
+        if self.i % 10 == 0:
+            Dx = 0.01
+            x.assign(reinit_solver.solve(x, Dx), annotate=False)
+
         dJT = self.dJT(x)
         if self.nconstraints == 0:
             dGT = []
@@ -141,7 +149,7 @@ parameters = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
-params = {"alphaC": 0.5, "debug": 5, "alphaJ": 0.5, "dt": dt, "maxtrials": 20, "itnormalisation" : 20, "tol" : tol}
+params = {"alphaC": 0.5, "debug": 5, "alphaJ": 0.5, "dt": dt, "maxtrials": 10, "itnormalisation" : 1, "tol" : tol}
 results = nlspace_solve_shape(InfDimProblem(phi, Jhat, Vhat, Vval, c), params)
 
 velocity = Function(S)
