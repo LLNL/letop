@@ -344,8 +344,9 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         Pmatrix = np.zeros((sum(tildeEps), sum(tildeEps)))
         qvector = np.zeros((sum(tildeEps), 1))
 
-        ii, jj = 0, 0
+        ii = 0
         for i, tildei in enumerate(tildeEps):
+            jj = 0
             for j, tildej in enumerate(tildeEps):
                 if tildej and tildei:
                     #Pmatrix[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
@@ -387,8 +388,9 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
 
             # Compute null space direction xiJ
             dCdCT = np.zeros((sum(hat), sum(hat)))
-            ii, jj = 0, 0
+            ii = 0
             for i, tildei in enumerate(hat):
+                jj = 0
                 for j, tildej in enumerate(hat):
                     if tildej and tildei:
                         #dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
@@ -447,8 +449,9 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         # Compute range step direction xiC
         indicesEps = np.logical_or(tilde, tildeEps)
         dCdCT = np.zeros((sum(indicesEps), sum(indicesEps)))
-        ii, jj = 0, 0
+        ii = 0
         for i, indi in enumerate(indicesEps):
+            jj = 0
             for j, indj in enumerate(indicesEps):
                 if indi and indj:
                     #dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)

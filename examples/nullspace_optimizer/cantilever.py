@@ -75,6 +75,7 @@ File("sigma.pvd").write(project(sigma(u_sol), Sigma))
 Jform = assemble(inner(hs(-phi, beta)*sigma(u_sol), epsilon(u_sol))*dx)
 #Jform = assemble(inner(hs(-phi, beta)*sigma(u_sol), epsilon(u_sol))*dx + Constant(1000.0)*hs(-phi, beta)*dx)
 VolPen = assemble(hs(-phi, beta)*dx)
+VolControl = Control(VolPen)
 
 Vval = 1.0
 
@@ -103,7 +104,7 @@ dt = 10.0
 tol = 1e-5
 
 class InfDimProblem(EuclideanOptimizable):
-    def __init__(self, phi, Jhat, Hhat, G, control):
+    def __init__(self, phi, Jhat, Hhat, Hval, Hcontrol, control):
         super().__init__(1) # This argument is the number of variables, it doesn't really matter...
         self.nconstraints = 0
         self.nineqconstraints = 1
@@ -112,8 +113,11 @@ class InfDimProblem(EuclideanOptimizable):
         self.dH = Function(self.V)
         self.dx = Function(self.V)
         self.Jhat = Jhat
+
         self.Hhat = Hhat
-        self.Hval = G
+        self.Hval = Hval
+        self.Hcontrol = Hcontrol
+
         self.phi = phi
         self.control = control.control
         self.newphi = Function(phi.function_space())
@@ -135,7 +139,7 @@ class InfDimProblem(EuclideanOptimizable):
         return self.dJ
 
     def H(self, x):
-        return [self.Hhat(x) - self.Hval]
+        return [self.Hcontrol.tape_value() - self.Hval]
 
     def dHT(self, x):
         dH = self.Hhat.derivative()
@@ -194,6 +198,4 @@ parameters = {
 }
 
 params = {"alphaC": 0.5, "debug": 5, "alphaJ": 1.0, "dt": dt, "maxtrials": 10, "itnormalisation" : 1, "tol" : tol}
-results = nlspace_solve_shape(InfDimProblem(phi, Jhat, Vhat, Vval, c), params)
-
-velocity = Function(S)
+results = nlspace_solve_shape(InfDimProblem(phi, Jhat, Vhat, Vval, VolControl, c), params)

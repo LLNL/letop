@@ -108,6 +108,7 @@ class SteepestDescent(object):
             if It > 0 and Jarr[It] > Jarr[It-1] and ls < ls_max:
                 ls   += 1
                 alpha *= gamma
+                dt = dt_scale * alpha * hmin / maxv
                 phi.assign(phi_old, annotate=False)
                 phi.assign(hj_solver.solve(velocity, phi, steps=n_hj_steps, dt=dt), annotate=False)
             else:
