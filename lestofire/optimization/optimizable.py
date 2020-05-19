@@ -165,13 +165,6 @@ class Optimizable:
             dHT = self.dHT(x)
         return (dJT, dGT, dHT)
 
-    def inner_product(self, x):
-        """Returns the inner product matrix at `x`.
-        output:
-            A  :  a n-by-n matrix where n=len(dJ(x))
-        """
-        return None
-
     def retract(self, x, dx):
         """
         The retraction that explicit how to move from `x` by a step `dx`
@@ -228,116 +221,9 @@ class EuclideanOptimizable(Optimizable):
         self.n = n
         self.is_manifold = False
 
-    def inner_product(self, x):
-        return sp.eye(self.n, format='csc')
-
     def retract(self, x, dx):
         return x+dx
 
-
-class EqualizedOptimizable(Optimizable):
-    """An Optimizable object automatically converts all inequality constraints
-    into equality constraints with the method of slack variables.
-
-    Usage
-    -----
-    >>> equalizedProblem = EqualizedOptimizable(problem)
-
-    The optimizable object `problem` corresponds to the minimization program
-        min J(x)
-         x
-        g_i(x) =  0 for i=1...p
-        h_i(x) <= 0 for i=1..q
-
-    The `equalizedProblem` corresponds to the equivalent program
-        min J(x)
-        (x, z)
-
-        g_i(x)        = 0 for i=1..p
-        h_i(x)+z_i**2 = 0 for i=1..q
-
-    Optimization points for the `EqualizedOptimizable` object are tuples of the
-    form `(x,z)` with `x` an optimization point for `problem` and `z` a list of
-    size `q`.
-
-    Initialization is built with the rule
-    zi(0) = sqrt(2 |h_i(x(0))|) for i=1..q
-
-    The inner product chosen on the z variable is the usual Euclidean inner
-    product.  Derivatives with respect to the z variable are appended at the
-    end of the derivative arrays with respect to x.
-    """
-
-    def __init__(self, problem):
-        super().__init__()
-        if problem.nineqconstraints == 0:
-            raise Exception("Error, problem does not feature inequality "
-                            "constraints")
-        self.problem = problem
-        self.nconstraints = problem.nconstraints+problem.nineqconstraints
-        self.nineqconstraints = 0
-        self.is_manifold = problem.is_manifold
-        self.h_size = max(self.problem.h_size, 1e-4)
-
-    def x0(self):
-        x0 = self.problem.x0()
-        (J, G, H) = self.problem.eval(x0)
-        z = [np.sqrt(2 * abs(h)) for h in H]
-        self._Optimizable__currentJ_x = (x0, z)
-        newG = G+[h+0.5*zi**2 for (h, zi) in zip(H, z)]
-        (self._Optimizable__J, self._Optimizable__G,
-         self._Optimizable__H) = (J, newG, [])
-        return (x0, z)
-
-    def J(self, x):
-        return self.problem.J(x[0])
-
-    def G(self, x):
-        oldG = self.problem.G(x[0])
-        oldH = self.problem.H(x[0])
-        oldH = [h+0.5*zi**2 for (h, zi) in zip(oldH, x[1])]
-        return oldG+oldH
-
-    def H(self, x):
-        return []
-
-    def dJ(self, x):
-        return np.concatenate((self.problem.dJ(x[0]),
-                               [0.0]*self.problem.nineqconstraints))
-
-    def dG(self, x):
-        old_dG = self.problem.dG(x[0])
-        old_dG = [np.concatenate(
-            (dgi, [0.0]*self.problem.nineqconstraints)) for dgi in old_dG]
-        old_dH = self.problem.dH(x[0])
-        old_dH = [np.concatenate((old_dH[i], [0.0]*i, [x[1][i]],
-                                  [0.0]*(self.problem.nineqconstraints-i-1)))
-                  for i in range(self.problem.nineqconstraints)]
-        return old_dG+old_dH
-
-    def dH(self, x):
-        return []
-
-    def inner_product(self, x):
-        Aold = self.problem.inner_product(x[0])
-        A = sp.block_diag(
-            (Aold, *(1,)*self.problem.nineqconstraints), format='csc')
-        return A
-
-    def retract(self, x, dx):
-        retractedOld = self.problem.retract(
-            x[0], dx[:(-self.problem.nineqconstraints)])
-        retractedZi = x[1]+dx[-self.problem.nineqconstraints:]
-        return (retractedOld, retractedZi)
-
-    def accept(self, results: dict):
-        newresults = results.copy()
-        newresults['H'] = [[gi-0.5*zi**2 for (gi, zi) in
-                            zip(G[self.problem.nconstraints:], X[1])]
-                           for (G, X) in zip(results['G'], results['x'])]
-        newresults['G'] = [G[:self.problem.nconstraints] for G in results['G']]
-        newresults['x'] = [x[0] for x in results['x']]
-        self.problem.accept(newresults)
 
 
 def checkOptimizable(problem: EuclideanOptimizable, x, eps=1e-6):

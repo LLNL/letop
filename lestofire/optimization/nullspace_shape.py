@@ -168,6 +168,14 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     p = problem.nconstraints
     q = problem.nineqconstraints
 
+
+    if hasattr(problem, 'inner_product'):
+        norm_func = lambda x : np.sqrt(problem.inner_product(x, x))
+        inner_product = problem.inner_product
+    else:
+        norm_func = norm
+        inner_product = lambda x, y: assemble(inner(x, y)*dx, annotate=False)
+
     try:
         import colored as col
 
@@ -183,12 +191,12 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             if debug >= level:
                 print(message)
 
-    def compute_norm(x):
+    def compute_norm(f):
         if normalisation_norm == np.inf:
-            with x.dat.vec_ro as vu:
+            with f.dat.vec_ro as vu:
                 return vu.norm(PETSc.NormType.NORM_INFINITY)
         elif normalisation_norm == 2:
-            normx = norm(x)
+            normx = norm_func(f)
             return normx
 
     def getTilde(C, eps=0):
@@ -202,7 +210,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     def getEps(C, dC):
         if len(dC) == 0:
             return (0, [])
-        eps = np.array([norm(dCi) * dt * K for dCi in dC[p:]])
+        eps = np.array([norm_func(dCi) * dt * K for dCi in dC[p:]])
         tildeEps = getTilde(C, eps)
         return (eps, tildeEps)
 
@@ -230,29 +238,30 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
                 raise Exception(f"Error, key {key} should have length n-1={n-1}.")
 
     if results and "J" in results and len(results["J"]) > 0:
-        # Allow to restart the optimization from the last result
-        checkResults(results)
-        x = results["x"][-1]
-        for key in results.keys():
-            if key not in ["normxiJ", "eps", "muls", "s", "tolerance"]:
-                results[key] = results[key][:-1]
-        if "muls" in results:
-            results["muls"] = [np.asarray(muls) for muls in results["muls"]]
-            for i in reversed(range(len(results["muls"]))):
-                if i < itnormalisation:
-                    break
-                if normalize_tol >= 0 and not np.all(
-                    (results["muls"][i][p:] > normalize_tol)
-                    == (results["muls"][i - 1][p:] > normalize_tol)
-                ):
-                    break
-            itnormalisation = max(itnormalisation, i + 1)
-            display(
-                f"Last normalisation index found: "
-                + f"itnormalisation={itnormalisation}",
-                level=5,
-                color="magenta",
-            )
+        raise Exception("Restarting capabilities not implemented yet")
+        ## Allow to restart the optimization from the last result
+        #checkResults(results)
+        #x = results["x"][-1]
+        #for key in results.keys():
+        #    if key not in ["normxiJ", "eps", "muls", "s", "tolerance"]:
+        #        results[key] = results[key][:-1]
+        #if "muls" in results:
+        #    results["muls"] = [np.asarray(muls) for muls in results["muls"]]
+        #    for i in reversed(range(len(results["muls"]))):
+        #        if i < itnormalisation:
+        #            break
+        #        if normalize_tol >= 0 and not np.all(
+        #            (results["muls"][i][p:] > normalize_tol)
+        #            == (results["muls"][i - 1][p:] > normalize_tol)
+        #        ):
+        #            break
+        #    itnormalisation = max(itnormalisation, i + 1)
+        #    display(
+        #        f"Last normalisation index found: "
+        #        + f"itnormalisation={itnormalisation}",
+        #        level=5,
+        #        color="magenta",
+        #    )
     else:
         results = dict()
         results["x"] = []
@@ -278,6 +287,10 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         results["H"].append(H)
         results["x"].append(x)
         problem.accept(results)
+
+
+        if hasattr(problem, 'reinit'):
+            problem.reinit(x)
 
         it = len(results["J"]) - 1
         display("\n", 1)
@@ -320,7 +333,6 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         # Obtain the violated contraints
         tilde = getTilde(C)
         qtildeEps = sum(tildeEps) - p
-        n = x.function_space().dim()
 
         # Solve the dual problem to obtain the new set of active constraints
         # Solve it using a quadratic solver:
@@ -336,10 +348,12 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         for i, tildei in enumerate(tildeEps):
             for j, tildej in enumerate(tildeEps):
                 if tildej and tildei:
-                    Pmatrix[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                    #Pmatrix[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                    Pmatrix[ii, jj] = inner_product(dC[i], dC[j])
                     jj += 1
             if tildei:
-                qvector[ii] = assemble(inner(dJ, dC[i])*dx)
+                #qvector[ii] = assemble(inner(dJ, dC[i])*dx)
+                qvector[ii] = inner_product(dJ, dC[i])
                 ii += 1
 
         Pcvx = cvx.matrix(Pmatrix)
@@ -377,7 +391,8 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             for i, tildei in enumerate(hat):
                 for j, tildej in enumerate(hat):
                     if tildej and tildei:
-                        dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                        #dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                        dCdCT[ii, jj] = inner_product(dC[i], dC[j])
                         jj += 1
                 if tildei:
                     ii += 1
@@ -396,7 +411,8 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             ii = 0
             for i, hati in enumerate(hat):
                 if hati:
-                    dCdJ[ii] = assemble(inner(dC[i], dJ)*dx)
+                    #dCdJ[ii] = assemble(inner(dC[i], dJ)*dx)
+                    dCdJ[ii] = inner_product(dC[i], dJ)
                     ii += 1
             muls[hat] = -dCdCTinv.dot(dCdJ[hat])
 
@@ -435,7 +451,8 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         for i, indi in enumerate(indicesEps):
             for j, indj in enumerate(indicesEps):
                 if indi and indj:
-                    dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                    #dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                    dCdCT[ii, jj] = inner_product(dC[i], dC[j])
                     jj += 1
             if indi:
                 ii += 1
@@ -491,7 +508,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         # Make updates with merit function
         delta_x = Function(problem.fespace())
         delta_x.assign(Constant(-AJ) * xiJ - Constant(AC) * xiC)
-        normdx = norm(delta_x)
+        normdx = norm_func(delta_x)
         success = 0
 
         results["tolerance"].append(np.sum([norm(dCi, 'L1') for dCi in dC]) * dt)

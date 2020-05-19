@@ -12,33 +12,71 @@ from lestofire import (
 
 from pyadjoint import no_annotations
 
+output_dir = "cantilever/"
 
-mesh = UnitSquareMesh(100, 100)
+mesh = Mesh("./mesh_cantilever.msh")
 
 S = VectorFunctionSpace(mesh, "CG", 1)
-s = Function(S, name="deform")
+s = Function(S,name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "CG", 1)
-phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - Constant(0.8)
-
-phi = interpolate(phi_expr, PHI)
+PHI = FunctionSpace(mesh, 'CG', 1)
+lx = 2.0
+ly = 1.0
+phi_expr = -cos(6.0/lx*pi*x) * cos(4.0*pi*y) - 0.6\
+            + max_value(200.0*(0.01-x**2-(y-ly/2)**2),.0)\
+            + max_value(100.0*(x+y-lx-ly+0.1),.0) + max_value(100.0*(x-y-lx+0.1),.0)
+phi = interpolate(phi_expr , PHI)
 phi.rename("LevelSet")
-
-alphamin = 1e-12
-epsilon = Constant(100000.0)
+File(output_dir + "phi_initial.pvd").write(phi)
 
 
-def hs(phi, epsilon):
-    return Constant(1.0) / (Constant(1.0) + exp(-epsilon * phi)) + Constant(alphamin)
 
+rho_min = 1e-3
+beta = Constant(1000.0)
+def hs(phi, beta):
+    return Constant(1.0) / (Constant(1.0) + exp(-beta*phi)) + Constant(rho_min)
 
-scaling = -1.0
-Jform = assemble(Constant(scaling) * hs(phi, epsilon) * x * dx)
-print("Initial cost function value {}".format(Jform))
-VolPen = assemble(hs(phi, epsilon) * dx(domain=mesh))
-Vval = 0.5
+H1 = VectorElement("CG", mesh.ufl_cell(), 1)
+W = FunctionSpace(mesh, H1)
+
+u = TrialFunction(W)
+v = TestFunction(W)
+
+# Elasticity parameters
+E, nu = 1.0, 0.3
+mu, lmbda = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
+
+def epsilon(u):
+    return sym(nabla_grad(u))
+
+def sigma(v):
+    return 2.0*mu*epsilon(v) + lmbda*tr(epsilon(v))*Identity(2)
+
+f = Constant((0.0, 0.0))
+a = inner(hs(-phi, beta)*sigma(u), nabla_grad(v))*dx
+t = Constant((0.0, -75.0))
+L = inner(t, v)*ds(2)
+
+bc = DirichletBC(W, Constant((0.0, 0.0)), 1)
+parameters = {
+        'ksp_type':'preonly', 'pc_type':'lu',
+        "mat_type": "aij",
+        'ksp_converged_reason' : None,
+        "pc_factor_mat_solver_type": "mumps"
+        }
+u_sol = Function(W)
+solve(a==L, u_sol, bcs=[bc], solver_parameters=parameters)#, nullspace=nullspace)
+File("u_sol.pvd").write(u_sol)
+Sigma = TensorFunctionSpace(mesh, 'CG', 1)
+File("sigma.pvd").write(project(sigma(u_sol), Sigma))
+
+Jform = assemble(inner(hs(-phi, beta)*sigma(u_sol), epsilon(u_sol))*dx)
+#Jform = assemble(inner(hs(-phi, beta)*sigma(u_sol), epsilon(u_sol))*dx + Constant(1000.0)*hs(-phi, beta)*dx)
+VolPen = assemble(hs(-phi, beta)*dx)
+
+Vval = 1.0
 
 phi_pvd = File("phi_evolution.pvd")
 beta1_pvd = File("beta1.pvd")
@@ -48,18 +86,20 @@ newvel = Function(S)
 newphi = Function(PHI)
 
 
-def deriv_cb(phi):
-    phi_pvd.write(phi[0])
-
+velocity = Function(S)
+bcs_vel_1 = DirichletBC(S, Constant((0.0, 0.0)), 1)
+bcs_vel_2 = DirichletBC(S, Constant((0.0, 0.0)), 2)
+bcs_vel = [bcs_vel_1, bcs_vel_2]
 
 c = Control(s)
 Jhat = LevelSetLagrangian(Jform, c, phi)
 Vhat = LevelSetLagrangian(VolPen, c, phi)
-beta_param = 1e2
-reg_solver = RegularizationSolver(S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, output_dir=None)
+beta_param = 1e0
+reg_solver = RegularizationSolver(S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None)
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
-dt = 0.5*5e-1
+#dt = 0.5*1e-1
+dt = 10.0
 tol = 1e-5
 
 class InfDimProblem(EuclideanOptimizable):
@@ -129,7 +169,11 @@ class InfDimProblem(EuclideanOptimizable):
         return (dJT, dGT, dHT)
 
     def retract(self, x, dx):
-        dt = 0.1
+        import numpy as np
+        maxv = np.max(x.vector()[:])
+        hmin = 0.2414
+        dt = 0.1 * 1.0 * hmin / maxv
+        #dt = 0.01
         self.newphi.assign(hj_solver.solve(Constant(-1.0)*dx, x, steps=1, dt=dt), annotate=False)
         newvel.assign(dx, annotate=False)
         newvel_pvd.write(newvel)
@@ -140,15 +184,6 @@ class InfDimProblem(EuclideanOptimizable):
         #return assemble(beta_param*inner(grad(x), grad(y))*dx + inner(x, y)*dx)
         return assemble(inner(x, y)*dx)
 
-options = {
-    "hmin": 0.01414,
-    "hj_stab": 5.0,
-    "dt_scale": 1e-2,
-    "n_hj_steps": 3,
-    "max_iter": 30,
-    "n_reinit": 5,
-    "stopping_criteria": 1e-2,
-}
 
 parameters = {
     "ksp_type": "preonly",
@@ -158,7 +193,7 @@ parameters = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
-params = {"alphaC": 0.5, "debug": 5, "alphaJ": 0.5, "dt": dt, "maxtrials": 10, "itnormalisation" : 1, "tol" : tol}
+params = {"alphaC": 0.5, "debug": 5, "alphaJ": 1.0, "dt": dt, "maxtrials": 10, "itnormalisation" : 1, "tol" : tol}
 results = nlspace_solve_shape(InfDimProblem(phi, Jhat, Vhat, Vval, c), params)
 
 velocity = Function(S)
