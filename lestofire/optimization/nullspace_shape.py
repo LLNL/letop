@@ -150,7 +150,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     maxit = params.get("maxit", 4000)
     maxtrials = params.get("maxtrials", 3)
     debug = params.get("debug", 0)
-    normalisation_norm = params.get("normalisation_norm", 2)
+    normalisation_norm = params.get("normalisation_norm", np.inf)
     itnormalisation = params.get("itnormalisation", 1)
     tol_merit = params.get("tol_merit", 0)
     inner_prod_solver = params.get("inner_prod_solver", "umfpack")
@@ -210,7 +210,15 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     def getEps(C, dC):
         if len(dC) == 0:
             return (0, [])
-        eps = np.array([norm_func(dCi) * dt * K for dCi in dC[p:]])
+        if normalisation_norm == np.inf:
+            eps = []
+            for dCi in dC[p:]:
+                with dCi.dat.vec_ro as dCv:
+                    norm_inf = dCv.norm(PETSc.NormType.NORM_INFINITY)
+                    eps.append(norm_inf)
+            eps = np.array(eps) * dt * K
+        elif normalisation_norm == 2:
+            eps = np.array([norm_func(dCi) * dt * K for dCi in dC[p:]])
         tildeEps = getTilde(C, eps)
         return (eps, tildeEps)
 
@@ -507,6 +515,8 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
                 )
             )
         AC = min(0.9, alphaC * dt / max(compute_norm(xiC), 1e-9))
+
+        print("AJ : {0:.5f}, AC: {1:.5f}".format(AJ, AC))
 
         # Make updates with merit function
         delta_x = Function(problem.fespace())

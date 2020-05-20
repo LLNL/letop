@@ -1,5 +1,6 @@
 from firedrake import *
 from firedrake_adjoint import *
+import numpy as np
 
 from lestofire import (
     LevelSetLagrangian,
@@ -32,6 +33,13 @@ output_dir = "2D/"
 
 mesh = Mesh("./2D_mesh.msh")
 
+HMINS = FunctionSpace(mesh, 'DG', 0)
+h = CellDiameter(mesh)
+all_hs = project(h, HMINS)
+with all_hs.dat.vec_ro as hvec:
+    hmin = hvec.min()[1]
+print("min cell diamenter is {0:.5f}".format(hmin))
+
 S = VectorFunctionSpace(mesh, "CG", 1)
 s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
@@ -47,7 +55,7 @@ File(output_dir + "phi_initial.pvd").write(phi)
 # Parameters
 mu = Constant(0.08)  # viscosity
 alphamin = 1e-12
-alphamax = 2.5 / (2e-5)
+alphamax = 2.0 / (2e-3)
 parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
@@ -211,10 +219,10 @@ solver_temp = NonlinearVariationalSolver(
 solver_temp.solve()
 
 power_drop = 1e-2
-Power1 = assemble(p1 * ds(INLET1)) - power_drop
-Power2 = assemble(p2 * ds(INLET2)) - power_drop
-scale_factor = 10
-Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
+Power1 = assemble(p1 / power_drop * ds(INLET1)) - 1.0
+Power2 = assemble(p2 / power_drop * ds(INLET2)) - 1.0
+scale_factor = -1
+Jform = assemble(Constant(scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 U1control = Control(U1)
 U2control = Control(U2)
@@ -240,11 +248,11 @@ def deriv_cb(phi):
 c = Control(s)
 
 # Reduced Functionals
-Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
-P1hat = LevelSetLagrangian(Power1, c, phi, derivative_cb_pre=deriv_cb)
+Jhat = LevelSetLagrangian(Jform, c, phi)
+P1hat = LevelSetLagrangian(Power1, c, phi)
 P1control = Control(Power1)
 
-P2hat = LevelSetLagrangian(Power2, c, phi, derivative_cb_pre=deriv_cb)
+P2hat = LevelSetLagrangian(Power2, c, phi)
 P2control = Control(Power2)
 
 Jhat_v = Jhat(phi)
@@ -269,7 +277,7 @@ reg_solver = RegularizationSolver(
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 10.0
+dt = 1.0e0
 tol = 1e-5
 
 phi_pvd = File("phi_evolution.pvd")
@@ -321,7 +329,7 @@ class InfDimProblem(EuclideanOptimizable):
     def dJT(self, x):
         dJ = self.Jhat.derivative()
         reg_solver.solve(self.dJ, dJ)
-        beta1_pvd.write(self.dJ)
+        #beta1_pvd.write(self.dJ)
         return self.dJ
 
     def H(self, x):
@@ -330,6 +338,8 @@ class InfDimProblem(EuclideanOptimizable):
     def dHT(self, x):
         dH = self.H1hat.derivative()
         reg_solver.solve(self.dH1, dH)
+        #beta2_pvd.write(self.dH1)
+
         dH = self.H2hat.derivative()
         reg_solver.solve(self.dH2, dH)
         return [self.dH1, self.dH2]
@@ -369,8 +379,8 @@ class InfDimProblem(EuclideanOptimizable):
         self.newphi.assign(
             hj_solver.solve(Constant(-1.0) * dx, x, steps=1, dt=dt), annotate=False
         )
-        newvel.assign(dx, annotate=False)
-        newvel_pvd.write(newvel)
+        #newvel.assign(dx, annotate=False)
+        #newvel_pvd.write(newvel)
         return self.newphi
 
     @no_annotations
@@ -380,12 +390,14 @@ class InfDimProblem(EuclideanOptimizable):
 
 
 params = {
-    "alphaC": 1.0,
+    "alphaC": 10.0,
     "debug": 5,
-    "alphaJ": 0.5,
+    "alphaJ": 10.0,
     "dt": dt,
     "maxtrials": 10,
     "itnormalisation": 1,
+    "normalize_tol": -1,
+    "normalisation_norm" : 2,
     "tol": tol,
 }
 results = nlspace_solve_shape(
