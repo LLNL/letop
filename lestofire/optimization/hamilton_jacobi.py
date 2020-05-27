@@ -58,7 +58,6 @@ class HJStabSolver(object):
 
         self.phi_sol = Function(self.PHI)
         self.problem = LinearVariationalProblem(self.a, self.L, self.phi_sol, bcs=bc)
-        self.phi_pvd = File("hjstab.pvd")
 
         if iterative:
             self.parameters = iterative_parameters
@@ -78,7 +77,6 @@ class HJStabSolver(object):
         for i in range(steps):
             self.solver.solve(annotate=False)
             self.phi_n.assign(self.phi_sol, annotate=False)
-            self.phi_pvd.write(self.phi_n)
 
         return self.phi_n
 

@@ -219,9 +219,10 @@ solver_temp = NonlinearVariationalSolver(
 solver_temp.solve()
 
 power_drop = 1e-2
-Power1 = assemble(p1 / power_drop * ds(INLET1)) - 1.0
-Power2 = assemble(p2 / power_drop * ds(INLET2)) - 1.0
-scale_factor = -1
+scl_const = 1
+Power1 = assemble(scl_const * p1 / power_drop * ds(INLET1)) - 1.0
+Power2 = assemble(scl_const * p2 / power_drop * ds(INLET2)) - 1.0
+scale_factor = -1e-3
 Jform = assemble(Constant(scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 U1control = Control(U1)
@@ -269,15 +270,16 @@ bcs_vel_3 = DirichletBC(S, noslip, 3)
 bcs_vel_4 = DirichletBC(S, noslip, 4)
 bcs_vel_5 = DirichletBC(S, noslip, 5)
 bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
+beta_param = hmin * 5
 reg_solver = RegularizationSolver(
-    S, mesh, beta=5e1, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
 )
 
 
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 1.0e0
+dt = 1.0e1
 tol = 1e-5
 
 phi_pvd = File("phi_evolution.pvd")
@@ -390,9 +392,9 @@ class InfDimProblem(EuclideanOptimizable):
 
 
 params = {
-    "alphaC": 10.0,
+    "alphaC": 1.0,
     "debug": 5,
-    "alphaJ": 10.0,
+    "alphaJ": 0.5,
     "dt": dt,
     "maxtrials": 10,
     "itnormalisation": 1,
