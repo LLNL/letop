@@ -49,7 +49,7 @@ File(output_dir + "phi_initial.pvd").write(phi)
 # Parameters
 mu = Constant(0.08)  # viscosity
 alphamin = 1e-12
-alphamax = 2.5 / (2e-5)
+alphamax = 2.5 / (2e-4)
 parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
@@ -272,7 +272,7 @@ reg_solver = RegularizationSolver(
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 5.0
+dt = 10.0
 tol = 1e-5
 
 phi_pvd = File("phi_evolution.pvd")
@@ -324,7 +324,7 @@ class InfDimProblem(EuclideanOptimizable):
     def dJT(self, x):
         dJ = self.Jhat.derivative()
         reg_solver.solve(self.dJ, dJ)
-        beta1_pvd.write(self.dJ)
+        #beta1_pvd.write(self.dJ)
         return self.dJ
 
     def H(self, x):
@@ -396,7 +396,7 @@ params = {
     "tol": tol,
 }
 results = nlspace_solve_shape(
-    InfDimProblem(phi, Jhat, Phat, 0.0, P1control, P2control, c), params
+    InfDimProblem(phi, Jhat, P1hat, 1.0, P1control, P2hat, 1.0, P2control, c), params
 )
 
 import matplotlib.pyplot as plt
