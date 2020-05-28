@@ -28,6 +28,8 @@ from params import (
 
 from pyadjoint import no_annotations
 
+from draw import drawMuls, drawJ, drawC
+
 output_dir = "2D/"
 
 mesh = Mesh("./2D_mesh.msh")
@@ -211,8 +213,9 @@ solver_temp = NonlinearVariationalSolver(
 solver_temp.solve()
 
 power_drop = 1e-2
-Power1 = assemble(p1 * ds(INLET1)) - power_drop
-Power2 = assemble(p2 * ds(INLET2)) - power_drop
+Power1 = assemble(p1 / power_drop * ds(INLET1))
+Power2 = assemble(p2 / power_drop * ds(INLET2))
+Power = Power1 + Power2
 scale_factor = 10
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
@@ -269,7 +272,7 @@ reg_solver = RegularizationSolver(
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 10.0
+dt = 5.0
 tol = 1e-5
 
 phi_pvd = File("phi_evolution.pvd")
@@ -340,6 +343,7 @@ class InfDimProblem(EuclideanOptimizable):
             Dx = 0.01
             x.assign(reinit_solver.solve(x, Dx), annotate=False)
 
+    @no_annotations
     def eval_gradients(self, x):
         """Returns the triplet (dJT(x),dGT(x),dHT(x))
         Is used by nslpace_solve method only if self.inner_product returns
@@ -359,6 +363,7 @@ class InfDimProblem(EuclideanOptimizable):
             dHT = self.dHT(x)
         return (dJT, dGT, dHT)
 
+    @no_annotations
     def retract(self, x, dx):
         import numpy as np
 
@@ -384,11 +389,54 @@ params = {
     "debug": 5,
     "alphaJ": 0.5,
     "dt": dt,
+    #"K": 100,
+    "maxit": 200,
     "maxtrials": 10,
-    "itnormalisation": 1,
+    "itnormalisation": 50,
     "tol": tol,
 }
 results = nlspace_solve_shape(
-    InfDimProblem(phi, Jhat, P1hat, 0.0, P1control, P2hat, 0.0, P2control, c), params
+    InfDimProblem(phi, Jhat, Phat, 0.0, P1control, P2control, c), params
 )
 
+import matplotlib.pyplot as plt
+plt.figure()
+drawMuls(results, 'NLSPACE')
+plt.legend()
+plt.savefig(
+    "muls.pdf",
+    dpi=1600,
+    orientation="portrait",
+    papertype=None,
+    format=None,
+    transparent=True,
+    bbox_inches="tight",
+)
+
+plt.figure()
+drawJ(results)
+plt.legend()
+plt.savefig(
+    "J.pdf",
+    dpi=1600,
+    orientation="portrait",
+    papertype=None,
+    format=None,
+    transparent=True,
+    bbox_inches="tight",
+)
+
+plt.figure()
+drawC(results)
+plt.legend()
+plt.savefig(
+    "C.pdf",
+    dpi=1600,
+    orientation="portrait",
+    papertype=None,
+    format=None,
+    transparent=True,
+    bbox_inches="tight",
+)
+
+plt.show()
