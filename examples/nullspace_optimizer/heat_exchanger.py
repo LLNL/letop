@@ -47,7 +47,7 @@ File(output_dir + "phi_initial.pvd").write(phi)
 
 
 # Parameters
-mu = Constant(0.08)  # viscosity
+mu = Constant(0.01)  # viscosity
 alphamin = 1e-12
 alphamax = 2.5 / (2e-4)
 parameters = {
@@ -244,10 +244,11 @@ c = Control(s)
 
 # Reduced Functionals
 Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
-P1hat = LevelSetLagrangian(Power1, c, phi, derivative_cb_pre=deriv_cb)
+Power = Power1 + Power2
+P1hat = LevelSetLagrangian(Power, c, phi)
 P1control = Control(Power1)
 
-P2hat = LevelSetLagrangian(Power2, c, phi, derivative_cb_pre=deriv_cb)
+#P2hat = LevelSetLagrangian(Power2, c, phi)
 P2control = Control(Power2)
 
 Jhat_v = Jhat(phi)
@@ -264,15 +265,16 @@ bcs_vel_3 = DirichletBC(S, noslip, 3)
 bcs_vel_4 = DirichletBC(S, noslip, 4)
 bcs_vel_5 = DirichletBC(S, noslip, 5)
 bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
+beta_param = 5.0
 reg_solver = RegularizationSolver(
-    S, mesh, beta=5e1, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
 )
 
 
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 10.0
+dt = 5.0
 tol = 1e-5
 
 phi_pvd = File("phi_evolution.pvd")
@@ -285,13 +287,13 @@ newphi = Function(PHI)
 
 class InfDimProblem(EuclideanOptimizable):
     def __init__(
-        self, phi, Jhat, H1hat, H1val, H1control, H2hat, H2val, H2control, control
+        self, phi, Jhat, H1hat, H1val, H1control, H2control, control
     ):
         super().__init__(
             1
         )  # This argument is the number of variables, it doesn't really matter...
         self.nconstraints = 0
-        self.nineqconstraints = 2
+        self.nineqconstraints = 1
         self.V = control.control.function_space()
         self.dJ = Function(self.V)
         self.dH1 = Function(self.V)
@@ -303,8 +305,6 @@ class InfDimProblem(EuclideanOptimizable):
         self.H1val = H1val
         self.H1control = H1control
 
-        self.H2hat = H2hat
-        self.H2val = H2val
         self.H2control = H2control
 
         self.phi = phi
@@ -318,24 +318,27 @@ class InfDimProblem(EuclideanOptimizable):
     def x0(self):
         return self.phi
 
+    @no_annotations
     def J(self, x):
         return self.Jhat(x)
 
+    @no_annotations
     def dJT(self, x):
         dJ = self.Jhat.derivative()
         reg_solver.solve(self.dJ, dJ)
         #beta1_pvd.write(self.dJ)
         return self.dJ
 
+    @no_annotations
     def H(self, x):
-        return [self.H1control.tape_value() - self.H1val, self.H2control.tape_value() - self.H2val]
+        print(f"H1: {self.H1control.tape_value()}, H2: {self.H2control.tape_value()}")
+        return [self.H1control.tape_value() + self.H2control.tape_value() - self.H1val]
 
+    @no_annotations
     def dHT(self, x):
         dH = self.H1hat.derivative()
         reg_solver.solve(self.dH1, dH)
-        dH = self.H2hat.derivative()
-        reg_solver.solve(self.dH2, dH)
-        return [self.dH1, self.dH2]
+        return [self.dH1]
 
     @no_annotations
     def reinit(self, x):
@@ -389,14 +392,15 @@ params = {
     "debug": 5,
     "alphaJ": 0.5,
     "dt": dt,
-    #"K": 100,
-    "maxit": 200,
+    "K": 1e-1,
+    "maxit": 500,
     "maxtrials": 10,
-    "itnormalisation": 50,
+    "itnormalisation": 200,
+    #"normalize_tol" : -1,
     "tol": tol,
 }
 results = nlspace_solve_shape(
-    InfDimProblem(phi, Jhat, P1hat, 1.0, P1control, P2hat, 1.0, P2control, c), params
+    InfDimProblem(phi, Jhat, P1hat, 2.0, P1control, P2control, c), params
 )
 
 import matplotlib.pyplot as plt
@@ -426,17 +430,17 @@ plt.savefig(
     bbox_inches="tight",
 )
 
-plt.figure()
-drawC(results)
-plt.legend()
-plt.savefig(
-    "C.pdf",
-    dpi=1600,
-    orientation="portrait",
-    papertype=None,
-    format=None,
-    transparent=True,
-    bbox_inches="tight",
-)
+#plt.figure()
+#drawC(results)
+#plt.legend()
+#plt.savefig(
+#    "C.pdf",
+#    dpi=1600,
+#    orientation="portrait",
+#    papertype=None,
+#    format=None,
+#    transparent=True,
+#    bbox_inches="tight",
+#)
 
 plt.show()

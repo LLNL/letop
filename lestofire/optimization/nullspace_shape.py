@@ -150,7 +150,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     maxit = params.get("maxit", 4000)
     maxtrials = params.get("maxtrials", 3)
     debug = params.get("debug", 0)
-    normalisation_norm = params.get("normalisation_norm", 2)
+    normalisation_norm = params.get("normalisation_norm", np.inf)
     itnormalisation = params.get("itnormalisation", 1)
     tol_merit = params.get("tol_merit", 0)
     inner_prod_solver = params.get("inner_prod_solver", "umfpack")
