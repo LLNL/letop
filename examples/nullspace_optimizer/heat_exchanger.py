@@ -216,7 +216,7 @@ power_drop = 1e-2
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
 Power = Power1 + Power2
-scale_factor = 10
+scale_factor = 1e-4
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 U1control = Control(U1)
@@ -395,7 +395,7 @@ params = {
     "K": 1e-1,
     "maxit": 500,
     "maxtrials": 10,
-    "itnormalisation": 200,
+    "itnormalisation": 500,
     #"normalize_tol" : -1,
     "tol": tol,
 }
