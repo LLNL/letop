@@ -383,7 +383,6 @@ class InfDimProblem(EuclideanOptimizable):
 
     @no_annotations
     def inner_product(self, x, y):
-        # return assemble(beta_param*inner(grad(x), grad(y))*dx + inner(x, y)*dx)
         return assemble(inner(x, y) * dx)
 
 
