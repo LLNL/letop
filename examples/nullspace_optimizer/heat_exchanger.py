@@ -259,12 +259,6 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 # Jhat.optimize_tape()
 
 velocity = Function(S)
-bcs_vel_1 = DirichletBC(S, noslip, 1)
-bcs_vel_2 = DirichletBC(S, noslip, 2)
-bcs_vel_3 = DirichletBC(S, noslip, 3)
-bcs_vel_4 = DirichletBC(S, noslip, 4)
-bcs_vel_5 = DirichletBC(S, noslip, 5)
-bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
 beta_param = 5.0
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
@@ -377,8 +371,6 @@ class InfDimProblem(EuclideanOptimizable):
         self.newphi.assign(
             hj_solver.solve(Constant(-1.0) * dx, x, steps=1, dt=dt), annotate=False
         )
-        newvel.assign(dx, annotate=False)
-        newvel_pvd.write(newvel)
         return self.newphi
 
     @no_annotations
