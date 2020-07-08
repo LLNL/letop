@@ -215,7 +215,6 @@ solver_temp.solve()
 power_drop = 1e-2
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
-Power = Power1 + Power2
 scale_factor = 1e-4
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
@@ -244,11 +243,10 @@ c = Control(s)
 
 # Reduced Functionals
 Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
-Power = Power1 + Power2
-P1hat = LevelSetLagrangian(Power, c, phi)
+P1hat = LevelSetLagrangian(Power1, c, phi)
 P1control = Control(Power1)
 
-#P2hat = LevelSetLagrangian(Power2, c, phi)
+P2hat = LevelSetLagrangian(Power2, c, phi)
 P2control = Control(Power2)
 
 Jhat_v = Jhat(phi)
@@ -259,7 +257,7 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 # Jhat.optimize_tape()
 
 velocity = Function(S)
-beta_param = 5.0
+beta_param = 10.0
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
 )
@@ -281,13 +279,13 @@ newphi = Function(PHI)
 
 class InfDimProblem(EuclideanOptimizable):
     def __init__(
-        self, phi, Jhat, H1hat, H1val, H1control, H2control, control
+        self, phi, Jhat, H1hat, H2hat, H1val, H2val, H1control, H2control, control
     ):
         super().__init__(
             1
         )  # This argument is the number of variables, it doesn't really matter...
         self.nconstraints = 0
-        self.nineqconstraints = 1
+        self.nineqconstraints = 2
         self.V = control.control.function_space()
         self.dJ = Function(self.V)
         self.dH1 = Function(self.V)
@@ -295,10 +293,14 @@ class InfDimProblem(EuclideanOptimizable):
         self.dx = Function(self.V)
         self.Jhat = Jhat
 
+        self.beta_param = beta_param
+
         self.H1hat = H1hat
         self.H1val = H1val
         self.H1control = H1control
 
+        self.H2hat = H2hat
+        self.H2val = H2val
         self.H2control = H2control
 
         self.phi = phi
@@ -326,19 +328,26 @@ class InfDimProblem(EuclideanOptimizable):
     @no_annotations
     def H(self, x):
         print(f"H1: {self.H1control.tape_value()}, H2: {self.H2control.tape_value()}")
-        return [self.H1control.tape_value() + self.H2control.tape_value() - self.H1val]
+        return [self.H1control.tape_value() - self.H1val, self.H2control.tape_value() - self.H2val]
 
     @no_annotations
     def dHT(self, x):
         dH = self.H1hat.derivative()
         reg_solver.solve(self.dH1, dH)
-        return [self.dH1]
+        dH = self.H2hat.derivative()
+        reg_solver.solve(self.dH2, dH)
+        return [self.dH1, self.dH2]
 
     @no_annotations
     def reinit(self, x):
         if self.i % 10 == 0:
             Dx = 0.01
             x.assign(reinit_solver.solve(x, Dx), annotate=False)
+
+    def restore(self):
+        reg_solver.update_beta_param(self.beta_param * 0.1)
+        self.beta_param *= 0.1
+        print(f"New regularization parameter: {self.beta_param}")
 
     @no_annotations
     def eval_gradients(self, x):
@@ -383,7 +392,7 @@ params = {
     "debug": 5,
     "alphaJ": 0.5,
     "dt": dt,
-    "K": 1e-1,
+    "K": 1e-4,
     "maxit": 500,
     "maxtrials": 10,
     "itnormalisation": 500,
@@ -391,7 +400,7 @@ params = {
     "tol": tol,
 }
 results = nlspace_solve_shape(
-    InfDimProblem(phi, Jhat, P1hat, 2.0, P1control, P2control, c), params
+    InfDimProblem(phi, Jhat, P1hat, P2hat, 1.0, 1.0, P1control, P2control, c), params
 )
 
 import matplotlib.pyplot as plt

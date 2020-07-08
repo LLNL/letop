@@ -34,7 +34,7 @@ File(output_dir + "phi_initial.pvd").write(phi)
 
 
 rho_min = 1e-3
-beta = Constant(1000.0)
+beta = Constant(200.0)
 def hs(phi, beta):
     return Constant(1.0) / (Constant(1.0) + exp(-beta*phi)) + Constant(rho_min)
 
@@ -61,10 +61,11 @@ L = inner(t, v)*ds(2)
 
 bc = DirichletBC(W, Constant((0.0, 0.0)), 1)
 parameters = {
-        'ksp_type':'preonly', 'pc_type':'lu',
+        'ksp_type':'preonly',
+        'pc_type':'lu',
         "mat_type": "aij",
-        'ksp_converged_reason' : None,
-        "pc_factor_mat_solver_type": "mumps"
+        'ksp_converged_reason' : None
+        #"pc_factor_mat_solver_type": "mumps"
         }
 u_sol = Function(W)
 solve(a==L, u_sol, bcs=[bc], solver_parameters=parameters)#, nullspace=nullspace)
@@ -82,25 +83,23 @@ Vval = 1.0
 phi_pvd = File("phi_evolution.pvd")
 beta1_pvd = File("beta1.pvd")
 beta2_pvd = File("beta2.pvd")
-newvel_pvd = File("newvel.pvd")
-newvel = Function(S)
 newphi = Function(PHI)
 
 
 velocity = Function(S)
 bcs_vel_1 = DirichletBC(S, Constant((0.0, 0.0)), 1)
 bcs_vel_2 = DirichletBC(S, Constant((0.0, 0.0)), 2)
-bcs_vel = [bcs_vel_1, bcs_vel_2]
+bcs_vel = [bcs_vel_2]
 
 c = Control(s)
 Jhat = LevelSetLagrangian(Jform, c, phi)
 Vhat = LevelSetLagrangian(VolPen, c, phi)
-beta_param = 1e0
+beta_param = 1e2
 reg_solver = RegularizationSolver(S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None)
 reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
-hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
+hj_solver = HJStabSolver(mesh, PHI, c2_param=2.0, iterative=False)
 #dt = 0.5*1e-1
-dt = 10.0
+dt = 20.0
 tol = 1e-5
 
 class InfDimProblem(EuclideanOptimizable):
@@ -113,6 +112,8 @@ class InfDimProblem(EuclideanOptimizable):
         self.dH = Function(self.V)
         self.dx = Function(self.V)
         self.Jhat = Jhat
+
+        self.beta_param = beta_param
 
         self.Hhat = Hhat
         self.Hval = Hval
@@ -135,7 +136,6 @@ class InfDimProblem(EuclideanOptimizable):
     def dJT(self, x):
         dJ = self.Jhat.derivative()
         reg_solver.solve(self.dJ, dJ)
-        beta1_pvd.write(self.dJ)
         return self.dJ
 
     def H(self, x):
@@ -144,7 +144,6 @@ class InfDimProblem(EuclideanOptimizable):
     def dHT(self, x):
         dH = self.Hhat.derivative()
         reg_solver.solve(self.dH, dH)
-        beta2_pvd.write(self.dH)
         return [self.dH]
 
     @no_annotations
@@ -175,13 +174,16 @@ class InfDimProblem(EuclideanOptimizable):
     def retract(self, x, dx):
         import numpy as np
         maxv = np.max(x.vector()[:])
-        hmin = 0.2414
+        hmin = 0.02414
         dt = 0.1 * 1.0 * hmin / maxv
         #dt = 0.01
         self.newphi.assign(hj_solver.solve(Constant(-1.0)*dx, x, steps=1, dt=dt), annotate=False)
-        newvel.assign(dx, annotate=False)
-        newvel_pvd.write(newvel)
         return self.newphi
+
+    def restore(self):
+        reg_solver.update_beta_param(self.beta_param * 0.1)
+        self.beta_param *= 0.1
+        print(f"New regularization parameter: {self.beta_param}")
 
     @no_annotations
     def inner_product(self, x, y):
@@ -197,5 +199,6 @@ parameters = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
-params = {"alphaC": 0.5, "debug": 5, "alphaJ": 1.0, "dt": dt, "maxtrials": 10, "itnormalisation" : 1, "tol" : tol}
+params = {"alphaC": 1.0, "K": 0.1, "debug": 5, "alphaJ": 1.0, "dt": dt, "maxtrials": 10, "itnormalisation" : 50, "tol" : tol}
 results = nlspace_solve_shape(InfDimProblem(phi, Jhat, Vhat, Vval, VolControl, c), params)
+#results = nlspace_solve_shape(InfDimProblem(phi, Jhat, c), params)

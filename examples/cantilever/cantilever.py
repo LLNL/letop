@@ -72,12 +72,10 @@ def main():
     Jform = assemble(J)
     print("Compliance: {:2f}".format(Jform))
 
-    phi_pvd = File(output_dir + "phi_evolution.pvd")
-    def deriv_cb(phi):
-        phi_pvd.write(phi[0])
+    phi_pvd = File(output_dir + "phi_evolution_uniq.pvd")
 
     c = Control(s)
-    Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
+    Jhat = LevelSetLagrangian(Jform, c, phi)
     Jhat.optimize_tape()
     Jhat_v = Jhat(phi)
 
@@ -85,10 +83,10 @@ def main():
     bcs_vel_1 = DirichletBC(S, Constant((0.0, 0.0)), 1)
     bcs_vel_2 = DirichletBC(S, Constant((0.0, 0.0)), 2)
     bcs_vel = [bcs_vel_1, bcs_vel_2]
-    reg_solver = RegularizationSolver(S, mesh, beta=1e0, gamma=1e5, dx=dx, bcs=bcs_vel)
+    reg_solver = RegularizationSolver(S, mesh, beta=5e0, gamma=1e5, dx=dx, bcs=bcs_vel)
 
     options = {
-             'hmin' : 0.2414,
+             'hmin' : 0.02414,
              'hj_stab': 2.0,
              'dt_scale' : 0.1,
              'n_hj_steps' : 1,
