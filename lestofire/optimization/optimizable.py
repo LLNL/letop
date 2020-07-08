@@ -198,6 +198,14 @@ class Optimizable:
         """
         pass
 
+    def restore(self):
+        """
+        This function is called by nlspace_sole whenever the line search fails
+        to modify the problem to make a better attempt. This could be by modifying
+        the regularization parameter or the `dt` parameter
+        """
+        pass
+
 
 class EuclideanOptimizable(Optimizable):
     """An optimizable class for optimization in Euclidean space

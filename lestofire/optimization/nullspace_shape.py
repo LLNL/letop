@@ -554,7 +554,9 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             display(
                 "All trials have failed, passing to the next iteration.", color="red"
             )
-        x = newx
+            problem.restore()
+        else:
+            x = newx
         (J, G, H) = (newJ, newG, newH)
 
         with delta_x.dat.vec_ro as vu:

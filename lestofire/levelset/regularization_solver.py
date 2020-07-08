@@ -4,6 +4,7 @@ from firedrake import (LinearVariationalSolver, LinearVariationalProblem, FacetN
                         WRITE, READ, RW, File)
 from firedrake_adjoint import stop_annotating
 from pyadjoint.enlisting import Enlist
+from pyadjoint import no_annotations
 
 from ufl import (grad, inner, dot, dx, ds)
 
@@ -40,7 +41,8 @@ class RegularizationSolver(object):
         theta,xi = [TrialFunction(S), TestFunction( S)]
         self.xi = xi
 
-        self.a = (Constant(beta)*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + \
+        self.beta_param = Constant(beta)
+        self.a = (self.beta_param*inner(grad(theta),grad(xi)) + inner(theta,xi))*(dx) + \
                Constant(gamma)*(inner(dot(theta,n),dot(xi,n)) * ds)
 
         # Dirichlet boundary conditions equal to zero for regions where we want
@@ -90,6 +92,10 @@ class RegularizationSolver(object):
             self.parameters = iterative_parameters
         else:
             self.parameters = direct_parameters
+
+    @no_annotations
+    def update_beta_param(self, new_value):
+        self.beta_param.dat.data[0] = new_value
 
     def solve(self, velocity, dJ):
 
