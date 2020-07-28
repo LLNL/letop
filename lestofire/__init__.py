@@ -5,7 +5,8 @@ from .__about__ import __author__, __email__, __license__, __status__, __version
 from .optimization import HJStabSolver, HJSUPG, SignedDistanceSolver, SteepestDescent, \
                         augmented_lagrangian, AugmentedLagrangianOptimization, max_fvalue, \
                         augmented_lagrangian_float, Optimizable,\
-                        EuclideanOptimizable, nlspace_solve_shape
+                        EuclideanOptimizable, nlspace_solve_shape, \
+                        Constraint, InfDimProblem
 from .levelset import LevelSetLagrangian, RegularizationSolver
 from .utils import petsc_print
 

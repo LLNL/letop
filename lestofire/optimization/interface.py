@@ -1,9 +1,11 @@
-from lestofire import (
-    EuclideanOptimizable,
+from lestofire.levelset import (
     LevelSetLagrangian,
     RegularizationSolver,
+)
+from lestofire.optimization import (
     HJStabSolver,
     SignedDistanceSolver,
+    EuclideanOptimizable,
 )
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
@@ -42,8 +44,8 @@ class Constraint(object):
         # corresponds to `x`?
         return self.scalar_control.tape_value() - self.constraint_value
 
-    def derivative(self, x):
-        return self.rfnl.derivative(x)
+    def derivative(self):
+        return self.rfnl.derivative()
 
 
 class InfDimProblem(EuclideanOptimizable):
@@ -54,8 +56,9 @@ class InfDimProblem(EuclideanOptimizable):
         reg_solver,
         hj_solver,
         reinit_solver,
-        eqconstraint=None,
+        eqconstraints=None,
         ineqconstraints=None,
+        phi_pvd=None,
     ):
         super().__init__(
             1
@@ -76,24 +79,31 @@ class InfDimProblem(EuclideanOptimizable):
             )
         self.reinit_solver = reinit_solver
 
-        self.eqconstraint = Enlist(eqconstraint)
-        self.ineqconstraints = Enlist(ineqconstraints)
-        for constr in self.eqconstraint:
-            if not isinstance(constr, Constraint):
-                raise TypeError(
-                    f"Provided equality constraint '{type(constr).__name__}', not a Constraint"
-                )
-        for ineqconstr in self.ineqconstraints:
-            if not isinstance(ineqconstr, Constraint):
-                raise TypeError(
-                    f"Provided inequality constraint '{type(ineqconstr).__name__}', not a Constraint"
-                )
-        self.nineqconstraints = Enlist(ineqconstraints)
+        if eqconstraints:
+            self.eqconstraints = Enlist(eqconstraints)
+            for constr in self.eqconstraints:
+                if not isinstance(constr, Constraint):
+                    raise TypeError(
+                        f"Provided equality constraint '{type(constr).__name__}', not a Constraint"
+                    )
+        else:
+            self.eqconstraints = []
+
+        if ineqconstraints:
+            self.ineqconstraints = Enlist(ineqconstraints)
+            for ineqconstr in self.ineqconstraints:
+                if not isinstance(ineqconstr, Constraint):
+                    raise TypeError(
+                        f"Provided inequality constraint '{type(ineqconstr).__name__}', not a Constraint"
+                    )
+        else:
+            self.ineqconstraints = []
 
         assert len(cost_function.controls) < 2, "Only one control for now"
         self.V = cost_function.controls[0].control.function_space()
 
         self.gradJ = Function(self.V)
+
         self.gradH = [Function(self.V) for _ in self.ineqconstraints]
         self.gradG = [Function(self.V) for _ in self.eqconstraints]
 
@@ -102,6 +112,7 @@ class InfDimProblem(EuclideanOptimizable):
 
         self.phi = phi
         self.newphi = Function(phi.function_space())
+        self.phi_pvd = phi_pvd
         self.i = 0  # iteration count
 
     def fespace(self):
@@ -114,19 +125,19 @@ class InfDimProblem(EuclideanOptimizable):
         return self.cost_function(x)
 
     def dJ(self, x):
-        return self.Jhat.derivative()
+        return self.cost_function.derivative()
 
     def G(self, x):
         return [eqconstr.evaluate(x) for eqconstr in self.eqconstraints]
 
     def dG(self, x):
-        return [eqconstr.derivative(x) for eqconstr in self.eqconstraints]
+        return [eqconstr.derivative() for eqconstr in self.eqconstraints]
 
     def H(self, x):
         return [ineqconstr.evaluate(x) for ineqconstr in self.ineqconstraints]
 
     def dH(self, x):
-        return [ineqconstr.derivative(x) for ineqconstr in self.ineqconstraints]
+        return [ineqconstr.derivative() for ineqconstr in self.ineqconstraints]
 
     @no_annotations
     def reinit(self, x):
@@ -134,27 +145,25 @@ class InfDimProblem(EuclideanOptimizable):
             Dx = 0.01
             x.assign(self.reinit_solver.solve(x, Dx))
 
+    @no_annotations
     def eval_gradients(self, x):
         """Returns the triplet (gradJ(x), gradG(x), gradH(x))
         """
         self.i += 1
+        self.newphi.assign(x)
+        self.phi_pvd.write(self.newphi)
 
         dJ = self.dJ(x)
-        if self.nconstraints == 0:
-            dG = []
-        else:
-            dG = self.dG(x)
-        if self.nineqconstraints == 0:
-            dH = []
-        else:
-            dH = self.dH(x)
+        dG = self.dG(x)
+        dH = self.dH(x)
+
         # Regularize all gradients
         self.reg_solver.solve(self.gradJ, dJ)
 
         for gradHi, dHi in zip(self.gradH, dH):
-            self.reg_solver(gradHi, dHi)
+            self.reg_solver.solve(gradHi, dHi)
         for gradGi, dGi in zip(self.gradG, dG):
-            self.reg_solver(gradGi, dGi)
+            self.reg_solver.solve(gradGi, dGi)
 
         return (self.gradJ, self.gradG, self.gradH)
 
