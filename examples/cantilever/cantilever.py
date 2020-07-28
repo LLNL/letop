@@ -6,7 +6,6 @@ from lestofire import (
     RegularizationSolver,
     HJStabSolver,
     SignedDistanceSolver,
-    EuclideanOptimizable,
     nlspace_solve_shape,
     Constraint,
     InfDimProblem,
@@ -125,101 +124,6 @@ problem = InfDimProblem(
     ineqconstraints=vol_constraint,
     phi_pvd=phi_pvd,
 )
-
-
-# class InfDimProblem(EuclideanOptimizable):
-#    def __init__(self, phi, Jhat, Hhat, Hval, Hcontrol, control):
-#        super().__init__(
-#            1
-#        )  # This argument is the number of variables, it doesn't really matter...
-#        self.nconstraints = 0
-#        self.nineqconstraints = 1
-#        self.V = control.control.function_space()
-#        self.dJ = Function(self.V)
-#        self.dH = Function(self.V)
-#        self.dx = Function(self.V)
-#        self.Jhat = Jhat
-#
-#        self.beta_param = beta_param
-#
-#        self.Hhat = Hhat
-#        self.Hval = Hval
-#        self.Hcontrol = Hcontrol
-#
-#        self.phi = phi
-#        self.control = control.control
-#        self.newphi = Function(phi.function_space())
-#        self.i = 0  # iteration count
-#
-#    def fespace(self):
-#        return self.V
-#
-#    def x0(self):
-#        return self.phi
-#
-#    def J(self, x):
-#        return self.Jhat(x)
-#
-#    def dJT(self, x):
-#        dJ = self.Jhat.derivative()
-#        reg_solver.solve(self.dJ, dJ)
-#        return self.dJ
-#
-#    def H(self, x):
-#        return [self.Hcontrol.tape_value() - self.Hval]
-#
-#    def dHT(self, x):
-#        dH = self.Hhat.derivative()
-#        reg_solver.solve(self.dH, dH)
-#        return [self.dH]
-#
-#    @no_annotations
-#    def reinit(self, x):
-#        if self.i % 10 == 0:
-#            Dx = 0.01
-#            x.assign(reinit_solver.solve(x, Dx), annotate=False)
-#
-#    def eval_gradients(self, x):
-#        """Returns the triplet (dJT(x),dGT(x),dHT(x))
-#        Is used by nslpace_solve method only if self.inner_product returns
-#        None"""
-#        self.i += 1
-#        newphi.assign(x)
-#        phi_pvd.write(newphi)
-#
-#        dJT = self.dJT(x)
-#        if self.nconstraints == 0:
-#            dGT = []
-#        else:
-#            dGT = self.dGT(x)
-#        if self.nineqconstraints == 0:
-#            dHT = []
-#        else:
-#            dHT = self.dHT(x)
-#        return (dJT, dGT, dHT)
-#
-#    def retract(self, x, dx):
-#        import numpy as np
-#
-#        maxv = np.max(x.vector()[:])
-#        hmin = 0.02414
-#        dt = 0.1 * 1.0 * hmin / maxv
-#        # dt = 0.01
-#        self.newphi.assign(
-#            hj_solver.solve(Constant(-1.0) * dx, x, steps=1, dt=dt), annotate=False
-#        )
-#        return self.newphi
-#
-#    def restore(self):
-#        reg_solver.update_beta_param(self.beta_param * 0.1)
-#        self.beta_param *= 0.1
-#        print(f"New regularization parameter: {self.beta_param}")
-#
-#    @no_annotations
-#    def inner_product(self, x, y):
-#        # return assemble(beta_param*inner(grad(x), grad(y))*dx + inner(x, y)*dx)
-#        return assemble(inner(x, y) * dx)
-
 
 parameters = {
     "ksp_type": "preonly",
