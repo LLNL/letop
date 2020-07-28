@@ -1,28 +1,37 @@
-from firedrake import FunctionSpace, TrialFunction, \
-                    TestFunction, \
-                    sqrt, Constant, \
-                    dx, grad, inner, dot, \
-                    Function, \
-                    solve, assemble
+from firedrake import (
+    FunctionSpace,
+    TrialFunction,
+    TestFunction,
+    sqrt,
+    Constant,
+    dx,
+    grad,
+    inner,
+    dot,
+    Function,
+    solve,
+    assemble,
+)
 from pyadjoint.tape import no_annotations
 
 from lestofire.utils import petsc_print
 
 direct_parameters = {
-    "mat_type" : "aij",
-    "ksp_type" : "preonly",
-    "pc_type" : "lu",
-    "pc_factor_mat_solver_type" : "mumps"
+    "mat_type": "aij",
+    "ksp_type": "preonly",
+    "pc_type": "lu",
+    # "pc_factor_mat_solver_type" : "mumps"
 }
 
 iterative_parameters = {
-        "ksp_type" : "cg",
-        "ksp_max_it": 2000,
-        "ksp_atol": 1e-9,
-        "ksp_rtol": 1e-9,
-        "pc_type" : "bjacobi",
-        "ksp_converged_reason": None
+    "ksp_type": "cg",
+    "ksp_max_it": 2000,
+    "ksp_atol": 1e-9,
+    "ksp_rtol": 1e-9,
+    "pc_type": "bjacobi",
+    "ksp_converged_reason": None,
 }
+
 
 class SignedDistanceSolver(object):
     def __init__(self, mesh, PHI, alpha=10.0, dt=1e-6, n_steps=10, iterative=False):
@@ -50,21 +59,26 @@ class SignedDistanceSolver(object):
         w = TestFunction(self.PHI)
         # Gradient  norm
         def mgrad(b):
-            return(sqrt(b.dx (0)**2 + b.dx (1)**2))
+            return sqrt(b.dx(0) ** 2 + b.dx(1) ** 2)
+
         # Time  step
         k = Constant(self.dt)
         # Time  step  Python/FEniCS  syntax
         phi0 = phi_n
         # Initial  value
-        eps = Constant (1.0/Dx)
+        eps = Constant(1.0 / Dx)
         eps = Constant(Dx)
         # Interface  thickness
-        alpha = Constant (0.0625/ Dx)
+        alpha = Constant(0.0625 / Dx)
         # Numerical  diffusion  parameter
-        signp = phi_n/sqrt(phi_n*phi_n + eps*eps*mgrad(phi_n)*mgrad(phi_n))
+        signp = phi_n / sqrt(phi_n * phi_n + eps * eps * mgrad(phi_n) * mgrad(phi_n))
         # FEM  linearization
-        a = (phi/k)*w*dx
-        L = (phi0/k)*w*dx + signp*(1.0 - sqrt(dot(grad(phi0),grad(phi0))))*w*dx - alpha*inner(grad(phi0),grad(w))*dx
+        a = (phi / k) * w * dx
+        L = (
+            (phi0 / k) * w * dx
+            + signp * (1.0 - sqrt(dot(grad(phi0), grad(phi0)))) * w * dx
+            - alpha * inner(grad(phi0), grad(w)) * dx
+        )
         # Boundary  condition
         bc = []
         # Flag  setup
@@ -73,19 +87,27 @@ class SignedDistanceSolver(object):
         phi = Function(self.PHI)
 
         from firedrake import File
+
         for n in range(self.n_steps):
-            solve(a == L, phi , bc, solver_parameters=self.parameters, options_prefix="signed_", annotate=False)
+            solve(
+                a == L,
+                phi,
+                bc,
+                solver_parameters=self.parameters,
+                options_prefix="signed_",
+                annotate=False,
+            )
             # Euclidean  norm
-            error = (((phi - phi0)/k)**2)*dx
+            error = (((phi - phi0) / k) ** 2) * dx
             E = sqrt(abs(assemble(error, annotate=False)))
             petsc_print("error:", E)
             phi0.assign(phi, annotate=False)
 
             # Divergence  flag
-            if (E_old < E ):
+            if E_old < E:
                 fail = 1
                 petsc_print("*Diverges_at_the_re -initialization_level*", cont)
                 break
-            cont  +=1
+            cont += 1
             E_old = E
-        return  phi
+        return phi

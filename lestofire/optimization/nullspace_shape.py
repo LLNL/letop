@@ -162,19 +162,20 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     normalize_tol = params.get("normalize_tol", 0)
 
     alphas = np.asarray(
-        params.get("alphas", [1] * (problem.nconstraints + problem.nineqconstraints))
+        params.get(
+            "alphas", [1] * (len(problem.eqconstraints) + len(problem.ineqconstraints))
+        )
     )
 
-    p = problem.nconstraints
-    q = problem.nineqconstraints
+    p = len(problem.eqconstraints)
+    q = len(problem.ineqconstraints)
 
-
-    if hasattr(problem, 'inner_product'):
-        norm_func = lambda x : np.sqrt(problem.inner_product(x, x))
+    if hasattr(problem, "inner_product"):
+        norm_func = lambda x: np.sqrt(problem.inner_product(x, x))
         inner_product = problem.inner_product
     else:
         norm_func = norm
-        inner_product = lambda x, y: assemble(inner(x, y)*dx, annotate=False)
+        inner_product = lambda x, y: assemble(inner(x, y) * dx, annotate=False)
 
     try:
         import colored as col
@@ -248,12 +249,12 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
     if results and "J" in results and len(results["J"]) > 0:
         raise Exception("Restarting capabilities not implemented yet")
         ## Allow to restart the optimization from the last result
-        #checkResults(results)
-        #x = results["x"][-1]
-        #for key in results.keys():
+        # checkResults(results)
+        # x = results["x"][-1]
+        # for key in results.keys():
         #    if key not in ["normxiJ", "eps", "muls", "s", "tolerance"]:
         #        results[key] = results[key][:-1]
-        #if "muls" in results:
+        # if "muls" in results:
         #    results["muls"] = [np.asarray(muls) for muls in results["muls"]]
         #    for i in reversed(range(len(results["muls"]))):
         #        if i < itnormalisation:
@@ -296,8 +297,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         results["x"].append(x)
         problem.accept(results)
 
-
-        if hasattr(problem, 'reinit'):
+        if hasattr(problem, "reinit"):
             problem.reinit(x)
 
         it = len(results["J"]) - 1
@@ -322,9 +322,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
 
         # Returns the gradients (in the primal space). They are
         # firedrake.Function's
-        (dJ, dG, dH) = problem.eval_gradients(
-            x
-        )
+        (dJ, dG, dH) = problem.eval_gradients(x)
 
         H = np.asarray(H)
         G = np.asarray(G)
@@ -357,11 +355,11 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             jj = 0
             for j, tildej in enumerate(tildeEps):
                 if tildej and tildei:
-                    #Pmatrix[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                    # Pmatrix[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
                     Pmatrix[ii, jj] = inner_product(dC[i], dC[j])
                     jj += 1
             if tildei:
-                #qvector[ii] = assemble(inner(dJ, dC[i])*dx)
+                # qvector[ii] = assemble(inner(dJ, dC[i])*dx)
                 qvector[ii] = inner_product(dJ, dC[i])
                 ii += 1
 
@@ -401,7 +399,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
                 jj = 0
                 for j, tildej in enumerate(hat):
                     if tildej and tildei:
-                        #dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                        # dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
                         dCdCT[ii, jj] = inner_product(dC[i], dC[j])
                         jj += 1
                 if tildei:
@@ -421,7 +419,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             ii = 0
             for i, hati in enumerate(hat):
                 if hati:
-                    #dCdJ[ii] = assemble(inner(dC[i], dJ)*dx)
+                    # dCdJ[ii] = assemble(inner(dC[i], dJ)*dx)
                     dCdJ[ii] = inner_product(dC[i], dJ)
                     ii += 1
             muls[hat] = -dCdCTinv.dot(dCdJ[hat])
@@ -444,15 +442,14 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         if hat.any():
             for i, hati in enumerate(hat):
                 if hati:
-                    list_func.append(Constant(muls[i])*dC[i])
+                    list_func.append(Constant(muls[i]) * dC[i])
                 else:
                     # Still add a function to be able to call Function.assign with
                     # objects of same shape.
-                    list_func.append(Constant(0.0)*dC[i])
+                    list_func.append(Constant(0.0) * dC[i])
             xiJ.assign(dJ + sum(list_func))
         else:
             xiJ.assign(dJ)
-
 
         # Compute range step direction xiC
         indicesEps = np.logical_or(tilde, tildeEps)
@@ -462,12 +459,11 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             jj = 0
             for j, indj in enumerate(indicesEps):
                 if indi and indj:
-                    #dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
+                    # dCdCT[ii, jj] = assemble(inner(dC[i], dC[j])*dx)
                     dCdCT[ii, jj] = inner_product(dC[i], dC[j])
                     jj += 1
             if indi:
                 ii += 1
-
 
         try:
             dCtdCtTinv = np.linalg.inv(dCdCT)
@@ -486,7 +482,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
             ii = 0
             for i, indi in enumerate(indicesEps):
                 if indi:
-                    list_func.append(Constant(dCdTinvCalpha[ii])*dC[i])
+                    list_func.append(Constant(dCdTinvCalpha[ii]) * dC[i])
                     ii += 1
             xiC.assign(sum(list_func))
 
@@ -524,7 +520,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         normdx = norm_func(delta_x)
         success = 0
 
-        results["tolerance"].append(np.sum([norm(dCi, 'L1') for dCi in dC]) * dt)
+        results["tolerance"].append(np.sum([norm(dCi, "L1") for dCi in dC]) * dt)
 
         merit = AJ * (J + muls.dot(C)) + 0.5 * AC * C[indicesEps].dot(
             dCtdCtTinv.dot(C[indicesEps])
@@ -560,7 +556,7 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
         (J, G, H) = (newJ, newG, newH)
 
         with delta_x.dat.vec_ro as vu:
-            delta_x_inf_norm =  vu.norm(PETSc.NormType.NORM_INFINITY)
+            delta_x_inf_norm = vu.norm(PETSc.NormType.NORM_INFINITY)
         results["s"].append(results["s"][-1] + delta_x_inf_norm)
 
     results["J"].append(J)
