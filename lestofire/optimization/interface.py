@@ -47,7 +47,6 @@ class Constraint(object):
 class InfDimProblem(object):
     def __init__(
         self,
-        phi,
         cost_function,
         reg_solver,
         hj_solver,
@@ -103,12 +102,13 @@ class InfDimProblem(object):
         self.dx = Function(self.V)
         self.cost_function = cost_function
 
-        self.phi = phi
-        self.newphi = Function(phi.function_space())
+        self.phi = cost_function.level_set[0]
+        self.newphi = Function(self.phi.function_space())
         self.phi_pvd = phi_pvd
         self.i = 0  # iteration count
 
         self.h_size = 1e-7
+        self.beta_param = reg_solver.beta_param.values()[0]
 
     def fespace(self):
         return self.V
