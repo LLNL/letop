@@ -112,7 +112,6 @@ tol = 1e-5
 
 vol_constraint = Constraint(Vhat, Vval, VolControl)
 problem = InfDimProblem(
-    phi,
     Jhat,
     reg_solver,
     hj_solver,
