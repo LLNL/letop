@@ -28,13 +28,16 @@ def main():
 
     x, y = SpatialCoordinate(mesh)
     PHI = FunctionSpace(mesh, "CG", 1)
-    phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - Constant(0.8)
+    lx = 2.0
+    ly = 1.0
+    phi_expr = -cos(6.0 / lx * pi * x + 1.0) * cos(4.0 * pi * y) - 0.6
+
     phi = interpolate(phi_expr, PHI)
     phi.rename("LevelSet")
     File(output_dir + "phi_initial.pvd").write(phi)
 
     mu = Constant(1e2)
-    alphamax = 1e4
+    alphamax = 1e6
     alphamin = 1e-12
     epsilon = Constant(100000.0)
 
@@ -89,8 +92,8 @@ def main():
         print("Initial constraint function value {}".format(Vol))
 
     J = assemble(
-        Constant(alphamax) * hs(phi, epsilon) * inner(mu * u, u) * dx
-        + hs(-phi, epsilon) * inner(mu * u, u) * dx
+        Constant(alphamax) * hs(phi, epsilon) * inner(u, u) * dx
+        + mu / Constant(2.0) * inner(grad(u), grad(u)) * dx
     )
 
     c = Control(s)
@@ -105,19 +108,18 @@ def main():
     bcs_vel_5 = DirichletBC(S, noslip, 5)
     bcs_vel = [bcs_vel_1, bcs_vel_2, bcs_vel_3, bcs_vel_4, bcs_vel_5]
     reg_solver = RegularizationSolver(
-        S, mesh, beta=1e2, gamma=0.0, dx=dx, bcs=bcs_vel, output_dir=None
+        S, mesh, beta=1, gamma=0.0, dx=dx, bcs=bcs_vel, output_dir=None
     )
 
     reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
-    hj_solver = HJStabSolver(mesh, PHI, c2_param=2.0, iterative=False)
+    hj_solver = HJStabSolver(mesh, PHI, c2_param=0.5, iterative=False)
     # dt = 0.5*1e-1
-    dt = 0.5
+    dt = 1.0
     tol = 1e-5
 
     phi_pvd = File("phi_evolution.pvd")
     vol_constraint = Constraint(Vhat, Vval, VControl)
     problem = InfDimProblem(
-        phi,
         Jhat,
         reg_solver,
         hj_solver,
