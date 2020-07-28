@@ -216,6 +216,7 @@ def main():
     solver_temp = NonlinearVariationalSolver(problem, solver_parameters=temperature_parameters)
     solver_temp.solve()
     File("t.pvd").write(t)
+    exit()
 
     Power1 = Constant(4e3)*p1*ds(INLET1)
     Power2 = Constant(4e3)*p2*ds(INLET2)

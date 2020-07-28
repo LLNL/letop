@@ -2,11 +2,7 @@ from lestofire.levelset import (
     LevelSetLagrangian,
     RegularizationSolver,
 )
-from lestofire.optimization import (
-    HJStabSolver,
-    SignedDistanceSolver,
-    EuclideanOptimizable,
-)
+from lestofire.optimization import HJStabSolver, SignedDistanceSolver
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
 
@@ -48,7 +44,7 @@ class Constraint(object):
         return self.rfnl.derivative()
 
 
-class InfDimProblem(EuclideanOptimizable):
+class InfDimProblem(object):
     def __init__(
         self,
         phi,
@@ -60,9 +56,6 @@ class InfDimProblem(EuclideanOptimizable):
         ineqconstraints=None,
         phi_pvd=None,
     ):
-        super().__init__(
-            1
-        )  # This argument is the number of variables, it doesn't really matter...
         if not isinstance(reg_solver, RegularizationSolver):
             raise TypeError(
                 f"Provided regularization solver '{type(reg_solver).__name__}', is not a RegularizationSolver"
@@ -115,11 +108,17 @@ class InfDimProblem(EuclideanOptimizable):
         self.phi_pvd = phi_pvd
         self.i = 0  # iteration count
 
+        self.h_size = 1e-7
+
     def fespace(self):
         return self.V
 
     def x0(self):
         return self.phi
+
+    def eval(self, x):
+        """Returns the triplet (J(x),G(x),H(x))"""
+        return (self.J(x), self.G(x), self.H(x))
 
     def J(self, x):
         return self.cost_function(x)
@@ -188,3 +187,21 @@ class InfDimProblem(EuclideanOptimizable):
     def inner_product(self, x, y):
         return assemble(inner(x, y) * dx)
 
+    def accept(self, results):
+        """
+        This function is called by nlspace_solve:
+            - at the initialization
+            - every time a new guess x is accepted on the optimization
+              trajectory
+        This allows to perform some post processing operations along the
+        optimization trajectory. The function does not return any output but
+        may update the dictionary `results` which may affect the optimization.
+        Notably, the current point is stored in
+            results['x'][-1]
+        and an update of its value will be taken into account by nlspace_solve.
+
+        Inputs:
+            `results` : the current dictionary of results (see the function
+                nlspace_solve)
+        """
+        pass

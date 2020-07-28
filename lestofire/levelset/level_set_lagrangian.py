@@ -1,7 +1,6 @@
 from pyadjoint.drivers import compute_gradient, compute_hessian
 from pyadjoint.enlisting import Enlist
 from pyadjoint.tape import get_working_tape, stop_annotating, no_annotations
-from lestofire.optimization import augmented_lagrangian_float
 from pyadjoint import Control, AdjFloat
 
 
@@ -9,13 +8,7 @@ class LevelSetLagrangian(object):
     """Class representing a Lagrangian that depends on a level set
 
     This class is based of pyadjoint.ReducedFunctional and shares many functionalities.
-    The motivation is to calculate shape derivatives when we evolve a level set
-    and to be able to formulate optimization problems with constraints in one single
-    expression for the augmented lagrangian, interior point or Moreu-Youside
-    regularization.
-    A Lagrangian maps a control value to the provided functional and the constraint.
-    It may also be used to compute the derivative of the lagrangian with
-    respect to the control.
+    The motivation is to calculate shape derivatives when we evolve a level set.
 
     Args:
         functional (:obj:`OverloadedType`): An instance of an OverloadedType,
@@ -24,11 +17,6 @@ class LevelSetLagrangian(object):
         controls (list[Control]): A list of Control instances, which you want
             to map to the functional. It is also possible to supply a single Control
             instance instead of a list.
-        constraint (:obj:`OverloadedType`): An instance of an OverloadedType,
-            usually :class:`AdjFloat`. This should be the return value of the
-            inequality constraint you want to calculate.
-            It should be implemented as g(x) < 0
-
     """
 
     def __init__(
@@ -36,13 +24,8 @@ class LevelSetLagrangian(object):
         functional,
         controls,
         level_set,
-        constraint=None,
-        method=None,
         scale=1.0,
         tape=None,
-        lagrange_multiplier=1e5,
-        penalty_value=1e5,
-        penalty_update=2.0,
         eval_cb_pre=lambda *args: None,
         eval_cb_post=lambda *args: None,
         derivative_cb_pre=lambda *args: None,
@@ -52,10 +35,6 @@ class LevelSetLagrangian(object):
     ):
         self.functional = functional
         self.cost_function = self.functional
-        self.constraints = Enlist(constraint)
-        self.penalty_update = Enlist(penalty_update)
-        self.penalty_max = 5e9
-        self.method = method
         self.tape = get_working_tape() if tape is None else tape
         self.controls = Enlist(controls)
         self.level_set = Enlist(level_set)
@@ -67,102 +46,10 @@ class LevelSetLagrangian(object):
         self.hessian_cb_pre = hessian_cb_pre
         self.hessian_cb_post = hessian_cb_post
 
-        if constraint is not None:
-            if method is "AL":
-                lagrange_multiplier = Enlist(lagrange_multiplier)
-                penalty_value = Enlist(penalty_value)
-                self.m = len(self.constraints)
-                from firedrake import FunctionSpace, dx
-                from pyadjoint.placeholder import Placeholder
-
-                self.lagr_mult = [
-                    AdjFloat(lagrange_multiplier[i]) for i in range(self.m)
-                ]
-                for i in range(self.m):
-                    Placeholder(self.lagr_mult[i])
-
-                self.c = [AdjFloat(penalty_value[i]) for i in range(self.m)]
-                for i in range(self.m):
-                    Placeholder(self.c[i])
-
-                for i in range(self.m):
-                    self.functional += augmented_lagrangian_float(
-                        self.constraints[i], self.lagr_mult[i], self.c[i]
-                    )
-            else:
-                raise RuntimeError(
-                    "Constrained specified but not the method to handle it"
-                )
 
         # TODO Check that the level set is in the tape.
         # Actually, not even pyadjoint checks if the given Control is in the
         # tape.
-
-    def stop_criteria(self):
-        """ This method is only used for the Augmented Lagrangian method
-        """
-        assert self.constraints is not None
-        assert self.method is "AL"
-
-        stop_criteria = 0.0
-        with stop_annotating():
-            for i in range(self.m):
-                constraint_value = self.constraint_value(i)
-                stop_criteria += abs(
-                    constraint_value
-                    * float(self.lagr_mult[i].block_variable.saved_output)
-                )
-        return stop_criteria
-
-    def constraint_value(self, i):
-        constraint_value = Control(self.constraints[i]).tape_value()
-        return constraint_value
-
-    def cost_function_value(self):
-        cost_func_value = Control(self.cost_function).tape_value()
-        return cost_func_value
-
-    def lagrange_multiplier(self, i):
-        return float(self.lagr_mult[i].block_variable.saved_output)
-
-    def penalty(self, i):
-        return float(self.c[i].block_variable.saved_output)
-
-    @no_annotations
-    def update_penalty(self):
-        assert self.constraints is not None
-        assert self.method is "AL"
-        from ufl import max_value
-
-        for i in range(self.m):
-            self.c[i].block_variable.set_value(
-                AdjFloat(min(
-                    float(self.c[i].block_variable.saved_output)
-                    * self.penalty_update[i], self.penalty_max)
-                )
-            )
-
-    @no_annotations
-    def update_lagrangian(self):
-        """ This method is only used for the Augmented Lagrangian method
-        """
-        assert self.constraints is not None
-        assert self.method is "AL"
-        from ufl import max_value
-
-        for i in range(self.m):
-            constraint_value = self.constraint_value(i)
-            self.lagr_mult[i].block_variable.set_value(
-                AdjFloat(
-                    max(
-                        float(
-                            self.lagr_mult[i].block_variable.saved_output
-                            + self.c[i].block_variable.saved_output * constraint_value
-                        ),
-                        0.0,
-                    )
-                )
-            )
 
     def derivative(self, options={}):
         """Returns the derivative of the functional w.r.t. the control.

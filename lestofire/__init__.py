@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 #
 from .__about__ import __author__, __email__, __license__, __status__, __version__
-#from .cli import show
-from .optimization import HJStabSolver, HJSUPG, SignedDistanceSolver, SteepestDescent, \
-                        augmented_lagrangian, AugmentedLagrangianOptimization, max_fvalue, \
-                        augmented_lagrangian_float, Optimizable,\
-                        EuclideanOptimizable, nlspace_solve_shape, \
-                        Constraint, InfDimProblem
+
+# from .cli import show
+from .optimization import (
+    HJStabSolver,
+    HJSUPG,
+    SignedDistanceSolver,
+    nlspace_solve_shape,
+    Constraint,
+    InfDimProblem,
+)
 from .levelset import LevelSetLagrangian, RegularizationSolver
 from .utils import petsc_print
 
-__all__ = [
-    "__author__",
-    "__email__",
-    "__license__",
-    "__version__",
-    "__status__"
-]
+__all__ = ["__author__", "__email__", "__license__", "__version__", "__status__"]

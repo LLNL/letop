@@ -17,7 +17,7 @@
 
 import numpy as np
 import cvxopt as cvx
-from .optimizable import Optimizable, EuclideanOptimizable
+from .interface import InfDimProblem
 import scipy.sparse.linalg as linalg
 import scipy.sparse as sp
 import time
@@ -27,7 +27,7 @@ from pyadjoint import no_annotations
 
 
 @no_annotations
-def nlspace_solve(problem: Optimizable, params=None, results=None):
+def nlspace_solve(problem: InfDimProblem, params=None, results=None):
     """
     Solve the optimization problem
         min      J(x)
@@ -38,11 +38,11 @@ def nlspace_solve(problem: Optimizable, params=None, results=None):
 
     Usage
     -----
-    results=nlspace_solve(problem: Optimizable, params: dict, results:dict)
+    results=nlspace_solve(problem: InfDimProblem, params: dict, results:dict)
 
     Inputs
     ------
-    problem : an `~Optimizable` object corresponding to the optimization
+    problem : an `~InfDimProblem` object corresponding to the optimization
                   problem above.
 
     params  : (optional) a dictionary containing algorithm parameters

@@ -91,10 +91,6 @@ VolControl = Control(VolPen)
 Vval = 1.0
 
 phi_pvd = File("phi_evolution.pvd")
-beta1_pvd = File("beta1.pvd")
-beta2_pvd = File("beta2.pvd")
-newphi = Function(PHI)
-
 
 velocity = Function(S)
 bcs_vel_1 = DirichletBC(S, Constant((0.0, 0.0)), 1)
