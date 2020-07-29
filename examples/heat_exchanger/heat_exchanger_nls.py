@@ -3,10 +3,10 @@ from firedrake import *
 from firedrake_adjoint import *
 
 from lestofire import (
-    LevelSetLagrangian,
+    LevelSetFunctional,
     RegularizationSolver,
     HJStabSolver,
-    SignedDistanceSolver,
+    ReinitSolver,
     nlspace_solve_shape,
     Constraint,
     InfDimProblem,
@@ -243,11 +243,11 @@ def deriv_cb(phi):
 c = Control(s)
 
 # Reduced Functionals
-Jhat = LevelSetLagrangian(Jform, c, phi, derivative_cb_pre=deriv_cb)
-P1hat = LevelSetLagrangian(Power1, c, phi)
+Jhat = LevelSetFunctional(Jform, c, phi, derivative_cb_pre=deriv_cb)
+P1hat = LevelSetFunctional(Power1, c, phi)
 P1control = Control(Power1)
 
-P2hat = LevelSetLagrangian(Power2, c, phi)
+P2hat = LevelSetFunctional(Power2, c, phi)
 P2control = Control(Power2)
 
 Jhat_v = Jhat(phi)
@@ -264,7 +264,7 @@ reg_solver = RegularizationSolver(
 )
 
 
-reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
+reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
 dt = 5.0

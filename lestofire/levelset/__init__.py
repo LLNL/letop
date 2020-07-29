@@ -1,2 +1,2 @@
-from .level_set_lagrangian import LevelSetLagrangian
+from .level_set_lagrangian import LevelSetFunctional
 from .regularization_solver import RegularizationSolver

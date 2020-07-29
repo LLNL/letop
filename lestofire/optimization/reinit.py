@@ -33,7 +33,7 @@ iterative_parameters = {
 }
 
 
-class SignedDistanceSolver(object):
+class ReinitSolver(object):
     def __init__(self, mesh, PHI, alpha=10.0, dt=1e-6, n_steps=10, iterative=False):
         self.PHI = PHI
         self.mesh = mesh

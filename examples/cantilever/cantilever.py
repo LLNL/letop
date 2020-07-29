@@ -2,10 +2,10 @@ from firedrake import *
 from firedrake_adjoint import *
 
 from lestofire import (
-    LevelSetLagrangian,
+    LevelSetFunctional,
     RegularizationSolver,
     HJStabSolver,
-    SignedDistanceSolver,
+    ReinitSolver,
     nlspace_solve_shape,
     Constraint,
     InfDimProblem,
@@ -84,27 +84,33 @@ Sigma = TensorFunctionSpace(mesh, "CG", 1)
 File("sigma.pvd").write(project(sigma(u_sol), Sigma))
 
 Jform = assemble(inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx)
-# Jform = assemble(inner(hs(-phi, beta)*sigma(u_sol), epsilon(u_sol))*dx + Constant(1000.0)*hs(-phi, beta)*dx)
 VolPen = assemble(hs(-phi, beta) * dx)
 VolControl = Control(VolPen)
 
 Vval = 1.0
 
-phi_pvd = File("phi_evolution.pvd")
 
 velocity = Function(S)
 bcs_vel_1 = DirichletBC(S, Constant((0.0, 0.0)), 1)
 bcs_vel_2 = DirichletBC(S, Constant((0.0, 0.0)), 2)
 bcs_vel = [bcs_vel_2]
 
+
+phi_pvd = File("phi_evolution.pvd")
+
+
+def deriv_cb(phi):
+    phi_pvd.write(phi[0])
+
+
 c = Control(s)
-Jhat = LevelSetLagrangian(Jform, c, phi)
-Vhat = LevelSetLagrangian(VolPen, c, phi)
+Jhat = LevelSetFunctional(Jform, c, phi, derivative_cb_pre=deriv_cb)
+Vhat = LevelSetFunctional(VolPen, c, phi)
 beta_param = 1e2
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
 )
-reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
+reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=2.0, iterative=False)
 # dt = 0.5*1e-1
 dt = 20.0
@@ -112,12 +118,7 @@ tol = 1e-5
 
 vol_constraint = Constraint(Vhat, Vval, VolControl)
 problem = InfDimProblem(
-    Jhat,
-    reg_solver,
-    hj_solver,
-    reinit_solver,
-    ineqconstraints=vol_constraint,
-    phi_pvd=phi_pvd,
+    Jhat, reg_solver, hj_solver, reinit_solver, ineqconstraints=vol_constraint
 )
 
 parameters = {

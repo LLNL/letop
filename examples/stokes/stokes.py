@@ -7,10 +7,10 @@ from ufl import min_value, max_value
 from mesh_stokes_flow import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, WALLS
 
 from lestofire import (
-    LevelSetLagrangian,
+    LevelSetFunctional,
     RegularizationSolver,
     HJStabSolver,
-    SignedDistanceSolver,
+    ReinitSolver,
     nlspace_solve_shape,
     Constraint,
     InfDimProblem,
@@ -97,8 +97,8 @@ def main():
     )
 
     c = Control(s)
-    Jhat = LevelSetLagrangian(J, c, phi)
-    Vhat = LevelSetLagrangian(Vol, c, phi)
+    Jhat = LevelSetFunctional(J, c, phi)
+    Vhat = LevelSetFunctional(Vol, c, phi)
 
     velocity = Function(S)
     bcs_vel_1 = DirichletBC(S, noslip, 1)
@@ -111,7 +111,7 @@ def main():
         S, mesh, beta=1, gamma=0.0, dx=dx, bcs=bcs_vel, output_dir=None
     )
 
-    reinit_solver = SignedDistanceSolver(mesh, PHI, dt=1e-7, iterative=False)
+    reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
     hj_solver = HJStabSolver(mesh, PHI, c2_param=0.5, iterative=False)
     # dt = 0.5*1e-1
     dt = 1.0

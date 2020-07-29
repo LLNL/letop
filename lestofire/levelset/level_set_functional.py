@@ -4,7 +4,7 @@ from pyadjoint.tape import get_working_tape, stop_annotating, no_annotations
 from pyadjoint import Control, AdjFloat
 
 
-class LevelSetLagrangian(object):
+class LevelSetFunctional(object):
     """Class representing a Lagrangian that depends on a level set
 
     This class is based of pyadjoint.ReducedFunctional and shares many functionalities.
@@ -45,7 +45,6 @@ class LevelSetLagrangian(object):
         self.derivative_cb_post = derivative_cb_post
         self.hessian_cb_pre = hessian_cb_pre
         self.hessian_cb_post = hessian_cb_post
-
 
         # TODO Check that the level set is in the tape.
         # Actually, not even pyadjoint checks if the given Control is in the

@@ -1,8 +1,8 @@
 from lestofire.levelset import (
-    LevelSetLagrangian,
+    LevelSetFunctional,
     RegularizationSolver,
 )
-from lestofire.optimization import HJStabSolver, SignedDistanceSolver
+from lestofire.optimization import HJStabSolver, ReinitSolver
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
 
@@ -18,7 +18,7 @@ class Constraint(object):
         :scalar_control: Control
 
         """
-        if not isinstance(rfnl, LevelSetLagrangian):
+        if not isinstance(rfnl, LevelSetFunctional):
             raise TypeError(
                 f"Provided '{type(rfnl).__name__}', not a LevelSetFunctional"
             )
@@ -53,7 +53,6 @@ class InfDimProblem(object):
         reinit_solver,
         eqconstraints=None,
         ineqconstraints=None,
-        phi_pvd=None,
     ):
         if not isinstance(reg_solver, RegularizationSolver):
             raise TypeError(
@@ -65,9 +64,9 @@ class InfDimProblem(object):
                 f"Provided Hamilton-Jacobi solver '{type(hj_solver).__name__}', is not a HJStabSolver"
             )
         self.hj_solver = hj_solver
-        if not isinstance(reinit_solver, SignedDistanceSolver):
+        if not isinstance(reinit_solver, ReinitSolver):
             raise TypeError(
-                f"Provided reinitialization solver '{type(hj_solver).__name__}', is not a SignedDistanceSolver"
+                f"Provided reinitialization solver '{type(hj_solver).__name__}', is not a ReinitSolver"
             )
         self.reinit_solver = reinit_solver
 
@@ -104,7 +103,6 @@ class InfDimProblem(object):
 
         self.phi = cost_function.level_set[0]
         self.newphi = Function(self.phi.function_space())
-        self.phi_pvd = phi_pvd
         self.i = 0  # iteration count
 
         self.h_size = 1e-7
@@ -149,8 +147,7 @@ class InfDimProblem(object):
         """Returns the triplet (gradJ(x), gradG(x), gradH(x))
         """
         self.i += 1
-        self.newphi.assign(x)
-        self.phi_pvd.write(self.newphi)
+        self.phi.assign(x)
 
         dJ = self.dJ(x)
         dG = self.dG(x)
@@ -173,10 +170,10 @@ class InfDimProblem(object):
         hmin = 0.02414
         dt = 0.1 * 1.0 * hmin / maxv
         # dt = 0.01
-        self.newphi.assign(
+        self.phi.assign(
             self.hj_solver.solve(Constant(-1.0) * dx, x, steps=1, dt=dt), annotate=False
         )
-        return self.newphi
+        return self.phi
 
     def restore(self):
         self.reg_solver.update_beta_param(self.beta_param * 0.1)

@@ -1,34 +1,49 @@
 import sys
+
 sys.path.append("../")
-from lestofire.optimization import SignedDistanceSolver
-from firedrake import UnitSquareMesh, FunctionSpace, Expression, \
-                    interpolate, File, errornorm, Function,  \
-                    DirichletBC, Constant, SpatialCoordinate
+from lestofire.optimization import ReinitSolver
+from firedrake import (
+    UnitSquareMesh,
+    FunctionSpace,
+    Expression,
+    interpolate,
+    File,
+    errornorm,
+    Function,
+    DirichletBC,
+    Constant,
+    SpatialCoordinate,
+)
 from ufl import sin
 import pytest
 
 N = 100
-@pytest.fixture(scope='module')
+
+
+@pytest.fixture(scope="module")
 def mesh():
     return UnitSquareMesh(N, N)
 
-@pytest.fixture(scope='module')
-def phicg1(mesh):
-    return FunctionSpace(mesh, 'CG', 1)
 
-@pytest.mark.parametrize(('iterative'), [False, True])
+@pytest.fixture(scope="module")
+def phicg1(mesh):
+    return FunctionSpace(mesh, "CG", 1)
+
+
+@pytest.mark.parametrize(("iterative"), [False, True])
 def test_reinit(mesh, phicg1, iterative):
 
-    solver = SignedDistanceSolver(mesh, phicg1, dt=1e-6, n_steps=100, iterative=iterative)
+    solver = ReinitSolver(mesh, phicg1, dt=1e-6, n_steps=100, iterative=iterative)
     X = SpatialCoordinate(mesh)
 
     import numpy as np
-    Dx = np.sqrt(2.0 / (N*N)) # TODO, hardcoded for UnitSquareMesh
-    phi0expr = sin(X[1]/0.1)*sin(X[0]/0.1) - 0.5
+
+    Dx = np.sqrt(2.0 / (N * N))  # TODO, hardcoded for UnitSquareMesh
+    phi0expr = sin(X[1] / 0.1) * sin(X[0] / 0.1) - 0.5
     phi0 = interpolate(phi0expr, phicg1)
     phi1 = solver.solve(phi0, Dx)
 
-    phi0expr = sin(X[1]/0.1)*sin(X[0]/0.1) - 0.5
+    phi0expr = sin(X[1] / 0.1) * sin(X[0] / 0.1) - 0.5
     phi0 = interpolate(phi0expr, phicg1)
     error = errornorm(phi0, phi1)
 
