@@ -216,7 +216,7 @@ solver_temp.solve()
 power_drop = 1e-2
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
-scale_factor = 1e-4
+scale_factor = 4e-2
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 U1control = Control(U1)
@@ -228,16 +228,9 @@ tplot = Function(T)
 t_pvd = File(output_dir + "t.pvd")
 
 
+phi_pvd = File("phi_evolution.pvd")
 def deriv_cb(phi):
-    with stop_annotating():
-        u1, _ = U1control.tape_value().split()
-        u2, _ = U2control.tape_value().split()
-        tplot.assign(tcontrol.tape_value())
-    u1.rename("Velocity")
-    u2.rename("Velocity")
-    u1_pvd.write(u1)
-    u2_pvd.write(u2)
-    t_pvd.write(tplot)
+    phi_pvd.write(phi[0])
 
 
 c = Control(s)
@@ -258,7 +251,7 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 # Jhat.optimize_tape()
 
 velocity = Function(S)
-beta_param = 10.0
+beta_param = 1.0
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
 )
@@ -267,10 +260,9 @@ reg_solver = RegularizationSolver(
 reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 5.0
+dt = 10.0
 tol = 1e-5
 
-phi_pvd = File("phi_evolution.pvd")
 
 
 ## Old parameters
@@ -290,7 +282,7 @@ params = {
     "alphaJ": 0.5,
     "dt": dt,
     "K": 1e-4,
-    "maxit": 500,
+    "maxit": 100,
     "maxtrials": 10,
     "itnormalisation": 500,
     # "normalize_tol" : -1,
@@ -306,7 +298,6 @@ problem = InfDimProblem(
         Constraint(P1hat, 1.0, P1control),
         Constraint(P2hat, 1.0, P2control),
     ],
-    phi_pvd=phi_pvd,
 )
 results = nlspace_solve_shape(problem, params)
 

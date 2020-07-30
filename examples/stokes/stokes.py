@@ -68,8 +68,8 @@ def main():
     bc1 = DirichletBC(W.sub(0), noslip, WALLS)
     bc2 = DirichletBC(W.sub(0), inflow, 1)
     bc3 = DirichletBC(W.sub(0), inflow, 2)
-    bc4 = DirichletBC(W.sub(1), Constant(0.0), 3)
-    bc5 = DirichletBC(W.sub(1), Constant(0.0), 4)
+    bc4 = DirichletBC(W.sub(0), inflow, 3)
+    bc5 = DirichletBC(W.sub(0), inflow, 4)
     bcs = [bc1, bc2, bc3, bc4, bc5]
 
     parameters = {
@@ -82,8 +82,9 @@ def main():
     a = derivative(e1f, U)
     nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
 
-    solve(a == L, U, bcs, solver_parameters=parameters)  # , nullspace=nullspace)
+    solve(a == L, U, bcs, solver_parameters=parameters, nullspace=nullspace)
     u, p = split(U)
+    File("velocity.pvd").write(U.split()[0])
 
     Vol = assemble(hs(-phi, epsilon) * Constant(1.0) * dx(domain=mesh))
     VControl = Control(Vol)
@@ -97,7 +98,13 @@ def main():
     )
 
     c = Control(s)
-    Jhat = LevelSetFunctional(J, c, phi)
+
+    phi_pvd = File("phi_evolution.pvd")
+    def deriv_cb(phi):
+        phi_pvd.write(phi[0])
+
+
+    Jhat = LevelSetFunctional(J, c, phi, derivative_cb_pre=deriv_cb)
     Vhat = LevelSetFunctional(Vol, c, phi)
 
     velocity = Function(S)
@@ -117,15 +124,13 @@ def main():
     dt = 1.0
     tol = 1e-5
 
-    phi_pvd = File("phi_evolution.pvd")
     vol_constraint = Constraint(Vhat, Vval, VControl)
     problem = InfDimProblem(
         Jhat,
         reg_solver,
         hj_solver,
         reinit_solver,
-        ineqconstraints=vol_constraint,
-        phi_pvd=phi_pvd,
+        ineqconstraints=vol_constraint
     )
 
     parameters = {
@@ -139,6 +144,7 @@ def main():
     params = {
         "alphaC": 1.0,
         "K": 0.1,
+        "maxit": 85,
         "debug": 5,
         "alphaJ": 1.0,
         "dt": dt,

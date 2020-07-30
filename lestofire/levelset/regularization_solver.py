@@ -25,11 +25,12 @@ from firedrake.mesh import ExtrudedMeshTopology
 from ufl import grad, inner, dot, dx, ds
 from ufl import ds_b, ds_t, ds_tb, ds_v
 
+
 direct_parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
     "pc_type": "lu",
-    # "pc_factor_mat_solver_type": "mumps",
+    "pc_factor_mat_solver_type": "mumps",
 }
 
 iterative_parameters = {

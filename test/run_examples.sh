@@ -8,13 +8,37 @@ lestofire=$(pwd)
 
 for d in $lestofire/examples/*/; do
 	if [ "$lestofire/examples/heat_exchanger/" = "$d" ]; then
-		echo $d
+		echo "Running ${d}"
 		cd $d
 		python3 2D_mesh.py
 		gmsh -2 2D_mesh.geo
-		python3 heat_exchanger_al.py | tee $lestofire/test/output.txt
+		python3 heat_exchanger_nls.py | tee $lestofire/test/output.txt
 		cd $lestofire/test/
 		if ! python3 check_examples_output.py output.txt heat_exchanger 2> stderr.txt; then
+			echo "problems"
+			exit 1
+		else
+			echo "no problems"
+		fi
+	fi
+	if [ "$lestofire/examples/cantilever/" = "$d" ]; then
+		echo "Running ${d}"
+		cd $d
+		python3 cantilever.py | tee $lestofire/test/output.txt
+		cd $lestofire/test/
+		if ! python3 check_examples_output.py output.txt cantilever 2> stderr.txt; then
+			echo "problems"
+			exit 1
+		else
+			echo "no problems"
+		fi
+	fi
+	if [ "$lestofire/examples/stokes/" = "$d" ]; then
+		echo "Running ${d}"
+		cd $d
+		python3 stokes.py | tee $lestofire/test/output.txt
+		cd $lestofire/test/
+		if ! python3 check_examples_output.py output.txt stokes 2> stderr.txt; then
 			echo "problems"
 			exit 1
 		else
