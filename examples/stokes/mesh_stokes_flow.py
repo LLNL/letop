@@ -62,8 +62,5 @@ def main():
 
     mesh = pg.generate_mesh(geom, geo_filename="mesh_stokes.geo")
 
-    import meshio
-    meshio.write("mesh_stokes.vtk", mesh)
-
 if __name__ == '__main__':
     main()

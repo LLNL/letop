@@ -157,7 +157,6 @@ class RegularizationSolver(object):
                 bc.apply(dJ)
 
         with stop_annotating():
-            assemble(self.a, bcs=self.bcs, tensor=self.Av)
             solve(
                 self.Av,
                 velocity.vector(),

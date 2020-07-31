@@ -24,6 +24,7 @@ for d in $lestofire/examples/*/; do
 	if [ "$lestofire/examples/cantilever/" = "$d" ]; then
 		echo "Running ${d}"
 		cd $d
+		gmsh -2 mesh_cantilever.geo
 		python3 cantilever.py | tee $lestofire/test/output.txt
 		cd $lestofire/test/
 		if ! python3 check_examples_output.py output.txt cantilever 2> stderr.txt; then
@@ -36,6 +37,8 @@ for d in $lestofire/examples/*/; do
 	if [ "$lestofire/examples/stokes/" = "$d" ]; then
 		echo "Running ${d}"
 		cd $d
+		python3 mesh_stokes_flow.py
+		gmsh -2 mesh_stokes.geo
 		python3 stokes.py | tee $lestofire/test/output.txt
 		cd $lestofire/test/
 		if ! python3 check_examples_output.py output.txt stokes 2> stderr.txt; then
