@@ -1,4 +1,4 @@
-size = 0.1;
+size = 0.02;
 width = 2.0;
 height = 1.0;
 p0 = newp;

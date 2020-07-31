@@ -11,7 +11,7 @@ TestExample = namedtuple("TestExample", ["folder", "n_iter", "cost_func_value"])
 # final number of iterations and the cost function value.
 test_collection = [
     TestExample(folder="heat_exchanger", n_iter=10, cost_func_value=-0.2654),
-    TestExample(folder="cantilever", n_iter=10, cost_func_value=1479),
+    TestExample(folder="cantilever", n_iter=10, cost_func_value=1442),
     TestExample(folder="stokes", n_iter=10, cost_func_value=7.575e04),
 ]
 

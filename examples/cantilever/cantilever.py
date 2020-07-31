@@ -136,7 +136,7 @@ params = {
     "alphaJ": 1.0,
     "dt": dt,
     "maxtrials": 10,
-    "maxit": 20,
+    "maxit": 80,
     "itnormalisation": 50,
     "tol": tol,
 }
