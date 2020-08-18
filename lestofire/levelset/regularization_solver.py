@@ -30,7 +30,7 @@ direct_parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
     "pc_type": "lu",
-    "pc_factor_mat_solver_type": "mumps",
+    #"pc_factor_mat_solver_type": "mumps",
 }
 
 iterative_parameters = {
@@ -41,12 +41,12 @@ iterative_parameters = {
     "pc_hypre_boomeramg_max_iter": 200,
     "pc_hypre_boomeramg_coarsen_type": "HMIS",
     "pc_hypre_boomeramg_agg_nl": 1,
-    "pc_hypre_boomeramg_strong_threshold": 0.25,
+    "pc_hypre_boomeramg_strong_threshold": 0.7,
     "pc_hypre_boomeramg_interp_type": "ext+i",
     "pc_hypre_boomeramg_P_max": 4,
     "pc_hypre_boomeramg_relax_type_all": "sequential-Gauss-Seidel",
     "pc_hypre_boomeramg_grid_sweeps_all": 1,
-    "pc_hypre_boomeramg_max_levels": 25,
+    "pc_hypre_boomeramg_max_levels": 15,
     "ksp_monitor_true_residual": None,
 }
 
@@ -64,7 +64,7 @@ class RegularizationSolver(object):
         bcs=None,
         dx=dx,
         sim_domain=None,
-        iterative=False,
+        solver_parameters=direct_parameters,
         output_dir="./",
     ):
         n = FacetNormal(mesh)
@@ -139,10 +139,7 @@ class RegularizationSolver(object):
         else:
             self.beta_pvd = None
 
-        if iterative:
-            self.parameters = iterative_parameters
-        else:
-            self.parameters = direct_parameters
+        self.solver_parameters = solver_parameters
 
     @no_annotations
     def update_beta_param(self, new_value):
@@ -161,7 +158,8 @@ class RegularizationSolver(object):
                 self.Av,
                 velocity.vector(),
                 dJ,
-                solver_parameters=self.parameters,
+                options_prefix="reg_solver",
+                solver_parameters=self.solver_parameters,
                 annotate=False,
             )
 
