@@ -1,0 +1,11 @@
+height = 0.5
+width = 1.0
+height_spring = 0.1
+width_spring = 0.1
+height_load = 0.1
+width_load = 0.1
+height_dirch = 0.1
+width_dirch = 0.1
+SPRING = 2
+LOAD = 3
+DIRCH = 1
