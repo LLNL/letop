@@ -48,7 +48,7 @@ u = TrialFunction(W)
 v = TestFunction(W)
 
 # Elasticity parameters
-E, nu = 1.0, 0.3
+E, nu = 20.0, 0.3
 mu, lmbda = Constant(E / (2 * (1 + nu))), Constant(E * nu / ((1 + nu) * (1 - 2 * nu)))
 
 
@@ -59,7 +59,7 @@ def epsilon(u):
 def sigma(v):
     return 2.0 * mu * epsilon(v) + lmbda * tr(epsilon(v)) * Identity(2)
 
-ks = 0.1
+ks = 0.01
 n = FacetNormal(mesh)
 
 f = Constant((0.0, 0.0))
@@ -68,7 +68,8 @@ a = inner(hs(-phi, beta) * sigma(u), nabla_grad(v)) * dx(0) + inner(sigma(u), na
 t = Constant((0.05, 0.0))
 L = inner(t, v) * ds(3)
 
-bc = DirichletBC(W, Constant((0.0, 0.0)), 1)
+bc1 = DirichletBC(W, Constant((0.0, 0.0)), 1)
+bc2 = DirichletBC(W.sub(1), Constant(0.0), 4)
 parameters = {
     "ksp_type": "preonly",
     "pc_type": "lu",
@@ -77,7 +78,7 @@ parameters = {
     "pc_factor_mat_solver_type": "mumps"
 }
 u_sol = Function(W)
-solve(a == L, u_sol, bcs=[bc], solver_parameters=parameters)  # , nullspace=nullspace)
+solve(a == L, u_sol, bcs=[bc1, bc2], solver_parameters=parameters)  # , nullspace=nullspace)
 File("u_sol.pvd").write(u_sol)
 Sigma = TensorFunctionSpace(mesh, "CG", 1)
 File("sigma.pvd").write(project(sigma(u_sol), Sigma))

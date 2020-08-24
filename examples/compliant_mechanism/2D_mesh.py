@@ -1,6 +1,6 @@
 import pygmsh as pg
 from params import height, width, height_spring, width_spring, height_load, width_load, height_dirch, width_dirch
-from params import SPRING, LOAD, DIRCH
+from params import SPRING, LOAD, DIRCH, ROLL
 
 def main():
     size = 0.01;
@@ -41,6 +41,8 @@ def main():
     geom.add_raw_code("""Physical Curve({0}) = {{vb1[1]}};""".format(SPRING))
     geom.add_raw_code("""Physical Curve({0}) = {{vb2[0]}};""".format(LOAD))
     geom.add_raw_code("""Physical Curve({0}) = {{vb3[8]}};""".format(DIRCH))
+    print(f"l2.id: {l2.id}")
+    geom.add_raw_code("""Physical Curve({0}) = {{vb3[13], vb1[2], vb2[3]}};""".format(ROLL))
     geom.add_raw_code("""Physical Surface(0) = {bo1[2]};""")
 
 
