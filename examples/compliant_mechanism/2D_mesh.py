@@ -1,5 +1,5 @@
 import pygmsh as pg
-from params import height, width, height_spring, width_spring, height_load, width_load, height_dirch, width_dirch
+from params import height, width, height_spring, width_spring, height_load, width_load, height_dirch
 from params import SPRING, LOAD, DIRCH, ROLL
 
 def main():

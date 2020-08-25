@@ -12,6 +12,7 @@ from lestofire import (
 )
 
 from pyadjoint import no_annotations
+from params import SPRING, LOAD, DIRCH, ROLL
 
 output_dir = "compliant/"
 
@@ -63,10 +64,10 @@ ks = 0.01
 n = FacetNormal(mesh)
 
 f = Constant((0.0, 0.0))
-a = inner(hs(-phi, beta) * sigma(u), nabla_grad(v)) * dx(0) + inner(sigma(u), nabla_grad(v)) * (dx(1) + dx(2)) + ks*inner(v, inner(u, n)*n)*ds(2)
+a = inner(hs(-phi, beta) * sigma(u), nabla_grad(v)) * dx(0) + inner(sigma(u), nabla_grad(v)) * (dx(1) + dx(2)) + ks*inner(v, inner(u, n)*n)*ds(SPRING)
 
-t = Constant((0.05, 0.0))
-L = inner(t, v) * ds(3)
+t = Constant((50.0, 0.0))
+L = inner(t, v) * ds(LOAD)
 
 bc1 = DirichletBC(W, Constant((0.0, 0.0)), 1)
 bc2 = DirichletBC(W.sub(1), Constant(0.0), 4)
@@ -83,8 +84,8 @@ File("u_sol.pvd").write(u_sol)
 Sigma = TensorFunctionSpace(mesh, "CG", 1)
 File("sigma.pvd").write(project(sigma(u_sol), Sigma))
 
-Jform = assemble(inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx)
-VolPen = assemble(hs(-phi, beta) * dx)
+Jform = assemble(2.0*inner(u_sol, n)*ds(LOAD) + inner(u_sol, n)*ds(SPRING))
+VolPen = assemble(hs(-phi, beta) * dx(0) + Constant(1.0)*dx(SPRING, domain=mesh))
 VolControl = Control(VolPen)
 
 Vval = 1.0
