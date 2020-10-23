@@ -41,7 +41,7 @@ direct_parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
     "pc_type": "lu",
-    "pc_factor_mat_solver_type": "mumps",
+    #"pc_factor_mat_solver_type": "mumps",
 }
 
 iterative_parameters = {
@@ -104,6 +104,8 @@ class HJStabSolver(object):
         self.phi_sol = Function(self.PHI)
         self.problem = LinearVariationalProblem(self.a, self.L, self.phi_sol, bcs=bc)
 
+        self.phi_pvd = File("phi_all.pvd")
+
         if iterative:
             self.parameters = iterative_parameters
         else:
@@ -122,6 +124,7 @@ class HJStabSolver(object):
 
         for i in range(steps):
             self.solver.solve(annotate=False)
+            self.phi_pvd.write(self.phi_sol)
             self.phi_n.assign(self.phi_sol, annotate=False)
 
         return self.phi_n

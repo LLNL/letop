@@ -13,17 +13,19 @@ def main():
     p1 = geom.add_point([width, 0.0, 0], size)
     p2 = geom.add_point([width, height, 0], size)
     p3 = geom.add_point([0.0, height, 0], size)
-    p4 = geom.add_point([0.0, height_dirch, 0], size)
+    p4 = geom.add_point([0.0, height - height_dirch, 0], size)
+    p5 = geom.add_point([0.0, height_dirch, 0], size)
     l0 = geom.add_line(p0, p1)
     l1 = geom.add_line(p1, p2)
     l2 = geom.add_line(p2, p3)
     l3 = geom.add_line(p3, p4)
-    l4 = geom.add_line(p4, p0)
-    ll0 = geom.add_line_loop([l0, l1, l2, l3, l4])
+    l4 = geom.add_line(p4, p5)
+    l5 = geom.add_line(p5, p0)
+    ll0 = geom.add_line_loop([l0, l1, l2, l3, l4, l5])
     main_rect = geom.add_plane_surface(ll0)
 
-    spring_box = geom.add_rectangle([width - width_spring, height - height_spring, 0.0], width_spring, height_spring)
-    load_box = geom.add_rectangle([0.0, height - height_load, 0.0], width_load, height_load)
+    spring_box = geom.add_rectangle([width - width_spring, height / 2.0 - height_spring / 2.0, 0.0], width_spring, height_spring)
+    load_box = geom.add_rectangle([0.0, height / 2.0 - height_load / 2.0, 0.0], width_load, height_load)
 
     geom.add_physical(spring_box, 1)
     geom.add_physical(load_box, 2)
@@ -39,10 +41,9 @@ def main():
                                 heat_exchanger.id
                         ))
     geom.add_raw_code("""Physical Curve({0}) = {{vb1[1]}};""".format(SPRING))
-    geom.add_raw_code("""Physical Curve({0}) = {{vb2[0]}};""".format(LOAD))
-    geom.add_raw_code("""Physical Curve({0}) = {{vb3[8]}};""".format(DIRCH))
+    geom.add_raw_code("""Physical Curve({0}) = {{vb2[3]}};""".format(LOAD))
+    geom.add_raw_code("""Physical Curve({0}) = {{vb3[8], vb3[16]}};""".format(DIRCH))
     print(f"l2.id: {l2.id}")
-    geom.add_raw_code("""Physical Curve({0}) = {{vb3[13], vb1[2], vb2[3]}};""".format(ROLL))
     geom.add_raw_code("""Physical Surface(0) = {bo1[2]};""")
 
 

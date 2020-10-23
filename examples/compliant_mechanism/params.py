@@ -1,4 +1,4 @@
-height = 0.5
+height = 1.0
 width = 1.0
 height_spring = 0.03
 width_spring = 0.03

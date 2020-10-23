@@ -27,7 +27,7 @@ from pyadjoint import no_annotations
 
 
 @no_annotations
-def nlspace_solve(problem: InfDimProblem, params=None, results=None):
+def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd = None, delta_x_func = None):
     """
     Solve the optimization problem
         min      J(x)
@@ -518,6 +518,9 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None):
         delta_x = Function(problem.fespace())
         delta_x.assign(Constant(-AJ) * xiJ - Constant(AC) * xiC)
         normdx = norm_func(delta_x)
+        if delta_x_pvd:
+            delta_x_func.assign(delta_x)
+            delta_x_pvd.write(delta_x_func)
         success = 0
 
         results["tolerance"].append(np.sum([norm(dCi, "L1") for dCi in dC]) * dt)
@@ -527,7 +530,7 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None):
         )
         for k in range(maxtrials):
             # Is x modified by retract here?
-            newx = problem.retract(x, (0.5 ** k) * delta_x)
+            newx = problem.retract(x, delta_x, scaling=(0.5 ** k))
             (newJ, newG, newH) = problem.eval(newx)
             newC = np.concatenate((newG, newH))
             newmerit = AJ * (newJ + muls.dot(newC)) + 0.5 * AC * newC[indicesEps].dot(

@@ -1,3 +1,4 @@
+from firedrake.functionspace import FunctionSpace
 from lestofire.levelset import (
     LevelSetFunctional,
     RegularizationSolver,
@@ -6,7 +7,7 @@ from lestofire.optimization import HJStabSolver, ReinitSolver
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
 
-from firedrake import Function, assemble, inner, dx, Constant
+from firedrake import Function, assemble, inner, dx, Constant, par_loop, MAX, READ
 
 
 class Constraint(object):
@@ -108,6 +109,13 @@ class InfDimProblem(object):
         self.h_size = 1e-7
         self.beta_param = reg_solver.beta_param.values()[0]
 
+        ## Stuff needed to calculate the step size. TODO should probably go inside of HJ solver
+        dim = self.V.mesh().geometric_dimension()
+        self.domain = "{[i, j] : 0 <= i < u.dofs}"
+        self.instruction = f"""
+                        maxv[0] = abs(u[i, 0]) + abs(u[i, 1])
+                        """
+
     def fespace(self):
         return self.V
 
@@ -163,15 +171,27 @@ class InfDimProblem(object):
 
         return (self.gradJ, self.gradG, self.gradH)
 
-    def retract(self, x, dx):
+    def retract(self, x, delta_x, scaling=1):
         import numpy as np
 
-        maxv = np.max(x.vector()[:])
-        hmin = 0.02414
-        dt = 0.1 * 1.0 * hmin / maxv
+        MAXSP = FunctionSpace(self.V.mesh(), "R", 0)
+        maxv = Function(MAXSP)
+        par_loop(
+            (self.domain, self.instruction),
+            dx,
+            {"u": (delta_x, READ), "maxv": (maxv, MAX)},
+            is_loopy_kernel=True,
+        )
+        maxval = maxv.dat.data[0]
+
+        hmin = 0.2414
+        hmin = 0.008264462809917356
+        dt = 1.0 * hmin / maxval * scaling
+        print(f"maxv: {maxval}, dt: {dt}")
         # dt = 0.01
         self.phi.assign(
-            self.hj_solver.solve(Constant(-1.0) * dx, x, steps=1, dt=dt), annotate=False
+            self.hj_solver.solve(Constant(-1.0) * delta_x, x, steps=3, dt=dt),
+            annotate=False,
         )
         return self.phi
 
