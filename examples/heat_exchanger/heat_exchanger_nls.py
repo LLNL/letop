@@ -47,7 +47,7 @@ File(output_dir + "phi_initial.pvd").write(phi)
 # Parameters
 mu = Constant(0.04)  # viscosity
 alphamin = 1e-12
-alphamax = 2.5 / (2e-4)
+alphamax = 2.5 / (3.2e-4)
 parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
@@ -250,27 +250,15 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 velocity = Function(S)
 beta_param = 1.0
 reg_solver = RegularizationSolver(
-    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir="./"
-)
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0)
 
 
 reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
 # dt = 0.5*1e-1
-dt = 10.0
+dt = 1.0
 tol = 1e-5
 
-
-
-## Old parameters
-# maxv = np.max(x.vector()[:])
-# hmin = 0.00940  # Hard coded from FEniCS
-# dt = 0.1 * 1.0 * hmin / maxv
-## dt = 0.01
-# self.newphi.assign(
-#    hj_solver.solve(Constant(-1.0) * dx, x, steps=1, dt=dt), annotate=False
-# )
-# return self.newphi
 
 
 params = {
@@ -278,11 +266,10 @@ params = {
     "debug": 5,
     "alphaJ": 0.5,
     "dt": dt,
-    "K": 1e-4,
+    "K": 1e-1,
     "maxit": 100,
     "maxtrials": 10,
     "itnormalisation": 500,
-    # "normalize_tol" : -1,
     "tol": tol,
 }
 

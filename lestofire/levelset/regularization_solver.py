@@ -30,7 +30,7 @@ direct_parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
     "pc_type": "lu",
-    #"pc_factor_mat_solver_type": "mumps",
+    "pc_factor_mat_solver_type": "mumps",
 }
 
 iterative_parameters = {
@@ -134,11 +134,6 @@ class RegularizationSolver(object):
 
         self.Av = assemble(self.a, bcs=self.bcs)
 
-        if output_dir is not None:
-            self.beta_pvd = File(output_dir + "beta.pvd")
-        else:
-            self.beta_pvd = None
-
         self.solver_parameters = solver_parameters
 
     @no_annotations
@@ -162,6 +157,3 @@ class RegularizationSolver(object):
                 solver_parameters=self.solver_parameters,
                 annotate=False,
             )
-
-        if self.beta_pvd:
-            self.beta_pvd.write(velocity)
