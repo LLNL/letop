@@ -1,4 +1,3 @@
-from lestofire.optimization.interface import InfDimProblem
 from firedrake import *
 from firedrake_adjoint import *
 
@@ -6,11 +5,9 @@ from lestofire import (
     LevelSetFunctional,
     RegularizationSolver,
     HJStabSolver,
-    ReinitSolver,
-    nlspace_solve_shape,
-    Constraint,
-    InfDimProblem,
+    ReinitSolver
 )
+from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
 from params import (
     INMOUTH2,
@@ -253,7 +250,7 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 velocity = Function(S)
 beta_param = 1.0
 reg_solver = RegularizationSolver(
-    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir="./"
 )
 
 
