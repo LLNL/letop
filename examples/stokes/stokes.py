@@ -10,11 +10,10 @@ from lestofire import (
     LevelSetFunctional,
     RegularizationSolver,
     HJStabSolver,
-    ReinitSolver,
-    nlspace_solve_shape,
-    Constraint,
-    InfDimProblem,
+    ReinitSolver
 )
+from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
+from pyadjoint import no_annotations, stop_annotating
 
 
 def main():
@@ -32,9 +31,11 @@ def main():
     ly = 1.0
     phi_expr = -cos(6.0 / lx * pi * x + 1.0) * cos(4.0 * pi * y) - 0.6
 
-    phi = interpolate(phi_expr, PHI)
+    with stop_annotating():
+        phi = interpolate(phi_expr, PHI)
     phi.rename("LevelSet")
-    File(output_dir + "phi_initial.pvd").write(phi)
+    with stop_annotating():
+        File(output_dir + "phi_initial.pvd").write(phi)
 
     mu = Constant(1e2)
     alphamax = 1e6
@@ -84,7 +85,6 @@ def main():
 
     solve(a == L, U, bcs, solver_parameters=parameters, nullspace=nullspace)
     u, p = split(U)
-    File("velocity.pvd").write(U.split()[0])
 
     Vol = assemble(hs(-phi, epsilon) * Constant(1.0) * dx(domain=mesh))
     VControl = Control(Vol)
@@ -101,7 +101,8 @@ def main():
 
     phi_pvd = File("phi_evolution.pvd")
     def deriv_cb(phi):
-        phi_pvd.write(phi[0])
+        with stop_annotating():
+            phi_pvd.write(phi[0])
 
 
     Jhat = LevelSetFunctional(J, c, phi, derivative_cb_pre=deriv_cb)

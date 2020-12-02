@@ -25,7 +25,12 @@ from params import (
     OUTMOUTH2,
 )
 
-from pyadjoint import no_annotations
+from pyadjoint import no_annotations, stop_annotating
+import argparse
+parser = argparse.ArgumentParser(description='Level set method parameters')
+parser.add_argument('--mu', action="store", dest="mu", type=float, help='Viscosity', default=0.08)
+args = parser.parse_args()
+mu_value = args.mu
 
 
 output_dir = "2D/"
@@ -39,19 +44,20 @@ mesh.coordinates.assign(mesh.coordinates + s)
 x, y = SpatialCoordinate(mesh)
 PHI = FunctionSpace(mesh, "CG", 1)
 phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - Constant(0.8)
-phi = interpolate(phi_expr, PHI)
+with stop_annotating():
+    phi = interpolate(phi_expr, PHI)
 phi.rename("LevelSet")
-File(output_dir + "phi_initial.pvd").write(phi)
+with stop_annotating():
+    File(output_dir + "phi_initial.pvd").write(phi)
 
 
 # Parameters
-mu = Constant(0.04)  # viscosity
+mu = Constant(mu_value)  # viscosity
 alphamin = 1e-12
 alphamax = 2.5 / (3.2e-4)
 parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
-    # "ksp_monitor_true_residual": None,
     "ksp_converged_reason": None,
     "pc_type": "lu",
     "pc_factor_mat_solver_type": "mumps",
@@ -64,7 +70,6 @@ tin1 = Constant(10.0)
 tin2 = Constant(100.0)
 
 Re = u_inflow * width / mu.values()[0]
-print("Reynolds number: {:.5f}".format(Re), flush=True)
 
 
 P2 = VectorElement("CG", mesh.ufl_cell(), 2)
@@ -131,7 +136,7 @@ problem = LinearVariationalProblem(stokes(-phi, INMOUTH2, OUTMOUTH2), L, U1, bcs
 nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
 solver_stokes1 = LinearVariationalSolver(
     problem, solver_parameters=stokes_parameters
-)  # , nullspace=nullspace)
+)
 solver_stokes1.solve()
 problem = LinearVariationalProblem(stokes(phi, INMOUTH1, OUTMOUTH1), L, U2, bcs=bcs2)
 solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
@@ -151,7 +156,6 @@ h = CellDiameter(mesh)
 u1, p1 = split(U1)
 u2, p2 = split(U2)
 
-
 def upwind(u):
     return (dot(u, n) + abs(dot(u, n))) / 2.0
 
@@ -161,11 +165,8 @@ u2n = upwind(u2)
 
 # Penalty term
 alpha = Constant(
-    50000.0
-)  # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
-alpha = Constant(
     500.0
-)  # 5.0 worked really well where there was no convection. For larger Peclet number, larger alphas
+)
 # Bilinear form
 a_int = dot(grad(w), ks * grad(t) - cp * (u1 + u2) * t) * dx
 
@@ -216,18 +217,11 @@ Power2 = assemble(p2 / power_drop * ds(INLET2))
 scale_factor = 4e-2
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
-U1control = Control(U1)
-U2control = Control(U2)
-u1_pvd = File(output_dir + "u1.pvd")
-u2_pvd = File(output_dir + "u2.pvd")
-tcontrol = Control(t)
-tplot = Function(T)
-t_pvd = File(output_dir + "t.pvd")
-
 
 phi_pvd = File("phi_evolution.pvd")
 def deriv_cb(phi):
-    phi_pvd.write(phi[0])
+    with stop_annotating():
+        phi_pvd.write(phi[0])
 
 
 c = Control(s)
@@ -245,7 +239,6 @@ print("Initial cost function value {:.5f}".format(Jhat_v), flush=True)
 print("Power drop 1 {:.5f}".format(Power1), flush=True)
 print("Power drop 2 {:.5f}".format(Power2), flush=True)
 
-# Jhat.optimize_tape()
 
 velocity = Function(S)
 beta_param = 1.0
@@ -255,8 +248,7 @@ reg_solver = RegularizationSolver(
 
 reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
 hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
-# dt = 0.5*1e-1
-dt = 1.0
+dt = 10.0
 tol = 1e-5
 
 
@@ -267,7 +259,7 @@ params = {
     "alphaJ": 0.5,
     "dt": dt,
     "K": 1e-1,
-    "maxit": 100,
+    "maxit": 200,
     "maxtrials": 10,
     "itnormalisation": 500,
     "tol": tol,

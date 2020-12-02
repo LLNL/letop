@@ -5,13 +5,11 @@ from lestofire import (
     LevelSetFunctional,
     RegularizationSolver,
     HJStabSolver,
-    ReinitSolver,
-    nlspace_solve_shape,
-    Constraint,
-    InfDimProblem,
+    ReinitSolver
 )
+from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
-from pyadjoint import no_annotations
+from pyadjoint import no_annotations, stop_annotating
 
 output_dir = "cantilever/"
 
@@ -32,9 +30,11 @@ phi_expr = (
     + max_value(100.0 * (x + y - lx - ly + 0.1), 0.0)
     + max_value(100.0 * (x - y - lx + 0.1), 0.0)
 )
-phi = interpolate(phi_expr, PHI)
+with stop_annotating():
+    phi = interpolate(phi_expr, PHI)
 phi.rename("LevelSet")
-File(output_dir + "phi_initial.pvd").write(phi)
+with stop_annotating():
+    File(output_dir + "phi_initial.pvd").write(phi)
 
 
 rho_min = 1e-3
@@ -79,9 +79,8 @@ parameters = {
 }
 u_sol = Function(W)
 solve(a == L, u_sol, bcs=[bc], solver_parameters=parameters)  # , nullspace=nullspace)
-File("u_sol.pvd").write(u_sol)
-Sigma = TensorFunctionSpace(mesh, "CG", 1)
-File("sigma.pvd").write(project(sigma(u_sol), Sigma))
+with stop_annotating():
+    File("u_sol.pvd").write(u_sol)
 
 Jform = assemble(inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx)
 VolPen = assemble(hs(-phi, beta) * dx)
@@ -100,7 +99,8 @@ phi_pvd = File("phi_evolution.pvd")
 
 
 def deriv_cb(phi):
-    phi_pvd.write(phi[0])
+    with stop_annotating():
+        phi_pvd.write(phi[0])
 
 
 c = Control(s)

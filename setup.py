@@ -25,6 +25,7 @@ setup(
     install_requires=['numpy>=1.12.1',
                       'scipy>=0.19.1',
                       'cvxopt>=1.2.1',
+                      'pygmsh',
                       'nullspace-optimizer @ git+https://gitlab.com/salazardetroya/null-space-optimizer@lestofire'],
     description="A little bit of foobar in your life",
     long_description=read("README.md"),
