@@ -4,3 +4,6 @@ Run with
 python3 heat_exchanger_nls.py --mu 0.02
 ```
 for a simulation with dynamic viscosity equal to 0.02.
+
+![heat_exchanger](https://media.giphy.com/media/YhgqJt24PCXJgUdmLu/giphy.gif)
+
