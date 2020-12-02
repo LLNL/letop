@@ -1,3 +1,5 @@
+
+[![salazardetroya](https://circleci.com/gh/salazardetroya/lestofire.svg?style=svg)](https://app.circleci.com/pipelines/github/salazardetroya/lestofire)
 # Lestofire
 
 ## Level set topology optimization in Firedrake
