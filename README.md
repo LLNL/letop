@@ -1,6 +1,11 @@
 
 [![salazardetroya](https://circleci.com/gh/salazardetroya/lestofire.svg?style=svg)](https://app.circleci.com/pipelines/github/salazardetroya/lestofire)
 # Lestofire
+Install with
+```python
+pip3 install .
+```
+at the project's root directory and with the Firedrake's virtual environment activated ([instructions](https://www.firedrakeproject.org/download.html))
 
 ## Level set topology optimization in Firedrake
 Lestofire implements the level set method in topology optimization.
