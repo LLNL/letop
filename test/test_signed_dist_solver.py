@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append("../")
-from lestofire.optimization import ReinitSolver
+from lestofire.optimization import ReinitSolverDG
 from firedrake import (
     UnitSquareMesh,
     FunctionSpace,
@@ -13,11 +13,13 @@ from firedrake import (
     DirichletBC,
     Constant,
     SpatialCoordinate,
+    H1,
+    sqrt,
 )
 from ufl import sin
 import pytest
 
-N = 100
+N = 50
 
 
 @pytest.fixture(scope="module")
@@ -26,25 +28,45 @@ def mesh():
 
 
 @pytest.fixture(scope="module")
-def phicg1(mesh):
-    return FunctionSpace(mesh, "CG", 1)
+def DG0(mesh):
+    return FunctionSpace(mesh, "DG", 0)
 
 
-@pytest.mark.parametrize(("iterative"), [False, True])
-def test_reinit(mesh, phicg1, iterative):
+@pytest.mark.parametrize(("iterative"), [False])
+def test_cone(mesh, DG0, iterative):
 
-    solver = ReinitSolver(mesh, phicg1, dt=1e-6, n_steps=100, iterative=iterative)
-    X = SpatialCoordinate(mesh)
+    solver = ReinitSolverDG(mesh, n_steps=100, dt=5e-3)
 
-    import numpy as np
+    radius = 0.2
+    x, y = SpatialCoordinate(mesh)
+    phi_init = (x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5) - radius * radius
+    phi0 = Function(DG0).interpolate(phi_init)
 
-    Dx = np.sqrt(2.0 / (N * N))  # TODO, hardcoded for UnitSquareMesh
-    phi0expr = sin(X[1] / 0.1) * sin(X[0] / 0.1) - 0.5
-    phi0 = interpolate(phi0expr, phicg1)
-    phi1 = solver.solve(phi0, Dx)
+    phi_solution = interpolate(
+        sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5)) - radius, DG0
+    )
+    phin = solver.solve(phi0)
+    error = errornorm(phin, phi_solution)
+    print(f"Error: {error}")
 
-    phi0expr = sin(X[1] / 0.1) * sin(X[0] / 0.1) - 0.5
-    phi0 = interpolate(phi0expr, phicg1)
-    error = errornorm(phi0, phi1)
+    error_dg_after_50 = 0.010352889031168062
+    assert pytest.approx(error, 1e-8) == error_dg_after_50
 
-    assert pytest.approx(error, 1e-8) == 0.05106474186151434
+
+@pytest.mark.parametrize(("iterative"), [False])
+def test_parabole(mesh, DG0, iterative):
+
+    solver = ReinitSolverDG(mesh, n_steps=100, dt=5e-3)
+
+    radius = 0.2
+    x, y = SpatialCoordinate(mesh)
+    phi_init = (x - 0.5) * (x - 0.5) - radius * radius
+    phi0 = Function(DG0).interpolate(phi_init)
+
+    phi_solution = interpolate(sqrt((x - 0.5) * (x - 0.5)) - radius, DG0)
+    phin = solver.solve(phi0)
+    error = errornorm(phin, phi_solution)
+    print(f"Error: {error}")
+
+    error_dg_after_50 = 0.006539568004459555
+    assert pytest.approx(error, 1e-8) == error_dg_after_50
