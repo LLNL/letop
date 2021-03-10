@@ -61,7 +61,7 @@ class ReinitSolverDG(object):
         self.dt = dt
         self.n_steps = n_steps
         self.phi_solution = None
-        self.phi_pvd = File("reinit.pvd", target_continuity=H1)
+        self.phi_pvd = File("reinit.pvd", project_output=True, target_continuity=H1)
 
         if iterative:
             self.parameters = iterative_parameters
@@ -96,26 +96,39 @@ class ReinitSolverDG(object):
         v = TestFunction(VDG0)
         cmp_to_zero = partial(max_component, Constant((0.0, 0.0)))
 
+        def clip(vector):
+            from ufl import conditional, ge
+
+            return as_vector([conditional(ge(vi, 0.0), 1.0, 0.0) for vi in vector])
+
+        from ufl import diag
+
         a1 = (
             inner(p, v) * dx
-            + phi0
-            * div(v)
-            * dx  # Replace this term with phi0 * div(v) for the multdim example
+            + phi0 * div(v) * dx
             - inner(
-                jump(v),
-                phi0("+") * cmp_to_zero(n("+")) + phi0("-") * cmp_to_zero(n("-")),
+                v("+"),
+                diag(phi0("-") * clip(n("+")) + phi0("+") * clip(n("-"))) * n("+"),
+            )
+            * dS
+            - inner(
+                v("-"),
+                diag(phi0("-") * clip(n("+")) + phi0("+") * clip(n("-"))) * n("-"),
             )
             * dS
         )
         a1 -= inner(v, n) * phi0 * ds
         a2 = (
             inner(p, v) * dx
-            + phi0
-            * div(v)
-            * dx  # Replace this term with phi0 * div(v) for the multdim example
+            + phi0 * div(v) * dx
             - inner(
-                jump(v),
-                phi0("+") * cmp_to_zero(-n("+")) + phi0("-") * cmp_to_zero(-n("-")),
+                v("+"),
+                diag(phi0("+") * clip(n("+")) + phi0("-") * clip(n("-"))) * n("+"),
+            )
+            * dS
+            - inner(
+                v("-"),
+                diag(phi0("+") * clip(n("+")) + phi0("-") * clip(n("-"))) * n("-"),
             )
             * dS
         )
@@ -132,7 +145,7 @@ class ReinitSolverDG(object):
         }
 
         def sign(phi):
-            return phi / sqrt(phi * phi + Deltax * Deltax)
+            return phi / sqrt(phi * phi + 1e-9)
 
         phi_signed = phi0.copy(deepcopy=True)
 
@@ -155,22 +168,23 @@ class ReinitSolverDG(object):
 
         jacobi_solver = {"ksp_type": "preonly", "pc_type": "jacobi"}
 
-        for _ in range(self.n_steps):
+        for j in range(self.n_steps):
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
 
-            if self.phi_pvd:
-                self.phi_pvd.write(phi0)
+            if j % 10 == 0:
+                if self.phi_pvd:
+                    self.phi_pvd.write(phi0)
 
             dt = self.dt
             b = (phi - phi0) * rho / Constant(dt) * dx + (
                 H((p1 + p2) / Constant(2.0))
                 - Constant(1.0 / 2.0)
                 * alpha(p1[0], p2[0], p1[1], p2[1])
-                * (-p1[0] + p2[0])
+                * (p1[0] - p2[0])
                 - Constant(1.0 / 2.0)
                 * beta(p1[0], p2[0], p1[1], p2[1])
-                * (-p1[1] + p2[1])
+                * (p1[1] - p2[1])
             ) * rho * dx
             solve(lhs(b) == rhs(b), phi0, solver_parameters=direct_parameters)
 
