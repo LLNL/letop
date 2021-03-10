@@ -26,7 +26,7 @@ from pyadjoint.tape import stop_annotating
 
 
 def calculate_max_vel(velocity):
-    mesh = velocity.function_space().ufl_domain()
+    mesh = velocity.ufl_domain()
     MAXSP = FunctionSpace(mesh, "R", 0)
     maxv = Function(MAXSP)
     domain = "{[i, j] : 0 <= i < u.dofs}"
