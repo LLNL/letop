@@ -3,7 +3,7 @@ from lestofire.levelset import (
     LevelSetFunctional,
     RegularizationSolver,
 )
-from lestofire.optimization import HJStabSolver, ReinitSolver
+from lestofire.optimization import HJDG, ReinitSolverDG
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
 
@@ -60,12 +60,12 @@ class InfDimProblem(object):
                 f"Provided regularization solver '{type(reg_solver).__name__}', is not a RegularizationSolver"
             )
         self.reg_solver = reg_solver
-        if not isinstance(hj_solver, HJStabSolver):
+        if not isinstance(hj_solver, HJDG):
             raise TypeError(
                 f"Provided Hamilton-Jacobi solver '{type(hj_solver).__name__}', is not a HJStabSolver"
             )
         self.hj_solver = hj_solver
-        if not isinstance(reinit_solver, ReinitSolver):
+        if not isinstance(reinit_solver, ReinitSolverDG):
             raise TypeError(
                 f"Provided reinitialization solver '{type(hj_solver).__name__}', is not a ReinitSolver"
             )
@@ -152,8 +152,7 @@ class InfDimProblem(object):
 
     @no_annotations
     def eval_gradients(self, x):
-        """Returns the triplet (gradJ(x), gradG(x), gradH(x))
-        """
+        """Returns the triplet (gradJ(x), gradG(x), gradH(x))"""
         self.i += 1
         self.phi.assign(x)
 

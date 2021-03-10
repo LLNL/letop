@@ -20,7 +20,10 @@ from firedrake import (
     File,
     H1,
 )
+from firedrake.bcs import DirichletBC
+from firedrake.ufl_expr import CellSize
 from pyadjoint.tape import no_annotations
+from ufl.geometry import CellDiameter
 
 from lestofire.utils import petsc_print
 
@@ -87,7 +90,6 @@ class ReinitSolverDG(object):
 
         DG0 = phi0.function_space()
         mesh = DG0.ufl_domain()
-        Deltax = 1.0 / np.square(mesh.num_cells())
         n = FacetNormal(mesh)
         phi = TrialFunction(DG0)
         rho = TestFunction(DG0)
@@ -118,6 +120,7 @@ class ReinitSolverDG(object):
             * dS
         )
         a1 -= inner(v, n) * phi0 * ds
+        #a1 -= inner(v, diag(phi0 * clip(-n)) * n) * ds
         a2 = (
             inner(p, v) * dx
             + phi0 * div(v) * dx
@@ -133,9 +136,8 @@ class ReinitSolverDG(object):
             * dS
         )
         a2 -= inner(v, n) * phi0 * ds
+        #a2 -= inner(v, diag(phi0 * clip(n)) * n) * ds
 
-        p1 = Function(VDG0)
-        p2 = Function(VDG0)
         direct_parameters = {
             "snes_type": "ksponly",
             "mat_type": "aij",
@@ -144,19 +146,32 @@ class ReinitSolverDG(object):
             "pc_factor_mat_solver_type": "mumps",
         }
 
-        def sign(phi):
-            return phi / sqrt(phi * phi + 1e-9)
+        #Delta_x = 10 / 50
+        from ufl import pi
+        Delta_x = CellDiameter(mesh) * 20.0
+        Delta_x = CellDiameter(mesh) * 5.0
+
+        def sign(phi, phi_x, phi_y):
+            return phi / sqrt(phi * phi + Delta_x * Delta_x * (phi_x ** 2 + phi_y ** 2))
 
         phi_signed = phi0.copy(deepcopy=True)
 
+
+        jacobi_solver = {"ksp_type": "preonly", "pc_type": "jacobi"}
+
+        p1_0 = Function(VDG0)
+        p2_0 = Function(VDG0)
+        solve(lhs(a1) == rhs(a1), p1_0, solver_parameters=jacobi_solver)
+        solve(lhs(a2) == rhs(a2), p2_0, solver_parameters=jacobi_solver)
+
         def H(p):
-            return sign(phi_signed) * (sqrt(inner(p, p)) - 1)
+            return sign(phi_signed, (p1_0[0] + p2_0[0])/ Constant(2.0), (p1_0[1] + p2_0[1])/ Constant(2.0)) * (sqrt(inner(p, p)) - 1)
 
         def dHdp(p_x, p_y):
             return as_vector(
                 [
-                    abs(sign(phi_signed) * p_x / sqrt(p_x * p_x + p_y * p_y + 1e-7)),
-                    abs(sign(phi_signed) * p_y / sqrt(p_x * p_x + p_y * p_y + 1e-7)),
+                    abs(sign(phi_signed, (p1_0[0] + p2_0[0])/ Constant(2.0), (p1_0[1] + p2_0[1])/ Constant(2.0)) * p_x / sqrt(p_x * p_x + p_y * p_y + 1e-7)),
+                    abs(sign(phi_signed, (p1_0[0] + p2_0[0])/ Constant(2.0), (p1_0[1] + p2_0[1])/ Constant(2.0)) * p_y / sqrt(p_x * p_x + p_y * p_y + 1e-7)),
                 ]
             )
 
@@ -166,8 +181,8 @@ class ReinitSolverDG(object):
         def beta(p1_x, p2_x, p1_y, p2_y):
             return Max(dHdp(p1_x, p1_y)[1], dHdp(p2_x, p2_y)[1])
 
-        jacobi_solver = {"ksp_type": "preonly", "pc_type": "jacobi"}
-
+        p1 = Function(VDG0)
+        p2 = Function(VDG0)
         for j in range(self.n_steps):
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
