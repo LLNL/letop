@@ -1,23 +1,17 @@
 import sys
 from firedrake.mg.mesh import MeshHierarchy
 
-from firedrake.utility_meshes import RectangleMesh
 
 sys.path.append("../")
 from lestofire.optimization import ReinitSolverDG
 from firedrake import (
     UnitSquareMesh,
     FunctionSpace,
-    Expression,
     interpolate,
-    File,
     errornorm,
     Function,
-    DirichletBC,
-    Constant,
     Mesh,
     SpatialCoordinate,
-    H1,
     sqrt,
 )
 from ufl import sin
@@ -37,68 +31,31 @@ def DG0(mesh):
 
 
 @pytest.mark.parametrize(
-    ("mesh_type"),
-    [UnitSquareMesh(N, N, diagonal="right")],
+    "test_mesh,x_shift,error",
+    [
+        (UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.05192113964921833),
+        (Mesh("./unstructured_rectangle.msh"), 0.0, 0.05494971697014042),
+        (UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02200988416607167),
+        (Mesh("./unstructured_rectangle.msh"), 0.5, 0.019432037920418723),
+    ],
 )
-def test_shifted_cone(mesh_type):
+def test_cone(test_mesh, x_shift, error):
 
-    DG0 = FunctionSpace(mesh_type, "DG", 0)
+    DG0 = FunctionSpace(test_mesh, "DG", 0)
 
-    solver = ReinitSolverDG(mesh_type, n_steps=100, dt=5e-3)
-
-    radius = 0.2
-    x, y = SpatialCoordinate(mesh_type)
-    phi_init = (x) * (x) + (y - 0.5) * (y - 0.5) - radius * radius
-    phi0 = Function(DG0).interpolate(phi_init)
-
-    phi_solution = interpolate(sqrt((x) * (x) + (y - 0.5) * (y - 0.5)) - radius, DG0)
-    phin = solver.solve(phi0)
-    error = errornorm(phin, phi_solution)
-    print(f"Error: {error}")
-
-    error_dg_after_50 = 0.010352889031168062
-    assert pytest.approx(error, 1e-8) == error_dg_after_50
-
-
-def test_cone(mesh_type):
-
-    DG0 = FunctionSpace(mesh_type, "DG", 0)
-
-    solver = ReinitSolverDG(mesh_type, n_steps=100, dt=5e-3)
+    solver = ReinitSolverDG(test_mesh, n_steps=200, dt=2e-3)
 
     radius = 0.2
-    x, y = SpatialCoordinate(mesh_type)
-    phi_init = (x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5) - radius * radius
+    x, y = SpatialCoordinate(test_mesh)
+    phi_init = (x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5) - radius * radius
     phi0 = Function(DG0).interpolate(phi_init)
 
     phi_solution = interpolate(
-        sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5)) - radius, DG0
+        sqrt((x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5)) - radius, DG0
     )
     phin = solver.solve(phi0)
-    error = errornorm(phin, phi_solution)
-    print(f"Error: {error}")
-
-    error_dg_after_50 = 0.010352889031168062
-    assert pytest.approx(error, 1e-8) == error_dg_after_50
-
-
-@pytest.mark.parametrize(("iterative"), [False])
-def test_parabole(mesh, DG0, iterative):
-
-    solver = ReinitSolverDG(mesh, n_steps=100, dt=5e-3)
-
-    radius = 0.2
-    x, y = SpatialCoordinate(mesh)
-    phi_init = (x - 0.5) * (x - 0.5) - radius * radius
-    phi0 = Function(DG0).interpolate(phi_init)
-
-    phi_solution = interpolate(sqrt((x - 0.5) * (x - 0.5)) - radius, DG0)
-    phin = solver.solve(phi0)
-    error = errornorm(phin, phi_solution)
-    print(f"Error: {error}")
-
-    error_dg_after_50 = 0.006539568004459555
-    assert pytest.approx(error, 1e-8) == error_dg_after_50
+    error_numeri = errornorm(phin, phi_solution)
+    assert pytest.approx(error, 1e-8) == error_numeri
 
 
 @pytest.mark.parametrize(("iterative"), [False])
@@ -107,9 +64,10 @@ def test_compliance_initial_level_set(iterative):
 
     lx, ly = 2.0, 1.0
     Nx, Ny = 202, 101
-    # mesh = Mesh("./mesh_cantilever.msh")
+    m = Mesh("./mesh_cantilever.msh")
+    mesh = MeshHierarchy(m, 1)[-1]
     # mesh = RectangleMesh(Nx, Ny, lx, ly, quadrilateral=True)
-    mesh = RectangleMesh(Nx, Ny, lx, ly, diagonal="crossed")
+    # mesh = RectangleMesh(Nx, Ny, lx, ly, diagonal="crossed")
     DG0 = FunctionSpace(mesh, "DG", 0)
     x, y = SpatialCoordinate(mesh)
     phi_init = (
