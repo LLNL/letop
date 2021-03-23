@@ -119,10 +119,8 @@ reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
 )
 reinit_solver = ReinitSolverDG(mesh, n_steps=10, dt=2e-3)
-hmin = 0.002
-hj_solver = HJLocalDG(mesh, PHI, phi, hmin=hmin)
-# dt = 0.5*1e-1
-dt = 1.0
+hj_solver = HJLocalDG(mesh, PHI, phi)
+dt = 0.0002
 tol = 1e-5
 
 vol_constraint = Constraint(Vhat, Vval, VolControl)
@@ -145,7 +143,7 @@ params = {
     "alphaJ": 10.0,
     "dt": dt,
     "maxtrials": 10,
-    "maxit": 10,
+    "maxit": 200,
     "itnormalisation": 50,
     "tol": tol,
 }

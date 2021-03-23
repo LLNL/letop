@@ -3,7 +3,7 @@ from lestofire.levelset import (
     LevelSetFunctional,
     RegularizationSolver,
 )
-from lestofire.optimization import HJDG, HJLocalDG, ReinitSolverDG
+from lestofire.optimization import HJLocalDG, ReinitSolverDG
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
 

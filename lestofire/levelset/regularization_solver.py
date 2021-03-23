@@ -135,8 +135,6 @@ class RegularizationSolver(object):
         self.Av = assemble(self.a, bcs=self.bcs)
 
         self.solver_parameters = solver_parameters
-        self.beta_pvd = File("beta.pvd")
-        self.beta_func = Function(S)
 
     @no_annotations
     def update_beta_param(self, new_value):
@@ -158,5 +156,3 @@ class RegularizationSolver(object):
                 solver_parameters=self.solver_parameters,
                 annotate=False,
             )
-        self.beta_func.assign(velocity)
-        self.beta_pvd.write(self.beta_func)

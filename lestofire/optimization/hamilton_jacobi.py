@@ -89,114 +89,8 @@ def check_elem_fe(elem_fe):
             )
 
 
-class HJDG(object):
-    def __init__(self, mesh, PHI, phi_x0, bcs=None, f=Constant(0.0), hmin=1.0):
-        check_elem_fe(PHI.ufl_element())
-
-        self.PHI = PHI
-        self.mesh = mesh
-        self.f = f
-        self.phi_x0 = Function(PHI)
-        self.bcs = bcs  # TODO Enforce DGDirichletBC type
-        with stop_annotating():
-            self.phi_x0.interpolate(phi_x0)
-        from firedrake import H1
-
-        self.phi_pvd = File("./hjdg.pvd", target_continuity=H1)
-        self.phi_viz = Function(self.PHI)
-        self.dt = 1.0
-        self.hmin = hmin
-
-    @no_annotations
-    def solve(self, beta, un, steps=1, t=0, scaling=1.0):
-        # Convective Operator
-
-        v = TestFunction(self.PHI)
-        ut = TrialFunction(self.PHI)
-        u = Function(self.PHI)
-        mesh = self.PHI.ufl_domain()
-        n = FacetNormal(mesh)
-
-        VDG0 = VectorFunctionSpace(mesh, "DG", 0)
-        import numpy as np
-        from firedrake import SpatialCoordinate, interpolate
-
-        mesh_coords = np.reshape(
-            interpolate(SpatialCoordinate(mesh), VDG0).dat.data_ro,
-            (-1, mesh.geometric_dimension()),
-        )
-        indices_i = np.where(mesh_coords < 0.01)[0]
-        m = np.zeros_like(indices_i, dtype=bool)
-        m[np.unique(indices_i, return_index=True)[1]] = True
-        dof_bottom_corner = indices_i[~m][0]
-
-        beta_interp = interpolate(beta, VDG0)
-        from firedrake import assemble
-
-        print(f"Normal components in DG: {assemble(inner(beta_interp, n)*ds)}")
-        print(
-            f"DG components at bottom corner: {beta_interp.dat.data_ro[dof_bottom_corner]}"
-        )
-
-        def F_c(U):
-            if hasattr(U, "side"):
-                return beta(U.side()) * U
-            else:
-                return beta * U
-
-        def flux_jacobian(u, n):
-            if hasattr(u, "side"):
-                return dot(beta(u.side()), n)
-            else:
-                return dot(beta, n)
-
-        convective_flux = LocalLaxFriedrichs(flux_jacobian_eigenvalues=flux_jacobian)
-        ho = HyperbolicOperator(
-            self.mesh, self.PHI, self.bcs, F_c=F_c, H=convective_flux
-        )
-        residual = ho.generate_fem_formulation(u, v)
-        residual += inner(dot(F_c(u), n), v) * ds
-        a_term = replace(residual, {u: un})
-
-        from firedrake import dS
-
-        convective_flux.setup(F_c, un("+"), un("-"), n("+"))
-        residual_dg = (
-            inner(
-                convective_flux.interior(F_c, un("+"), un("-"), n("+")),
-                (v("+") - v("-")),
-            )
-            * dS
-        )
-
-        maxval = calculate_max_vel(beta)
-        self.dt = 1.0 * self.hmin / maxval * scaling
-        print(f"maxv: {maxval}, dt: {self.dt}")
-        dtc = Constant(self.dt)
-        a = ut * v * dx
-        L_vel = dtc * (a_term - Constant(0.0) * v * dx)
-        L = un * v * dx - L_vel
-        u_sol = Function(self.PHI)
-
-        for j in range(steps):
-            solve(a == L, u_sol, solver_parameters=direct_parameters)
-            print(
-                f"bottom corner contribution: {assemble(L_vel).dat.data_ro[dof_bottom_corner] / 1e-4}"
-            )
-            print(
-                f"bottom corner contribution from the interior facets: {assemble(residual_dg).dat.data_ro[dof_bottom_corner] *self.dt / 1e-4}"
-            )
-            un.assign(u_sol)
-
-            self.phi_viz.assign(un)
-            self.phi_pvd.write(self.phi_viz)
-            print(f"bottom corner evolution: {un.dat.data_ro[dof_bottom_corner]}")
-
-        return un
-
-
 class HJLocalDG(object):
-    def __init__(self, mesh, PHI, phi_x0, bcs=None, f=Constant(0.0), hmin=1.0):
+    def __init__(self, mesh, PHI, phi_x0, bcs=None, f=Constant(0.0)):
         check_elem_fe(PHI.ufl_element())
         self.PHI = PHI
         self.mesh = mesh
@@ -205,10 +99,7 @@ class HJLocalDG(object):
         self.bcs = bcs  # TODO Enforce DGDirichletBC type
         from firedrake import H1
 
-        self.phi_pvd = File("./hjdg.pvd", target_continuity=H1)
-        self.phi_viz = Function(self.PHI)
         self.dt = 1.0
-        self.hmin = hmin
 
     @no_annotations
     def solve(self, velocity, phin, steps=1, t=0, scaling=1.0):
@@ -309,18 +200,11 @@ class HJLocalDG(object):
         p1 = Function(VDG0)
         p2 = Function(VDG0)
 
-        maxval = calculate_max_vel(velocity)
-        # dt = 1.0 * self.hmin / maxval * scaling
         dt = scaling
-        print(f"maxv: {maxval}, dt: {dt}")
         for j in range(steps):
 
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
-
-            if j % 1 == 0:
-                if self.phi_pvd:
-                    self.phi_pvd.write(phi0)
 
             b = (phi - phi0) * rho / Constant(dt) * dx + (
                 H((p1 + p2) / Constant(2.0))

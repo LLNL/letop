@@ -1,4 +1,4 @@
-from .hamilton_jacobi import HJDG, HJLocalDG
+from .hamilton_jacobi import HJLocalDG
 from .reinit import ReinitSolverDG
 from .interface import Constraint, InfDimProblem
 
