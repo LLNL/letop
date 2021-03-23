@@ -90,19 +90,17 @@ def check_elem_fe(elem_fe):
 
 
 class HJLocalDG(object):
-    def __init__(self, mesh, PHI, phi_x0, bcs=None, f=Constant(0.0)):
+    def __init__(self, mesh, PHI, bcs=None, f=Constant(0.0), hmin=None):
         check_elem_fe(PHI.ufl_element())
         self.PHI = PHI
         self.mesh = mesh
         self.f = f
-        self.phi_x0 = Function(PHI)
-        self.bcs = bcs  # TODO Enforce DGDirichletBC type
-        from firedrake import H1
-
+        self.bcs = bcs
+        self.hmin = hmin
         self.dt = 1.0
 
     @no_annotations
-    def solve(self, velocity, phin, steps=1, t=0, scaling=1.0):
+    def solve(self, velocity, phin, steps=1, scaling=1.0):
         """Jue Yan, Stanley Osher,
         A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
         Journal of Computational Physics,
@@ -200,7 +198,12 @@ class HJLocalDG(object):
         p1 = Function(VDG0)
         p2 = Function(VDG0)
 
-        dt = scaling
+        if self.hmin:
+            maxv = calculate_max_vel(velocity)
+            self.dt = self.hmin / maxv * scaling
+        else:
+            self.dt = scaling
+        dt = self.dt
         for j in range(steps):
 
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
@@ -215,6 +218,11 @@ class HJLocalDG(object):
                 * beta(p1[0], p2[0], p1[1], p2[1])
                 * (p1[1] - p2[1])
             ) * rho * dx
-            solve(lhs(b) == rhs(b), phi0, solver_parameters=direct_parameters)
+            solve(
+                lhs(b) == rhs(b),
+                phi0,
+                bcs=self.bcs,
+                solver_parameters=direct_parameters,
+            )
 
         return phi0
