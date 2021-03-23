@@ -5,8 +5,8 @@ from firedrake_adjoint import *
 from lestofire import (
     LevelSetFunctional,
     RegularizationSolver,
-    HJStabSolver,
-    ReinitSolver,
+    HJLocalDG,
+    ReinitSolverDG,
     nlspace_solve_shape,
     Constraint,
     InfDimProblem,
@@ -40,15 +40,16 @@ s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "CG", 1)
+PHI = FunctionSpace(mesh, "DG", 0)
 phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - Constant(0.8)
-phi = interpolate(phi_expr, PHI)
-phi.rename("LevelSet")
-File(output_dir + "phi_initial.pvd").write(phi)
+with stop_annotating():
+    phi = interpolate(phi_expr, PHI)
+    phi.rename("LevelSet")
+    File(output_dir + "phi_initial.pvd").write(phi)
 
 
 # Parameters
-mu = Constant(0.04)  # viscosity
+mu = Constant(0.02)  # viscosity
 alphamin = 1e-12
 alphamax = 2.5 / (2e-4)
 parameters = {
@@ -61,7 +62,6 @@ parameters = {
 }
 stokes_parameters = parameters
 temperature_parameters = parameters
-epsilon = Constant(10000.0)
 u_inflow = 2e-3
 tin1 = Constant(10.0)
 tin2 = Constant(100.0)
@@ -79,6 +79,9 @@ U = TrialFunction(W)
 u, p = split(U)
 V = TestFunction(W)
 v, q = split(V)
+
+
+epsilon = Constant(10000.0)
 
 
 def hs(phi, epsilon):
@@ -216,7 +219,7 @@ solver_temp.solve()
 power_drop = 1e-2
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
-scale_factor = 4e-2
+scale_factor = 4e-4
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 U1control = Control(U1)
@@ -228,9 +231,12 @@ tplot = Function(T)
 t_pvd = File(output_dir + "t.pvd")
 
 
-phi_pvd = File("phi_evolution.pvd")
+phi_pvd = File("phi_evolution.pvd", target_continuity=H1)
+
+
 def deriv_cb(phi):
-    phi_pvd.write(phi[0])
+    with stop_annotating():
+        phi_pvd.write(phi[0])
 
 
 c = Control(s)
@@ -243,26 +249,25 @@ P1control = Control(Power1)
 P2hat = LevelSetFunctional(Power2, c, phi)
 P2control = Control(Power2)
 
+tape = get_working_tape()
 Jhat_v = Jhat(phi)
 print("Initial cost function value {:.5f}".format(Jhat_v), flush=True)
 print("Power drop 1 {:.5f}".format(Power1), flush=True)
 print("Power drop 2 {:.5f}".format(Power2), flush=True)
 
-# Jhat.optimize_tape()
 
 velocity = Function(S)
-beta_param = 1.0
+beta_param = 0.08
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0, output_dir=None
 )
 
 
-reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
-hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
+reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
+hmin = 0.002
+hj_solver = HJLocalDG(mesh, PHI, phi, hmin=hmin)
 # dt = 0.5*1e-1
-dt = 10.0
 tol = 1e-5
-
 
 
 ## Old parameters
@@ -276,15 +281,17 @@ tol = 1e-5
 # return self.newphi
 
 
+dt = 0.004
 params = {
     "alphaC": 1.0,
     "debug": 5,
-    "alphaJ": 0.5,
+    "alphaJ": 1.0,
     "dt": dt,
-    "K": 1e-4,
-    "maxit": 100,
-    "maxtrials": 10,
-    "itnormalisation": 500,
+    "K": 4.0,
+    "maxit": 1000,
+    "maxtrials": 5,
+    "itnormalisation": 10,
+    "tol_merit": 5e-2,  # new merit can be within 5% of the previous merit
     # "normalize_tol" : -1,
     "tol": tol,
 }
@@ -300,4 +307,3 @@ problem = InfDimProblem(
     ],
 )
 results = nlspace_solve_shape(problem, params)
-

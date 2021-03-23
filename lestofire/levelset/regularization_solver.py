@@ -30,7 +30,7 @@ direct_parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
     "pc_type": "lu",
-    #"pc_factor_mat_solver_type": "mumps",
+    # "pc_factor_mat_solver_type": "mumps",
 }
 
 iterative_parameters = {
@@ -135,15 +135,16 @@ class RegularizationSolver(object):
         self.Av = assemble(self.a, bcs=self.bcs)
 
         self.solver_parameters = solver_parameters
+        self.beta_pvd = File("beta.pvd")
+        self.beta_func = Function(S)
 
     @no_annotations
     def update_beta_param(self, new_value):
         self.beta_param.dat.data[0] = new_value
 
+    @no_annotations
     def solve(self, velocity, dJ):
 
-        with dJ.dat.vec as v:
-            v *= -1.0
         with stop_annotating():
             for bc in self.bcs:
                 bc.apply(dJ)
@@ -157,4 +158,5 @@ class RegularizationSolver(object):
                 solver_parameters=self.solver_parameters,
                 annotate=False,
             )
-
+        self.beta_func.assign(velocity)
+        self.beta_pvd.write(self.beta_func)

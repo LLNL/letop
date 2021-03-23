@@ -21,6 +21,7 @@ from firedrake import (
     H1,
 )
 from firedrake.bcs import DirichletBC
+from firedrake.norms import errornorm
 from firedrake.ufl_expr import CellSize
 from pyadjoint.tape import no_annotations
 from ufl.geometry import CellDiameter
@@ -64,7 +65,7 @@ class ReinitSolverDG(object):
         self.dt = dt
         self.n_steps = n_steps
         self.phi_solution = None
-        self.phi_pvd = File("reinit.pvd", project_output=True, target_continuity=H1)
+        self.phi_pvd = File("reinit.pvd",  target_continuity=H1)
 
         if iterative:
             self.parameters = iterative_parameters
@@ -96,7 +97,6 @@ class ReinitSolverDG(object):
         VDG0 = VectorFunctionSpace(mesh, "DG", 0)
         p = TrialFunction(VDG0)
         v = TestFunction(VDG0)
-        cmp_to_zero = partial(max_component, Constant((0.0, 0.0)))
 
         def clip(vector):
             from ufl import conditional, ge
@@ -147,9 +147,10 @@ class ReinitSolverDG(object):
         }
 
         #Delta_x = 10 / 50
-        from ufl import pi
-        Delta_x = CellDiameter(mesh) * 20.0
-        Delta_x = CellDiameter(mesh) * 5.0
+        #Delta_x = CellDiameter(mesh) * 20.0
+        #Delta_x = CellDiameter(mesh) * 5.0
+        #Delta_x = CellDiameter(mesh) * 5.0
+        Delta_x = CellDiameter(mesh) * 2.0
 
         def sign(phi, phi_x, phi_y):
             return phi / sqrt(phi * phi + Delta_x * Delta_x * (phi_x ** 2 + phi_y ** 2))
@@ -183,11 +184,12 @@ class ReinitSolverDG(object):
 
         p1 = Function(VDG0)
         p2 = Function(VDG0)
+        phin = Function(DG0)
         for j in range(self.n_steps):
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
 
-            if j % 10 == 0:
+            if j % 1 == 0:
                 if self.phi_pvd:
                     self.phi_pvd.write(phi0)
 
@@ -201,6 +203,8 @@ class ReinitSolverDG(object):
                 * beta(p1[0], p2[0], p1[1], p2[1])
                 * (p1[1] - p2[1])
             ) * rho * dx
-            solve(lhs(b) == rhs(b), phi0, solver_parameters=direct_parameters)
+            solve(lhs(b) == rhs(b), phin, solver_parameters=direct_parameters)
+            print(f"Residual: {errornorm(phi0, phin)}")
+            phi0.assign(phin)
 
         return phi0
