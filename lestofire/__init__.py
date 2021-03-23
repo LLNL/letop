@@ -5,6 +5,7 @@ from .__about__ import __author__, __email__, __license__, __status__, __version
 # from .cli import show
 from .optimization import (
     HJDG,
+    HJLocalDG,
     ReinitSolverDG,
     nlspace_solve_shape,
     Constraint,
