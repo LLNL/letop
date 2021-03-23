@@ -27,7 +27,13 @@ from pyadjoint import no_annotations
 
 
 @no_annotations
-def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd = None, delta_x_func = None):
+def nlspace_solve(
+    problem: InfDimProblem,
+    params=None,
+    results=None,
+    delta_x_pvd=None,
+    delta_x_func=None,
+):
     """
     Solve the optimization problem
         min      J(x)
@@ -224,8 +230,8 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
         return (eps, tildeEps)
 
     def checkResults(results):
-        """ Check the output dictionary in order to restart
-            from the last iterate"""
+        """Check the output dictionary in order to restart
+        from the last iterate"""
         n = results["x"].function_space().dim()
         group1 = ["J", "G", "H", "s"]
         group2 = ["normxiJ", "eps", "muls", "tolerance"]
@@ -290,6 +296,8 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
     tol = params.get("tol", 1e-5 * dt)
     normdx = 1  # current value for x_{n+1}-x_n
 
+    newx = x.copy(deepcopy=True)
+
     while normdx > tol and len(results["J"]) < maxit:
         results["J"].append(J)
         results["G"].append(G)
@@ -299,6 +307,10 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
 
         if hasattr(problem, "reinit"):
             problem.reinit(x)
+            # There seems to be some variations on the interface despite of the solver
+            # recalculate the cost function values so the search criteria does not go
+            # nuts
+            (J, G, H) = problem.eval(x)
 
         it = len(results["J"]) - 1
         display("\n", 1)
@@ -501,6 +513,7 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
                 + f"itnormalisation={itnormalisation}",
                 level=5,
             )
+            print(f"normxIJ: {results['normxiJ'][-1]}")
         else:
             AJ = (
                 alphaJ
@@ -510,9 +523,14 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
                     results["normxiJ"][itnormalisation - 1],
                 )
             )
+            print(f"normxIJ: {results['normxiJ'][-1]}")
         AC = min(0.9, alphaC * dt / max(compute_norm(xiC), 1e-9))
+        # AJ = alphaJ
+        # AC = min(0.9, alphaC)
 
-        print("AJ : {0:.5f}, AC: {1:.5f}".format(AJ, AC))
+        # AJ = 1.0
+        # AC = 1.0
+        print("AJ : {0:.10f}, AC: {1:.10f}".format(AJ, AC))
 
         # Make updates with merit function
         delta_x = Function(problem.fespace())
@@ -530,13 +548,14 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
         )
         for k in range(maxtrials):
             # Is x modified by retract here?
-            newx = problem.retract(x, delta_x, scaling=(0.5 ** k))
+            newx.assign(problem.retract(x, delta_x, scaling=(0.5 ** k)))
             (newJ, newG, newH) = problem.eval(newx)
             newC = np.concatenate((newG, newH))
             newmerit = AJ * (newJ + muls.dot(newC)) + 0.5 * AC * newC[indicesEps].dot(
                 dCtdCtTinv.dot(newC[indicesEps])
             )
             print(f"newJ={newJ}, newC={newC}")
+            print(f"J={J}, C={C}")
             print(f"merit={merit}, newmerit={newmerit}")
             if newmerit < (1 + np.sign(merit) * tol_merit) * merit:
                 success = 1
@@ -554,8 +573,9 @@ def nlspace_solve(problem: InfDimProblem, params=None, results=None, delta_x_pvd
                 "All trials have failed, passing to the next iteration.", color="red"
             )
             problem.restore()
+            x.assign(newx)
         else:
-            x = newx
+            x.assign(newx)
         (J, G, H) = (newJ, newG, newH)
 
         with delta_x.dat.vec_ro as vu:
