@@ -3,7 +3,7 @@ from lestofire.levelset import (
     LevelSetFunctional,
     RegularizationSolver,
 )
-from lestofire.optimization import HJDG, ReinitSolverDG
+from lestofire.optimization import HJDG, HJLocalDG, ReinitSolverDG
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
 
@@ -60,9 +60,9 @@ class InfDimProblem(object):
                 f"Provided regularization solver '{type(reg_solver).__name__}', is not a RegularizationSolver"
             )
         self.reg_solver = reg_solver
-        if not isinstance(hj_solver, HJDG):
+        if not isinstance(hj_solver, HJLocalDG):
             raise TypeError(
-                f"Provided Hamilton-Jacobi solver '{type(hj_solver).__name__}', is not a HJStabSolver"
+                f"Provided Hamilton-Jacobi solver '{type(hj_solver).__name__}', is not a HJLocalDG"
             )
         self.hj_solver = hj_solver
         if not isinstance(reinit_solver, ReinitSolverDG):
@@ -147,8 +147,7 @@ class InfDimProblem(object):
     @no_annotations
     def reinit(self, x):
         if self.i % 10 == 0:
-            Dx = 0.01
-            x.assign(self.reinit_solver.solve(x, Dx))
+            x.assign(self.reinit_solver.solve(x))
 
     @no_annotations
     def eval_gradients(self, x):
@@ -170,34 +169,14 @@ class InfDimProblem(object):
 
         return (self.gradJ, self.gradG, self.gradH)
 
+    @no_annotations
     def retract(self, x, delta_x, scaling=1):
         import numpy as np
 
-        MAXSP = FunctionSpace(self.V.mesh(), "R", 0)
-        maxv = Function(MAXSP)
-        par_loop(
-            (self.domain, self.instruction),
-            dx,
-            {"u": (delta_x, READ), "maxv": (maxv, MAX)},
-            is_loopy_kernel=True,
-        )
-        maxval = maxv.dat.data[0]
-
-        hmin = 0.2414
-        hmin = 0.008264462809917356
-        dt = 1.0 * hmin / maxval * scaling
-        print(f"maxv: {maxval}, dt: {dt}")
-        # dt = 0.01
-        self.phi.assign(
-            self.hj_solver.solve(Constant(-1.0) * delta_x, x, steps=3, dt=dt),
-            annotate=False,
-        )
-        return self.phi
+        return self.hj_solver.solve(delta_x, x, steps=1, scaling=scaling)
 
     def restore(self):
-        self.reg_solver.update_beta_param(self.beta_param * 0.1)
-        self.beta_param *= 0.1
-        print(f"New regularization parameter: {self.beta_param}")
+        pass
 
     @no_annotations
     def inner_product(self, x, y):
