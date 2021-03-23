@@ -119,7 +119,7 @@ reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
 )
 reinit_solver = ReinitSolverDG(mesh, n_steps=10, dt=2e-3)
-hj_solver = HJLocalDG(mesh, PHI, phi)
+hj_solver = HJLocalDG(mesh, PHI)
 dt = 0.0002
 tol = 1e-5
 

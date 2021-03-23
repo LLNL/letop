@@ -265,7 +265,7 @@ reg_solver = RegularizationSolver(
 
 reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
 hmin = 0.002
-hj_solver = HJLocalDG(mesh, PHI, phi, hmin=hmin)
+hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 # dt = 0.5*1e-1
 tol = 1e-5
 
