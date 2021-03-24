@@ -61,11 +61,12 @@ def max_component(vector1, vector2):
 
 
 class ReinitSolverDG(object):
-    def __init__(self, mesh, dt=1e-4, n_steps=10, iterative=False):
+    def __init__(self, mesh, dt=1e-4, n_steps=10, iterative=False, h_factor=2.0):
         self.dt = dt
         self.n_steps = n_steps
         self.phi_solution = None
         self.phi_pvd = File("reinit.pvd",  target_continuity=H1)
+        self.h_factor = h_factor
 
         if iterative:
             self.parameters = iterative_parameters
@@ -150,7 +151,7 @@ class ReinitSolverDG(object):
         #Delta_x = CellDiameter(mesh) * 20.0
         #Delta_x = CellDiameter(mesh) * 5.0
         #Delta_x = CellDiameter(mesh) * 5.0
-        Delta_x = CellDiameter(mesh) * 2.0
+        Delta_x = CellDiameter(mesh) * self.h_factor
 
         def sign(phi, phi_x, phi_y):
             return phi / sqrt(phi * phi + Delta_x * Delta_x * (phi_x ** 2 + phi_y ** 2))

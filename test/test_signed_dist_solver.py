@@ -1,6 +1,4 @@
 import sys
-from firedrake.mg.mesh import MeshHierarchy
-
 
 sys.path.append("../")
 from lestofire.optimization import ReinitSolverDG
@@ -43,7 +41,7 @@ def test_cone(test_mesh, x_shift, error):
 
     DG0 = FunctionSpace(test_mesh, "DG", 0)
 
-    solver = ReinitSolverDG(test_mesh, n_steps=200, dt=2e-3)
+    solver = ReinitSolverDG(test_mesh, n_steps=200, dt=2e-3, h_factor=5.0)
 
     radius = 0.2
     x, y = SpatialCoordinate(test_mesh)
@@ -55,33 +53,4 @@ def test_cone(test_mesh, x_shift, error):
     )
     phin = solver.solve(phi0)
     error_numeri = errornorm(phin, phi_solution)
-    assert pytest.approx(error, 1e-8) == error_numeri
-
-
-@pytest.mark.parametrize(("iterative"), [False])
-def test_compliance_initial_level_set(iterative):
-    from ufl import cos, max_value, pi
-
-    lx, ly = 2.0, 1.0
-    Nx, Ny = 202, 101
-    m = Mesh("./mesh_cantilever.msh")
-    mesh = MeshHierarchy(m, 1)[-1]
-    # mesh = RectangleMesh(Nx, Ny, lx, ly, quadrilateral=True)
-    # mesh = RectangleMesh(Nx, Ny, lx, ly, diagonal="crossed")
-    DG0 = FunctionSpace(mesh, "DG", 0)
-    x, y = SpatialCoordinate(mesh)
-    phi_init = (
-        -cos(8.0 / lx * pi * x) * cos(4.0 * pi * y)
-        - 0.4
-        # + max_value(50.0 * (0.01 - x ** 2 - (y - ly / 2) ** 2), 0.0)
-        + max_value(100.0 * (x + y - lx - ly + 0.1), 0.0)
-        + max_value(100.0 * (x - y - lx + 0.1), 0.0)
-    )
-
-    dt = 0.2 * lx / Nx
-    solver = ReinitSolverDG(mesh, n_steps=2000, dt=dt)
-
-    x, y = SpatialCoordinate(mesh)
-    phi0 = Function(DG0).interpolate(phi_init)
-
-    phin = solver.solve(phi0)
+    assert pytest.approx(error, 1e-4) == error_numeri
