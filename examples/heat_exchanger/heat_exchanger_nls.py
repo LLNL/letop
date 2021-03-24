@@ -7,10 +7,8 @@ from lestofire import (
     RegularizationSolver,
     HJLocalDG,
     ReinitSolverDG,
-    nlspace_solve_shape,
-    Constraint,
-    InfDimProblem,
 )
+from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
 from params import (
     INMOUTH2,
