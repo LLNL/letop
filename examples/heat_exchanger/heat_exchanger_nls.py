@@ -1,4 +1,3 @@
-from lestofire.optimization.interface import InfDimProblem
 from firedrake import *
 from firedrake_adjoint import *
 
