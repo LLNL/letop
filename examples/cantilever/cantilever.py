@@ -12,6 +12,19 @@ from lestofire import (
 )
 
 from pyadjoint import no_annotations
+import argparse
+
+parser = argparse.ArgumentParser(description="Heat exchanger")
+parser.add_argument(
+    "--n_iters",
+    dest="n_iters",
+    type=int,
+    action="store",
+    default=200,
+    help="Number of optimization iterations",
+)
+opts = parser.parse_args()
+
 
 output_dir = "cantilever/"
 
@@ -143,7 +156,7 @@ params = {
     "alphaJ": 10.0,
     "dt": dt,
     "maxtrials": 10,
-    "maxit": 200,
+    "maxit": opts.n_iters,
     "itnormalisation": 50,
     "tol": tol,
 }

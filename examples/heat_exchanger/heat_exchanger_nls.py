@@ -28,8 +28,20 @@ from params import (
     OUTMOUTH2,
 )
 
-from pyadjoint import no_annotations
 
+from pyadjoint import no_annotations
+import argparse
+
+parser = argparse.ArgumentParser(description="Heat exchanger")
+parser.add_argument(
+    "--n_iters",
+    dest="n_iters",
+    type=int,
+    action="store",
+    default=1000,
+    help="Number of optimization iterations",
+)
+opts = parser.parse_args()
 
 output_dir = "2D/"
 
@@ -288,7 +300,7 @@ params = {
     "alphaJ": 1.0,
     "dt": dt,
     "K": 4.0,
-    "maxit": 1000,
+    "maxit": opts.n_iters,
     "maxtrials": 5,
     "itnormalisation": 10,
     "tol_merit": 5e-2,  # new merit can be within 5% of the previous merit
