@@ -62,7 +62,7 @@ with stop_annotating():
 # Parameters
 mu = Constant(opts.mu)  # viscosity
 alphamin = 1e-12
-alphamax = 2.5 / (3.2e-4)
+alphamax = 2.5 / (2e-4)
 parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
