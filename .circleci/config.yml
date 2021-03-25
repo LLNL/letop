@@ -10,9 +10,6 @@ jobs:
           docker build -t salazardetroya/lestofire:env -f docker/Dockerfile .
           docker push salazardetroya/lestofire:env
   build:
-    branches:
-      only:
-        - main
     docker:
       - image: salazardetroya/lestofire:env
     steps:
