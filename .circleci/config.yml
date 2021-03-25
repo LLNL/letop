@@ -10,7 +10,10 @@ jobs:
           docker build -t salazardetroya/lestofire:env -f docker/Dockerfile .
           docker push salazardetroya/lestofire:env
   build:
-    docker: 
+    branches:
+      only:
+        - main
+    docker:
       - image: salazardetroya/lestofire:env
     steps:
       - checkout # check out the code in the project directory
@@ -23,7 +26,7 @@ jobs:
             pip3 install --upgrade numpy
             git clone https://bitbucket.org/nate-sime/dolfin_dg.git
             cd dolfin_dg && python3 setup.py install
-        
+
       # run tests!
       - run:
           name: Run tests
