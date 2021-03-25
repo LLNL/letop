@@ -41,4 +41,6 @@ workflows:
   all:
     jobs:
       - build_env
-      - build
+      - build:
+          requires:
+            - build_env

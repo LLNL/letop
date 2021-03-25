@@ -101,12 +101,35 @@ def test_3D_dirichlet_regions():
     mesh = Mesh("./3D_mesh.msh")
     dim = mesh.geometric_dimension()
     x = SpatialCoordinate(mesh)
+    solver_parameters_amg = {
+        "ksp_type": "cg",
+        "ksp_converged_reason": None,
+        "ksp_rtol": 1e-7,
+        "pc_type": "hypre",
+        "pc_hypre_type": "boomeramg",
+        "pc_hypre_boomeramg_max_iter": 5,
+        "pc_hypre_boomeramg_coarsen_type": "PMIS",
+        "pc_hypre_boomeramg_agg_nl": 2,
+        "pc_hypre_boomeramg_strong_threshold": 0.95,
+        "pc_hypre_boomeramg_interp_type": "ext+i",
+        "pc_hypre_boomeramg_P_max": 2,
+        "pc_hypre_boomeramg_relax_type_all": "sequential-Gauss-Seidel",
+        "pc_hypre_boomeramg_grid_sweeps_all": 1,
+        "pc_hypre_boomeramg_truncfactor": 0.3,
+        "pc_hypre_boomeramg_max_levels": 6,
+    }
 
     S = VectorFunctionSpace(mesh, "CG", 1)
     s = Function(S, name="deform")
     beta = 1.0
     reg_solver = RegularizationSolver(
-        S, mesh, beta=beta, gamma=0.0, dx=dx, sim_domain=0
+        S,
+        mesh,
+        beta=beta,
+        gamma=0.0,
+        dx=dx,
+        sim_domain=0,
+        solver_parameters=solver_parameters_amg,
     )
 
     # Exact solution with free Neumann boundary conditions for this domain
@@ -151,8 +174,11 @@ def test_3D_dirichlet_regions():
     velocity = Function(S)
     rhs = assemble(rhs_form)
     reg_solver.solve(velocity, rhs)
-    File("3D_vel.pvd").write(velocity)
-    error = norm(project(domainify(u_exact, x) - velocity, S))
+    error = norm(
+        project(
+            domainify(u_exact, x) - velocity, S, solver_parameters=solver_parameters_amg
+        )
+    )
     assert error < 5e-2
 
 
