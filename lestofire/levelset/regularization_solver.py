@@ -17,7 +17,6 @@ from firedrake import (
     RW,
     File,
 )
-from firedrake_adjoint import stop_annotating
 from pyadjoint.enlisting import Enlist
 from pyadjoint import no_annotations
 from firedrake.mesh import ExtrudedMeshTopology
@@ -55,6 +54,7 @@ class RegularizationSolver(object):
 
     """Solver to regularize the optimization problem"""
 
+    @no_annotations
     def __init__(
         self,
         S,
@@ -93,7 +93,7 @@ class RegularizationSolver(object):
             # Heaviside step function in domain of interest
             V_DG0_B = FunctionSpace(mesh, "DG", 0)
             I_B = Function(V_DG0_B)
-            I_B.assign(1.0, annotate=False)
+            I_B.assign(1.0)
             par_loop(
                 ("{[i] : 0 <= i < f.dofs}", "f[i, 0] = 0.0"),
                 dx(sim_domain),
@@ -142,17 +142,13 @@ class RegularizationSolver(object):
 
     @no_annotations
     def solve(self, velocity, dJ):
+        for bc in self.bcs:
+            bc.apply(dJ)
 
-        with stop_annotating():
-            for bc in self.bcs:
-                bc.apply(dJ)
-
-        with stop_annotating():
-            solve(
-                self.Av,
-                velocity.vector(),
-                dJ,
-                options_prefix="reg_solver",
-                solver_parameters=self.solver_parameters,
-                annotate=False,
-            )
+        solve(
+            self.Av,
+            velocity.vector(),
+            dJ,
+            options_prefix="reg_solver",
+            solver_parameters=self.solver_parameters,
+        )
