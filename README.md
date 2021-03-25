@@ -1,5 +1,5 @@
 
-[![salazardetroya](https://circleci.com/gh/salazardetroya/lestofire.svg?style=svg)](https://app.circleci.com/pipelines/github/salazardetroya/lestofire)
+[![salazardetroya](https://circleci.com/gh/LLNL/lestofire.svg?style=svg)](https://app.circleci.com/pipelines/github/LLNL/lestofire)
 # Lestofire
 Install with
 ```python
