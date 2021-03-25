@@ -4,8 +4,8 @@ from firedrake_adjoint import *
 from lestofire import (
     LevelSetFunctional,
     RegularizationSolver,
-    HJStabSolver,
-    ReinitSolver
+    HJLocalDG,
+    ReinitSolverDG,
 )
 from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
@@ -27,11 +27,20 @@ from params import (
 
 from pyadjoint import no_annotations, stop_annotating
 import argparse
-parser = argparse.ArgumentParser(description='Level set method parameters')
-parser.add_argument('--mu', action="store", dest="mu", type=float, help='Viscosity', default=0.08)
-args = parser.parse_args()
-mu_value = args.mu
 
+parser = argparse.ArgumentParser(description="Level set method parameters")
+parser.add_argument(
+    "--mu", action="store", dest="mu", type=float, help="Viscosity", default=0.02
+)
+parser.add_argument(
+    "--n_iters",
+    dest="n_iters",
+    type=int,
+    action="store",
+    default=1000,
+    help="Number of optimization iterations",
+)
+opts = parser.parse_args()
 
 output_dir = "2D/"
 
@@ -42,17 +51,16 @@ s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "CG", 1)
+PHI = FunctionSpace(mesh, "DG", 0)
 phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - Constant(0.8)
 with stop_annotating():
     phi = interpolate(phi_expr, PHI)
-phi.rename("LevelSet")
-with stop_annotating():
+    phi.rename("LevelSet")
     File(output_dir + "phi_initial.pvd").write(phi)
 
 
 # Parameters
-mu = Constant(mu_value)  # viscosity
+mu = Constant(opts.mu)  # viscosity
 alphamin = 1e-12
 alphamax = 2.5 / (3.2e-4)
 parameters = {
@@ -64,7 +72,6 @@ parameters = {
 }
 stokes_parameters = parameters
 temperature_parameters = parameters
-epsilon = Constant(10000.0)
 u_inflow = 2e-3
 tin1 = Constant(10.0)
 tin2 = Constant(100.0)
@@ -81,6 +88,9 @@ U = TrialFunction(W)
 u, p = split(U)
 V = TestFunction(W)
 v, q = split(V)
+
+
+epsilon = Constant(10000.0)
 
 
 def hs(phi, epsilon):
@@ -134,9 +144,7 @@ U1, U2 = Function(W), Function(W)
 L = inner(Constant((0.0, 0.0, 0.0)), V) * dx
 problem = LinearVariationalProblem(stokes(-phi, INMOUTH2, OUTMOUTH2), L, U1, bcs=bcs1)
 nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
-solver_stokes1 = LinearVariationalSolver(
-    problem, solver_parameters=stokes_parameters
-)
+solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
 solver_stokes1.solve()
 problem = LinearVariationalProblem(stokes(phi, INMOUTH1, OUTMOUTH1), L, U2, bcs=bcs2)
 solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
@@ -156,6 +164,7 @@ h = CellDiameter(mesh)
 u1, p1 = split(U1)
 u2, p2 = split(U2)
 
+
 def upwind(u):
     return (dot(u, n) + abs(dot(u, n))) / 2.0
 
@@ -164,9 +173,7 @@ u1n = upwind(u1)
 u2n = upwind(u2)
 
 # Penalty term
-alpha = Constant(
-    500.0
-)
+alpha = Constant(500.0)
 # Bilinear form
 a_int = dot(grad(w), ks * grad(t) - cp * (u1 + u2) * t) * dx
 
@@ -214,11 +221,13 @@ solver_temp.solve()
 power_drop = 1e-2
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
-scale_factor = 4e-2
+scale_factor = 4e-4
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 
-phi_pvd = File("phi_evolution.pvd")
+phi_pvd = File("phi_evolution.pvd", target_continuity=H1)
+
+
 def deriv_cb(phi):
     with stop_annotating():
         phi_pvd.write(phi[0])
@@ -234,6 +243,7 @@ P1control = Control(Power1)
 P2hat = LevelSetFunctional(Power2, c, phi)
 P2control = Control(Power2)
 
+tape = get_working_tape()
 Jhat_v = Jhat(phi)
 print("Initial cost function value {:.5f}".format(Jhat_v), flush=True)
 print("Power drop 1 {:.5f}".format(Power1), flush=True)
@@ -241,27 +251,28 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 
 
 velocity = Function(S)
-beta_param = 1.0
+beta_param = 0.08
 reg_solver = RegularizationSolver(
-    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0)
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0
+)
 
 
-reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
-hj_solver = HJStabSolver(mesh, PHI, c2_param=1.0, iterative=False)
-dt = 10.0
+reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
+hmin = 0.002
+hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 tol = 1e-5
-
-
-
+dt = 0.004
 params = {
     "alphaC": 1.0,
     "debug": 5,
-    "alphaJ": 0.5,
+    "alphaJ": 1.0,
     "dt": dt,
-    "K": 1e-1,
-    "maxit": 200,
-    "maxtrials": 10,
-    "itnormalisation": 500,
+    "K": 4.0,
+    "maxit": opts.n_iters,
+    "maxtrials": 5,
+    "itnormalisation": 10,
+    "tol_merit": 5e-2,  # new merit can be within 5% of the previous merit
+    # "normalize_tol" : -1,
     "tol": tol,
 }
 
@@ -276,4 +287,3 @@ problem = InfDimProblem(
     ],
 )
 results = nlspace_solve_shape(problem, params)
-

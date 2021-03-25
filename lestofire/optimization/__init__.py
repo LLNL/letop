@@ -1,2 +1,2 @@
-from .hamilton_jacobi import HJStabSolver, HJSUPG, HJDG
-from .reinit import ReinitSolver
+from .hamilton_jacobi import HJLocalDG
+from .reinit import ReinitSolverDG

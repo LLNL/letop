@@ -140,10 +140,9 @@ class RegularizationSolver(object):
     def update_beta_param(self, new_value):
         self.beta_param.dat.data[0] = new_value
 
+    @no_annotations
     def solve(self, velocity, dJ):
 
-        with dJ.dat.vec as v:
-            v *= -1.0
         with stop_annotating():
             for bc in self.bcs:
                 bc.apply(dJ)

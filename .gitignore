@@ -1,4 +1,5 @@
 *.vtu
+*.pvtu
 *.pvd
 *.vtk
 *.msh

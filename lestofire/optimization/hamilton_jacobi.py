@@ -4,37 +4,51 @@ from firedrake import (
     TestFunction,
     Constant,
     Function,
-    FacetArea,
-    CellVolume,
-    FacetNormal,
-    CellDiameter,
-    grad,
-    jump,
-    avg,
-    inner,
     dx,
-    dS,
-    dS_h,
-    dS_v,
-    solve,
-    lhs,
-    rhs,
-    dot,
     ds,
-    div,
-    LinearVariationalProblem,
-    LinearVariationalSolver,
-    VectorFunctionSpace,
+    dS,
+    CellDiameter,
+    sqrt,
+    Max,
+    solve,
+    dot,
+    inner,
     File,
-    conditional,
+    diag,
     replace,
     derivative,
-    VertexBasedLimiter,
-    action,
+    par_loop,
+    READ,
+    MAX,
 )
+from ufl import as_vector
+from firedrake.bcs import DirichletBC
+from firedrake.functionspace import VectorFunctionSpace
 from firedrake.mesh import ExtrudedMeshTopology
+from firedrake.ufl_expr import FacetNormal
+from firedrake.utility_meshes import UnitSquareMesh
+from pyadjoint import no_annotations
 
 from dolfin_dg import LocalLaxFriedrichs, HyperbolicOperator, DGDirichletBC
+from pyadjoint.tape import stop_annotating
+
+
+def calculate_max_vel(velocity):
+    mesh = velocity.ufl_domain()
+    MAXSP = FunctionSpace(mesh, "R", 0)
+    maxv = Function(MAXSP)
+    domain = "{[i, j] : 0 <= i < u.dofs}"
+    instruction = f"""
+                    maxv[0] = abs(u[i, 0]) + abs(u[i, 1])
+                    """
+    par_loop(
+        (domain, instruction),
+        dx,
+        {"u": (velocity, READ), "maxv": (maxv, MAX)},
+        is_loopy_kernel=True,
+    )
+    maxval = maxv.dat.data[0]
+    return maxval
 
 
 direct_parameters = {
@@ -55,185 +69,160 @@ iterative_parameters = {
 }
 
 
-class HJStabSolver(object):
-    def __init__(
-        self, mesh, PHI, c2_param=0.05, f=Constant(0.0), bc=None, iterative=False
-    ):
-        self.PHI = PHI
-        self.PHI_V = VectorFunctionSpace(mesh, "CG", 1)
-        self.mesh = mesh
-        self.c2 = c2_param
-        self.f = f
-
-        if isinstance(mesh.topology, ExtrudedMeshTopology):
-            dS_reg = dS_h + dS_v
-            h = CellVolume(mesh) / FacetArea(mesh)
-        else:
-            dS_reg = dS
-            h = CellDiameter(mesh)
-
-        phi = TrialFunction(PHI)
-        psi = TestFunction(PHI)
-        n = FacetNormal(mesh)
-
-        self.phi_n = Function(PHI)
-        self.beta = Function(self.PHI_V)
-        self.dt = Constant(1.0)
-
-        self.a = (
-            phi / self.dt * psi * dx
-            + inner(self.beta, 1.0 / 2.0 * grad(phi)) * psi * dx
-            + self.c2
-            * avg(h)
-            * avg(h)
-            * inner(jump(1.0 / 2.0 * grad(phi), n), jump(grad(psi), n))
-            * dS_reg
-        )
-
-        self.L = (
-            self.phi_n / self.dt * psi * dx
-            - inner(self.beta, 1.0 / 2.0 * grad(self.phi_n)) * psi * dx
-            - self.c2
-            * avg(h)
-            * avg(h)
-            * inner(jump(1.0 / 2.0 * grad(self.phi_n), n), jump(grad(psi), n))
-            * dS_reg
-            + self.f * psi * dx
-        )
-
-        self.phi_sol = Function(self.PHI)
-        self.problem = LinearVariationalProblem(self.a, self.L, self.phi_sol, bcs=bc)
-
-        if iterative:
-            self.parameters = iterative_parameters
-        else:
-            self.parameters = direct_parameters
-
-    def solve(self, beta, phi_n, steps=5, t=0, dt=1.0):
-
-        # self.beta.assign(beta, annotate=False)
-        self.beta.interpolate(beta)
-        self.phi_n.assign(phi_n, annotate=False)
-        self.dt.assign(Constant(dt), annotate=False)
-
-        self.solver = LinearVariationalSolver(
-            self.problem, solver_parameters=self.parameters, options_prefix="hjsolver_"
-        )
-
-        for i in range(steps):
-            self.solver.solve(annotate=False)
-            self.phi_n.assign(self.phi_sol, annotate=False)
-
-        return self.phi_n
-
-
-class HJSUPG(object):
-    def __init__(self, mesh, PHI, f=Constant(0.0), bc=None):
-        self.PHI = PHI
-        self.mesh = mesh
-        self.f = f
-        self.bc = bc
-
-    def solve(self, beta, phi_n, steps=5, t=0, dt=1.0):
-        phi = TrialFunction(self.PHI)
-        psi = TestFunction(self.PHI)
-        n = FacetNormal(self.mesh)
-        h = CellDiameter(self.mesh)
-        self.f.t = t
-
-        for i in range(steps):
-            F = (
-                (phi - phi_n) / Constant(dt) * psi * dx
-                + inner(beta, 1.0 / 2.0 * grad(phi + phi_n)) * psi * dx
-                - self.f * psi * dx
+def check_elem_fe(elem_fe):
+    supported_fe = ["DQ", "Discontinuous Lagrange"]
+    if elem_fe.family() == "TensorProductElement":
+        sub_elem = elem_fe.sub_elements()
+        if (
+            sub_elem[0].family() not in supported_fe
+            or sub_elem[0].degree() != 0
+            or sub_elem[1].family() not in supported_fe
+            or sub_elem[1].degree() != 0
+        ):
+            raise RuntimeError(
+                "Only zero degree Discontinuous Galerkin function space for extruded elements is supported"
+            )
+    else:
+        if elem_fe.family() not in supported_fe or elem_fe.degree() != 0:
+            raise RuntimeError(
+                "Only zero degree Discontinuous Galerkin function space is supported"
             )
 
-            # Residual
-            r = (
-                (1 / Constant(dt)) * (phi - phi_n)
-                + 1.0 / 2.0 * inner(beta, grad(phi))
-                + (1 - 1.0 / 2.0) * inner(beta, grad(phi_n))
-                - self.f
-            ) * inner(beta, grad(psi))
 
-            # Add SUPG stabilisation terms
-            from ufl import sqrt
-
-            vnorm = sqrt(dot(beta, beta))
-            tau = 0.5 * h / (2.0 * vnorm)
-            tau = 2.0 * 1.0 / (sqrt((1.0 / Constant(dt * dt) + vnorm / h)))
-            F += tau * r * dx
-
-            phi_new = Function(self.PHI)
-
-            if self.bc is None:
-                solve(lhs(F) == rhs(F), phi_new, annotate=False)
-            else:
-                solve(lhs(F) == rhs(F), phi_new, bcs=self.bc, annotate=False)
-            phi_n.assign(phi_new, annotate=False)
-
-        return phi_n
-
-
-class HJDG(object):
-    def __init__(self, mesh, PHI, phi_x0, f=Constant(0.0)):
+class HJLocalDG(object):
+    def __init__(self, mesh, PHI, bcs=None, f=Constant(0.0), hmin=None):
+        check_elem_fe(PHI.ufl_element())
         self.PHI = PHI
         self.mesh = mesh
         self.f = f
-        self.phi_x0 = Function(PHI)
-        self.phi_x0.interpolate(phi_x0)
-        self.u_pvd = File("./hjdg.pvd")
-        self.u_viz = Function(self.PHI)
+        self.bcs = bcs
+        self.hmin = hmin
+        self.dt = 1.0
 
-    def solve(self, beta, un, steps=1, t=0, dt=1.0, bc=None):
+    @no_annotations
+    def solve(self, velocity, phin, steps=1, scaling=1.0):
+        """Jue Yan, Stanley Osher,
+        A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
+        Journal of Computational Physics,
+        Volume 230, Issue 1,
+        2011,
+        Pages 232-244,
 
-        # Convective Operator
-        def F_c(U):
-            return beta * U
+        Args:
+            phi0 ([type]): Initial level set
+        Returns:
+            [type]: Solution after "n_steps" number of steps
+        """
+        from functools import partial
+        import numpy as np
 
-        v = TestFunction(self.PHI)
-        ut = TrialFunction(self.PHI)
-        u = Function(self.PHI)
-        theta = Constant(0.5)
-        uth = theta * u + (1 - theta) * un
+        phi0 = phin.copy(deepcopy=True)
+        DG0 = phi0.function_space()
+        mesh = DG0.ufl_domain()
+        n = FacetNormal(mesh)
+        phi = TrialFunction(DG0)
+        rho = TestFunction(DG0)
+        VDG0 = VectorFunctionSpace(mesh, "DG", 0)
+        p = TrialFunction(VDG0)
+        v = TestFunction(VDG0)
 
-        convective_flux = LocalLaxFriedrichs(lambda u, n: dot(beta, n))
-        ho = HyperbolicOperator(
-            self.mesh, self.PHI, DGDirichletBC(ds, self.phi_x0), F_c, convective_flux
+        def clip(vector):
+            from ufl import conditional, ge
+
+            return as_vector([conditional(ge(vi, 0.0), 1.0, 0.0) for vi in vector])
+
+        from ufl import diag, div
+
+        a1 = (
+            inner(p, v) * dx
+            + phi0 * div(v) * dx
+            - inner(
+                v("+"),
+                diag(phi0("-") * clip(n("+")) + phi0("+") * clip(n("-"))) * n("+"),
+            )
+            * dS
+            - inner(
+                v("-"),
+                diag(phi0("-") * clip(n("+")) + phi0("+") * clip(n("-"))) * n("-"),
+            )
+            * dS
         )
-        residual = ho.generate_fem_formulation(u, v)
+        a1 -= inner(v, n) * phi0 * ds
+        # a1 -= inner(v, diag(phi0 * clip(-n)) * n) * ds
+        a2 = (
+            inner(p, v) * dx
+            + phi0 * div(v) * dx
+            - inner(
+                v("+"),
+                diag(phi0("+") * clip(n("+")) + phi0("-") * clip(n("-"))) * n("+"),
+            )
+            * dS
+            - inner(
+                v("-"),
+                diag(phi0("+") * clip(n("+")) + phi0("-") * clip(n("-"))) * n("-"),
+            )
+            * dS
+        )
+        a2 -= inner(v, n) * phi0 * ds
+        # a2 -= inner(v, diag(phi0 * clip(n)) * n) * ds
 
-        a_term = replace(residual, {u: un})
-        dtc = Constant(dt)
-        F = (u - un) * v * dx + dtc * (a_term - Constant(0.0) * v * dx)
-        a = derivative(F, u, ut)
-        L = -F
+        direct_parameters = {
+            "snes_type": "ksponly",
+            "mat_type": "aij",
+            "ksp_type": "preonly",
+            "pc_type": "lu",
+            "pc_factor_mat_solver_type": "mumps",
+        }
 
-        limiter = VertexBasedLimiter(self.PHI)
-        limiter.apply(un)
+        jacobi_solver = {"ksp_type": "preonly", "pc_type": "jacobi"}
+
+        p1_0 = Function(VDG0)
+        p2_0 = Function(VDG0)
+        from ufl import lhs, rhs
+
+        solve(lhs(a1) == rhs(a1), p1_0, solver_parameters=jacobi_solver)
+        solve(lhs(a2) == rhs(a2), p2_0, solver_parameters=jacobi_solver)
+
+        def H(p):
+            return inner(velocity, p)
+
+        def dHdp(p_x, p_y):
+            return as_vector([abs(velocity[0]), abs(velocity[1])])
+
+        def alpha(p1_x, p2_x, p1_y, p2_y):
+            return Max(dHdp(p1_x, p1_y)[0], dHdp(p2_x, p2_y)[0])
+
+        def beta(p1_x, p2_x, p1_y, p2_y):
+            return Max(dHdp(p1_x, p1_y)[1], dHdp(p2_x, p2_y)[1])
+
+        p1 = Function(VDG0)
+        p2 = Function(VDG0)
+
+        if self.hmin:
+            maxv = calculate_max_vel(velocity)
+            self.dt = self.hmin / maxv * scaling
+        else:
+            self.dt = scaling
+        dt = self.dt
         for j in range(steps):
-            solve(a == L, un, solver_parameters=direct_parameters)
-            limiter.apply(un)
 
-            self.u_viz.assign(un)
-            self.u_pvd.write(self.u_viz)
+            solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
+            solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
 
-        ## Begin the iteration over time steps
-        # for j in range(steps):
-        #    u1.assign(u)
-        #    limiter.apply(u1)
-        #    solver.solve()
-        #    u1.assign(du1)
-        #    limiter.apply(u1)
+            b = (phi - phi0) * rho / Constant(dt) * dx + (
+                H((p1 + p2) / Constant(2.0))
+                - Constant(1.0 / 2.0)
+                * alpha(p1[0], p2[0], p1[1], p2[1])
+                * (p1[0] - p2[0])
+                - Constant(1.0 / 2.0)
+                * beta(p1[0], p2[0], p1[1], p2[1])
+                * (p1[1] - p2[1])
+            ) * rho * dx
+            solve(
+                lhs(b) == rhs(b),
+                phi0,
+                bcs=self.bcs,
+                solver_parameters=direct_parameters,
+            )
 
-        #    solver.solve()
-        #    u1.assign(0.75 * u + 0.25 * du1)
-        #    limiter.apply(u1)
-        #    solver.solve()
-        #    u.assign((1.0 / 3.0) * u + (2.0 / 3.0) * du1)
-        #    limiter.apply(u1)
-
-        #    self.u_viz.assign(u)
-        #    self.u_pvd.write(self.u_viz)
-
-        return un
+        return phi0

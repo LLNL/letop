@@ -1,23 +1,21 @@
 import sys
 
 sys.path.append("../")
-from lestofire.optimization import ReinitSolver
+from lestofire.optimization import ReinitSolverDG
 from firedrake import (
     UnitSquareMesh,
     FunctionSpace,
-    Expression,
     interpolate,
-    File,
     errornorm,
     Function,
-    DirichletBC,
-    Constant,
+    Mesh,
     SpatialCoordinate,
+    sqrt,
 )
 from ufl import sin
 import pytest
 
-N = 100
+N = 50
 
 
 @pytest.fixture(scope="module")
@@ -26,25 +24,33 @@ def mesh():
 
 
 @pytest.fixture(scope="module")
-def phicg1(mesh):
-    return FunctionSpace(mesh, "CG", 1)
+def DG0(mesh):
+    return FunctionSpace(mesh, "DG", 0)
 
 
-@pytest.mark.parametrize(("iterative"), [False, True])
-def test_reinit(mesh, phicg1, iterative):
+@pytest.mark.parametrize(
+    "test_mesh,x_shift,error",
+    [
+        (UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.05192113964921833),
+        (Mesh("./unstructured_rectangle.msh"), 0.0, 0.05494971697014042),
+        (UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02200988416607167),
+        (Mesh("./unstructured_rectangle.msh"), 0.5, 0.019432037920418723),
+    ],
+)
+def test_cone(test_mesh, x_shift, error):
 
-    solver = ReinitSolver(mesh, phicg1, dt=1e-6, n_steps=100, iterative=iterative)
-    X = SpatialCoordinate(mesh)
+    DG0 = FunctionSpace(test_mesh, "DG", 0)
 
-    import numpy as np
+    solver = ReinitSolverDG(test_mesh, n_steps=200, dt=2e-3, h_factor=5.0)
 
-    Dx = np.sqrt(2.0 / (N * N))  # TODO, hardcoded for UnitSquareMesh
-    phi0expr = sin(X[1] / 0.1) * sin(X[0] / 0.1) - 0.5
-    phi0 = interpolate(phi0expr, phicg1)
-    phi1 = solver.solve(phi0, Dx)
+    radius = 0.2
+    x, y = SpatialCoordinate(test_mesh)
+    phi_init = (x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5) - radius * radius
+    phi0 = Function(DG0).interpolate(phi_init)
 
-    phi0expr = sin(X[1] / 0.1) * sin(X[0] / 0.1) - 0.5
-    phi0 = interpolate(phi0expr, phicg1)
-    error = errornorm(phi0, phi1)
-
-    assert pytest.approx(error, 1e-8) == 0.05106474186151434
+    phi_solution = interpolate(
+        sqrt((x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5)) - radius, DG0
+    )
+    phin = solver.solve(phi0)
+    error_numeri = errornorm(phin, phi_solution)
+    assert pytest.approx(error, 1e-4) == error_numeri

@@ -4,9 +4,8 @@ from .__about__ import __author__, __email__, __license__, __status__, __version
 
 # from .cli import show
 from .optimization import (
-    HJStabSolver,
-    HJSUPG,
-    ReinitSolver
+    HJLocalDG,
+    ReinitSolverDG,
 )
 from .levelset import LevelSetFunctional, RegularizationSolver
 from .utils import petsc_print

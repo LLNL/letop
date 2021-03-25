@@ -1,20 +1,33 @@
 from firedrake import (
-    FunctionSpace,
+    VectorFunctionSpace,
     TrialFunction,
     TestFunction,
+    FacetNormal,
     sqrt,
     Constant,
     dx,
-    grad,
+    dS,
+    ds,
+    Max,
+    as_vector,
     inner,
-    dot,
+    lhs,
+    rhs,
+    div,
+    jump,
     Function,
     solve,
-    assemble,
+    File,
+    H1,
 )
+from firedrake.bcs import DirichletBC
+from firedrake.norms import errornorm
+from firedrake.ufl_expr import CellSize
 from pyadjoint.tape import no_annotations
+from ufl.geometry import CellDiameter
 
 from lestofire.utils import petsc_print
+
 
 direct_parameters = {
     "mat_type": "aij",
@@ -33,13 +46,27 @@ iterative_parameters = {
 }
 
 
-class ReinitSolver(object):
-    def __init__(self, mesh, PHI, alpha=10.0, dt=1e-6, n_steps=10, iterative=False):
-        self.PHI = PHI
-        self.mesh = mesh
-        self.alpha = alpha
+def max_component(vector1, vector2):
+    """UFL implementation of max component wise between two vectors
+
+    Args:
+        vector1 ([type]): [description]
+        vector2 ([type]): [description]
+
+    Returns:
+        [type]: UFL expression with the component wise max
+    """
+    assert vector1.ufl_shape == vector2.ufl_shape and len(vector1.ufl_shape) == 1
+    return as_vector([Max(vector1[i], vector2[i]) for i in range(vector1.ufl_shape[0])])
+
+
+class ReinitSolverDG(object):
+    def __init__(self, mesh, dt=1e-4, n_steps=10, iterative=False, h_factor=2.0):
         self.dt = dt
         self.n_steps = n_steps
+        self.phi_solution = None
+        self.phi_pvd = File("reinit.pvd",  target_continuity=H1)
+        self.h_factor = h_factor
 
         if iterative:
             self.parameters = iterative_parameters
@@ -47,67 +74,138 @@ class ReinitSolver(object):
             self.parameters = direct_parameters
 
     @no_annotations
-    def solve(self, phi_n, Dx):
-        # phi_n     - is the  level  set  field  which  comes  from of the  main  algorithm
-        # mesh - mesh  description
-        # Dx    - mesh  size in the x-direction
+    def solve(self, phi0):
+        """Jue Yan, Stanley Osher,
+        A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
+        Journal of Computational Physics,
+        Volume 230, Issue 1,
+        2011,
+        Pages 232-244,
 
-        # Space  definition
-        # Set the  initial  value
-        phi = TrialFunction(self.PHI)
-        phi0 = TrialFunction(self.PHI)
-        w = TestFunction(self.PHI)
-        # Gradient  norm
-        def mgrad(b):
-            return sqrt(b.dx(0) ** 2 + b.dx(1) ** 2)
+        Args:
+            phi0 ([type]): Initial level set
+        Returns:
+            [type]: Solution after "n_steps" number of steps
+        """
+        from functools import partial
+        import numpy as np
 
-        # Time  step
-        k = Constant(self.dt)
-        # Time  step  Python/FEniCS  syntax
-        phi0 = phi_n
-        # Initial  value
-        eps = Constant(1.0 / Dx)
-        eps = Constant(Dx)
-        # Interface  thickness
-        alpha = Constant(0.0625 / Dx)
-        # Numerical  diffusion  parameter
-        signp = phi_n / sqrt(phi_n * phi_n + eps * eps * mgrad(phi_n) * mgrad(phi_n))
-        # FEM  linearization
-        a = (phi / k) * w * dx
-        L = (
-            (phi0 / k) * w * dx
-            + signp * (1.0 - sqrt(dot(grad(phi0), grad(phi0)))) * w * dx
-            - alpha * inner(grad(phi0), grad(w)) * dx
-        )
-        # Boundary  condition
-        bc = []
-        # Flag  setup
-        E_old = 1e10
-        cont = 0
-        phi = Function(self.PHI)
+        DG0 = phi0.function_space()
+        mesh = DG0.ufl_domain()
+        n = FacetNormal(mesh)
+        phi = TrialFunction(DG0)
+        rho = TestFunction(DG0)
+        VDG0 = VectorFunctionSpace(mesh, "DG", 0)
+        p = TrialFunction(VDG0)
+        v = TestFunction(VDG0)
 
-        from firedrake import File
+        def clip(vector):
+            from ufl import conditional, ge
 
-        for n in range(self.n_steps):
-            solve(
-                a == L,
-                phi,
-                bc,
-                solver_parameters=self.parameters,
-                options_prefix="signed_",
-                annotate=False,
+            return as_vector([conditional(ge(vi, 0.0), 1.0, 0.0) for vi in vector])
+
+        from ufl import diag
+
+        a1 = (
+            inner(p, v) * dx
+            + phi0 * div(v) * dx
+            - inner(
+                v("+"),
+                diag(phi0("-") * clip(n("+")) + phi0("+") * clip(n("-"))) * n("+"),
             )
-            # Euclidean  norm
-            error = (((phi - phi0) / k) ** 2) * dx
-            E = sqrt(abs(assemble(error, annotate=False)))
-            petsc_print("error:", E)
-            phi0.assign(phi, annotate=False)
+            * dS
+            - inner(
+                v("-"),
+                diag(phi0("-") * clip(n("+")) + phi0("+") * clip(n("-"))) * n("-"),
+            )
+            * dS
+        )
+        a1 -= inner(v, n) * phi0 * ds
+        #a1 -= inner(v, diag(phi0 * clip(-n)) * n) * ds
+        a2 = (
+            inner(p, v) * dx
+            + phi0 * div(v) * dx
+            - inner(
+                v("+"),
+                diag(phi0("+") * clip(n("+")) + phi0("-") * clip(n("-"))) * n("+"),
+            )
+            * dS
+            - inner(
+                v("-"),
+                diag(phi0("+") * clip(n("+")) + phi0("-") * clip(n("-"))) * n("-"),
+            )
+            * dS
+        )
+        a2 -= inner(v, n) * phi0 * ds
+        #a2 -= inner(v, diag(phi0 * clip(n)) * n) * ds
 
-            # Divergence  flag
-            if E_old < E:
-                fail = 1
-                petsc_print("*Diverges_at_the_re -initialization_level*", cont)
-                break
-            cont += 1
-            E_old = E
-        return phi
+        direct_parameters = {
+            "snes_type": "ksponly",
+            "mat_type": "aij",
+            "ksp_type": "preonly",
+            "pc_type": "lu",
+            "pc_factor_mat_solver_type": "mumps",
+        }
+
+        #Delta_x = 10 / 50
+        #Delta_x = CellDiameter(mesh) * 20.0
+        #Delta_x = CellDiameter(mesh) * 5.0
+        #Delta_x = CellDiameter(mesh) * 5.0
+        Delta_x = CellDiameter(mesh) * self.h_factor
+
+        def sign(phi, phi_x, phi_y):
+            return phi / sqrt(phi * phi + Delta_x * Delta_x * (phi_x ** 2 + phi_y ** 2))
+
+        phi_signed = phi0.copy(deepcopy=True)
+
+
+        jacobi_solver = {"ksp_type": "preonly", "pc_type": "jacobi"}
+
+        p1_0 = Function(VDG0)
+        p2_0 = Function(VDG0)
+        solve(lhs(a1) == rhs(a1), p1_0, solver_parameters=jacobi_solver)
+        solve(lhs(a2) == rhs(a2), p2_0, solver_parameters=jacobi_solver)
+
+        def H(p):
+            return sign(phi_signed, (p1_0[0] + p2_0[0])/ Constant(2.0), (p1_0[1] + p2_0[1])/ Constant(2.0)) * (sqrt(inner(p, p)) - 1)
+
+        def dHdp(p_x, p_y):
+            return as_vector(
+                [
+                    abs(sign(phi_signed, (p1_0[0] + p2_0[0])/ Constant(2.0), (p1_0[1] + p2_0[1])/ Constant(2.0)) * p_x / sqrt(p_x * p_x + p_y * p_y + 1e-7)),
+                    abs(sign(phi_signed, (p1_0[0] + p2_0[0])/ Constant(2.0), (p1_0[1] + p2_0[1])/ Constant(2.0)) * p_y / sqrt(p_x * p_x + p_y * p_y + 1e-7)),
+                ]
+            )
+
+        def alpha(p1_x, p2_x, p1_y, p2_y):
+            return Max(dHdp(p1_x, p1_y)[0], dHdp(p2_x, p2_y)[0])
+
+        def beta(p1_x, p2_x, p1_y, p2_y):
+            return Max(dHdp(p1_x, p1_y)[1], dHdp(p2_x, p2_y)[1])
+
+        p1 = Function(VDG0)
+        p2 = Function(VDG0)
+        phin = Function(DG0)
+        for j in range(self.n_steps):
+            solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
+            solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
+
+            if j % 1 == 0:
+                if self.phi_pvd:
+                    self.phi_pvd.write(phi0)
+
+            dt = self.dt
+            b = (phi - phi0) * rho / Constant(dt) * dx + (
+                H((p1 + p2) / Constant(2.0))
+                - Constant(1.0 / 2.0)
+                * alpha(p1[0], p2[0], p1[1], p2[1])
+                * (p1[0] - p2[0])
+                - Constant(1.0 / 2.0)
+                * beta(p1[0], p2[0], p1[1], p2[1])
+                * (p1[1] - p2[1])
+            ) * rho * dx
+            solve(lhs(b) == rhs(b), phin, solver_parameters=direct_parameters)
+            print(f"Residual: {errornorm(phi0, phin)}")
+            phi0.assign(phin)
+
+        return phi0

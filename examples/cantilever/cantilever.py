@@ -4,23 +4,37 @@ from firedrake_adjoint import *
 from lestofire import (
     LevelSetFunctional,
     RegularizationSolver,
-    HJStabSolver,
-    ReinitSolver
+    HJLocalDG,
+    ReinitSolverDG,
 )
 from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
-from pyadjoint import no_annotations, stop_annotating
+from pyadjoint import no_annotations
+import argparse
+
+parser = argparse.ArgumentParser(description="Heat exchanger")
+parser.add_argument(
+    "--n_iters",
+    dest="n_iters",
+    type=int,
+    action="store",
+    default=200,
+    help="Number of optimization iterations",
+)
+opts = parser.parse_args()
+
 
 output_dir = "cantilever/"
 
-mesh = Mesh("./mesh_cantilever.msh")
+m = Mesh("./mesh_cantilever.msh")
+mesh = MeshHierarchy(m, 1)[-1]
 
 S = VectorFunctionSpace(mesh, "CG", 1)
 s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "CG", 1)
+PHI = FunctionSpace(mesh, "DG", 0)
 lx = 2.0
 ly = 1.0
 phi_expr = (
@@ -32,8 +46,7 @@ phi_expr = (
 )
 with stop_annotating():
     phi = interpolate(phi_expr, PHI)
-phi.rename("LevelSet")
-with stop_annotating():
+    phi.rename("LevelSet")
     File(output_dir + "phi_initial.pvd").write(phi)
 
 
@@ -45,8 +58,8 @@ def hs(phi, beta):
     return Constant(1.0) / (Constant(1.0) + exp(-beta * phi)) + Constant(rho_min)
 
 
-H1 = VectorElement("CG", mesh.ufl_cell(), 1)
-W = FunctionSpace(mesh, H1)
+H1_elem = VectorElement("CG", mesh.ufl_cell(), 1)
+W = FunctionSpace(mesh, H1_elem)
 
 u = TrialFunction(W)
 v = TestFunction(W)
@@ -74,19 +87,24 @@ parameters = {
     "ksp_type": "preonly",
     "pc_type": "lu",
     "mat_type": "aij",
-    "ksp_converged_reason": None
-    # "pc_factor_mat_solver_type": "mumps"
+    "ksp_converged_reason": None,
+    "pc_factor_mat_solver_type": "mumps",
 }
 u_sol = Function(W)
 solve(a == L, u_sol, bcs=[bc], solver_parameters=parameters)  # , nullspace=nullspace)
 with stop_annotating():
     File("u_sol.pvd").write(u_sol)
 
-Jform = assemble(inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx)
+Jform = assemble(
+    Constant(100.0) * inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx
+)
+
+with stop_annotating():
+    total_volume = assemble(Constant(1.0) * dx(domain=mesh))
 VolPen = assemble(hs(-phi, beta) * dx)
 VolControl = Control(VolPen)
 
-Vval = 1.0
+Vval = total_volume / 3.0
 
 
 velocity = Function(S)
@@ -95,7 +113,7 @@ bcs_vel_2 = DirichletBC(S, Constant((0.0, 0.0)), 2)
 bcs_vel = [bcs_vel_2]
 
 
-phi_pvd = File("phi_evolution.pvd")
+phi_pvd = File("phi_evolution.pvd", target_continuity=H1)
 
 
 def deriv_cb(phi):
@@ -106,14 +124,13 @@ def deriv_cb(phi):
 c = Control(s)
 Jhat = LevelSetFunctional(Jform, c, phi, derivative_cb_pre=deriv_cb)
 Vhat = LevelSetFunctional(VolPen, c, phi)
-beta_param = 1e2
+beta_param = 1e0
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
 )
-reinit_solver = ReinitSolver(mesh, PHI, dt=1e-7, iterative=False)
-hj_solver = HJStabSolver(mesh, PHI, c2_param=2.0, iterative=False)
-# dt = 0.5*1e-1
-dt = 20.0
+reinit_solver = ReinitSolverDG(mesh, n_steps=10, dt=2e-3)
+hj_solver = HJLocalDG(mesh, PHI)
+dt = 0.0002
 tol = 1e-5
 
 vol_constraint = Constraint(Vhat, Vval, VolControl)
@@ -126,19 +143,18 @@ parameters = {
     "pc_type": "lu",
     "mat_type": "aij",
     "ksp_converged_reason": None,
-    # "pc_factor_mat_solver_type": "mumps",
+    "pc_factor_mat_solver_type": "mumps",
 }
 
 params = {
-    "alphaC": 1.0,
+    "alphaC": 10.0,
     "K": 0.1,
     "debug": 5,
-    "alphaJ": 1.0,
+    "alphaJ": 10.0,
     "dt": dt,
     "maxtrials": 10,
-    "maxit": 80,
+    "maxit": opts.n_iters,
     "itnormalisation": 50,
     "tol": tol,
 }
 results = nlspace_solve_shape(problem, params)
-
