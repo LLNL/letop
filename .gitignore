@@ -11,3 +11,4 @@ gallery/
 .vscode/
 .devcontainer/
 lestofire.*
+examples/heat_exchanger/2D_mesh.geo

@@ -36,7 +36,7 @@ def time_loop(hj_solver, phi_expr, phi0):
 
         # Solve
         phi0.interpolate(phi_expr(t))
-        phi_next = hj_solver.solve(beta, phi_n, steps=1, scaling=0.1)
+        phi_next = hj_solver.solve(beta, phi_n, scaling=0.1)
 
         phi_n.assign(phi_next)
         t += hj_solver.dt
@@ -59,7 +59,7 @@ def test_dg():
 
     phi0 = interpolate(phi_expr(0.0), V)
     bcs = DirichletBC(V, phi0, (1,), method="geometric")
-    hj_solver = HJLocalDG(mesh, V, bcs=bcs, hmin=hmin)
+    hj_solver = HJLocalDG(mesh, V, bcs=bcs, hmin=hmin, n_steps=1)
     error_phi = time_loop(hj_solver, phi_expr, phi0)
 
     error_dg_after_50 = 0.006192889800985826

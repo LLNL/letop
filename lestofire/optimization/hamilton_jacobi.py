@@ -90,7 +90,7 @@ def check_elem_fe(elem_fe):
 
 
 class HJLocalDG(object):
-    def __init__(self, mesh, PHI, bcs=None, f=Constant(0.0), hmin=None):
+    def __init__(self, mesh, PHI, bcs=None, f=Constant(0.0), hmin=None, n_steps=1):
         check_elem_fe(PHI.ufl_element())
         self.PHI = PHI
         self.mesh = mesh
@@ -98,9 +98,10 @@ class HJLocalDG(object):
         self.bcs = bcs
         self.hmin = hmin
         self.dt = 1.0
+        self.n_steps = n_steps
 
     @no_annotations
-    def solve(self, velocity, phin, steps=1, scaling=1.0):
+    def solve(self, velocity, phin, scaling=1.0):
         """Jue Yan, Stanley Osher,
         A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
         Journal of Computational Physics,
@@ -204,7 +205,7 @@ class HJLocalDG(object):
         else:
             self.dt = scaling
         dt = self.dt
-        for j in range(steps):
+        for j in range(self.n_steps):
 
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
