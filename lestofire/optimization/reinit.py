@@ -65,7 +65,7 @@ class ReinitSolverDG(object):
         self.dt = dt
         self.n_steps = n_steps
         self.phi_solution = None
-        self.phi_pvd = File("reinit.pvd",  target_continuity=H1)
+        #self.phi_pvd = File("reinit.pvd",  target_continuity=H1)
         self.h_factor = h_factor
 
         if iterative:
@@ -190,9 +190,9 @@ class ReinitSolverDG(object):
             solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
 
-            if j % 1 == 0:
-                if self.phi_pvd:
-                    self.phi_pvd.write(phi0)
+            #if j % 1 == 0:
+            #    if self.phi_pvd:
+            #        self.phi_pvd.write(phi0)
 
             dt = self.dt
             b = (phi - phi0) * rho / Constant(dt) * dx + (
