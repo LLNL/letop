@@ -21,8 +21,6 @@ jobs:
             pip3 install roltrilinos ROL
             pip3 install protobuf==3.8.0 
             pip3 install --upgrade numpy
-            git clone https://bitbucket.org/nate-sime/dolfin_dg.git
-            cd dolfin_dg && python3 setup.py install
 
       # run tests!
       - run:

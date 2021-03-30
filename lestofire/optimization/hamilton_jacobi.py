@@ -29,7 +29,6 @@ from firedrake.ufl_expr import FacetNormal
 from firedrake.utility_meshes import UnitSquareMesh
 from pyadjoint import no_annotations
 
-from dolfin_dg import LocalLaxFriedrichs, HyperbolicOperator, DGDirichletBC
 from pyadjoint.tape import stop_annotating
 
 
