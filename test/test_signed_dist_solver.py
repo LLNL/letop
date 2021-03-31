@@ -1,19 +1,19 @@
 import sys
 
 sys.path.append("../")
-from lestofire.optimization import ReinitSolverDG
+import pytest
 from firedrake import (
-    UnitSquareMesh,
-    FunctionSpace,
-    interpolate,
-    errornorm,
     Function,
+    FunctionSpace,
     Mesh,
     SpatialCoordinate,
+    UnitSquareMesh,
+    errornorm,
+    interpolate,
     sqrt,
 )
+from lestofire.optimization import ReinitSolverDG
 from ufl import sin
-import pytest
 
 N = 50
 
@@ -23,23 +23,18 @@ def mesh():
     return UnitSquareMesh(N, N)
 
 
-@pytest.fixture(scope="module")
-def DG0(mesh):
-    return FunctionSpace(mesh, "DG", 0)
-
-
 @pytest.mark.parametrize(
-    "test_mesh,x_shift,error",
+    "test_mesh,x_shift,error, p",
     [
-        (UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.05192113964921833),
-        (Mesh("./unstructured_rectangle.msh"), 0.0, 0.05494971697014042),
-        (UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02200988416607167),
-        (Mesh("./unstructured_rectangle.msh"), 0.5, 0.019432037920418723),
+        (UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.05192113964921833, 0),
+        (Mesh("./unstructured_rectangle.msh"), 0.0, 0.05494971697014042, 0),
+        (UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02200988416607167, 0),
+        (Mesh("./unstructured_rectangle.msh"), 0.5, 0.019432037920418723, 0),
     ],
 )
-def test_cone(test_mesh, x_shift, error):
+def test_cone(test_mesh, x_shift, error, p):
 
-    DG0 = FunctionSpace(test_mesh, "DG", 0)
+    DG0 = FunctionSpace(test_mesh, "DG", p)
 
     solver = ReinitSolverDG(test_mesh, n_steps=200, dt=2e-3, h_factor=5.0)
 

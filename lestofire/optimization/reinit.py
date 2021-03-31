@@ -1,30 +1,13 @@
-from firedrake import (
-    H1,
-    Constant,
-    FacetNormal,
-    File,
-    Function,
-    Max,
-    TestFunction,
-    TrialFunction,
-    VectorFunctionSpace,
-    as_vector,
-    div,
-    dS,
-    ds,
-    dx,
-    inner,
-    jump,
-    lhs,
-    rhs,
-    solve,
-    sqrt,
-)
+from firedrake import (H1, Constant, FacetNormal, File, Function,
+                       FunctionSpace, Max, TestFunction, TrialFunction,
+                       as_vector, div, dS, ds, dx, inner, jump, lhs, rhs,
+                       solve, sqrt)
 from firedrake.bcs import DirichletBC
 from firedrake.norms import errornorm
 from firedrake.ufl_expr import CellSize
 from lestofire.utils import petsc_print
 from pyadjoint.tape import no_annotations
+from ufl import VectorElement
 from ufl.algebra import Abs
 from ufl.geometry import CellDiameter
 
@@ -95,7 +78,12 @@ class ReinitSolverDG(object):
         n = FacetNormal(mesh)
         phi = TrialFunction(DG0)
         rho = TestFunction(DG0)
-        VDG0 = VectorFunctionSpace(mesh, "DG", 0)
+        DG_elem = DG0.ufl_element()
+        dim = mesh.geometric_dimension()
+        VDG_elem = VectorElement(
+            DG_elem.family(), DG_elem.cell(), DG_elem.degree(), dim
+        )
+        VDG0 = FunctionSpace(mesh, VDG_elem)
         p = TrialFunction(VDG0)
         v = TestFunction(VDG0)
 

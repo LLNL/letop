@@ -1,35 +1,34 @@
 from firedrake import (
-    FunctionSpace,
-    TrialFunction,
-    TestFunction,
+    MAX,
+    READ,
+    CellDiameter,
     Constant,
+    File,
     Function,
-    dx,
+    Max,
+    TestFunction,
+    TrialFunction,
+    derivative,
+    diag,
+    dot,
     ds,
     dS,
-    CellDiameter,
-    sqrt,
-    Max,
-    solve,
-    dot,
+    dx,
     inner,
-    File,
-    diag,
-    replace,
-    derivative,
     par_loop,
-    READ,
-    MAX,
+    replace,
+    solve,
+    sqrt,
 )
-from ufl import as_vector
 from firedrake.bcs import DirichletBC
-from firedrake.functionspace import VectorFunctionSpace
+from firedrake.functionspace import FunctionSpace
 from firedrake.mesh import ExtrudedMeshTopology
 from firedrake.ufl_expr import FacetNormal
 from firedrake.utility_meshes import UnitSquareMesh
 from pyadjoint import no_annotations
-
 from pyadjoint.tape import stop_annotating
+from ufl import VectorElement, as_vector
+from ufl.algebra import Abs
 
 
 def calculate_max_vel(velocity):
@@ -114,6 +113,7 @@ class HJLocalDG(object):
             [type]: Solution after "n_steps" number of steps
         """
         from functools import partial
+
         import numpy as np
 
         phi0 = phin.copy(deepcopy=True)
@@ -122,7 +122,13 @@ class HJLocalDG(object):
         n = FacetNormal(mesh)
         phi = TrialFunction(DG0)
         rho = TestFunction(DG0)
-        VDG0 = VectorFunctionSpace(mesh, "DG", 0)
+        DG_elem = DG0.ufl_element()
+        dim = mesh.geometric_dimension()
+        VDG_elem = VectorElement(
+            DG_elem.family(), DG_elem.cell(), DG_elem.degree(), dim
+        )
+        VDG0 = FunctionSpace(mesh, VDG_elem)
+
         p = TrialFunction(VDG0)
         v = TestFunction(VDG0)
 
@@ -166,15 +172,11 @@ class HJLocalDG(object):
         a2 -= inner(v, n) * phi0 * ds
         # a2 -= inner(v, diag(phi0 * clip(n)) * n) * ds
 
-        direct_parameters = {
-            "snes_type": "ksponly",
-            "mat_type": "aij",
+        jacobi_solver = {
             "ksp_type": "preonly",
-            "pc_type": "lu",
-            "pc_factor_mat_solver_type": "mumps",
+            "pc_type": "bjacobi",
+            "sub_pc_type": "ilu",
         }
-
-        jacobi_solver = {"ksp_type": "preonly", "pc_type": "jacobi"}
 
         p1_0 = Function(VDG0)
         p2_0 = Function(VDG0)
@@ -186,14 +188,16 @@ class HJLocalDG(object):
         def H(p):
             return inner(velocity, p)
 
-        def dHdp(p_x, p_y):
-            return as_vector([abs(velocity[0]), abs(velocity[1])])
+        def dHdp(p):
+            return Abs(velocity)
 
-        def alpha(p1_x, p2_x, p1_y, p2_y):
-            return Max(dHdp(p1_x, p1_y)[0], dHdp(p2_x, p2_y)[0])
-
-        def beta(p1_x, p2_x, p1_y, p2_y):
-            return Max(dHdp(p1_x, p1_y)[1], dHdp(p2_x, p2_y)[1])
+        def alpha(p1, p2):
+            return as_vector(
+                [
+                    Max(dHdp_p1_i, dHdp_p2_i)
+                    for dHdp_p1_i, dHdp_p2_i in zip(dHdp(p1), dHdp(p2))
+                ]
+            )
 
         p1 = Function(VDG0)
         p2 = Function(VDG0)
@@ -211,18 +215,13 @@ class HJLocalDG(object):
 
             b = (phi - phi0) * rho / Constant(dt) * dx + (
                 H((p1 + p2) / Constant(2.0))
-                - Constant(1.0 / 2.0)
-                * alpha(p1[0], p2[0], p1[1], p2[1])
-                * (p1[0] - p2[0])
-                - Constant(1.0 / 2.0)
-                * beta(p1[0], p2[0], p1[1], p2[1])
-                * (p1[1] - p2[1])
+                - Constant(1.0 / 2.0) * inner(alpha(p1, p2), (p1 - p2))
             ) * rho * dx
             solve(
                 lhs(b) == rhs(b),
                 phi0,
                 bcs=self.bcs,
-                solver_parameters=direct_parameters,
+                solver_parameters=jacobi_solver,
             )
 
         return phi0
