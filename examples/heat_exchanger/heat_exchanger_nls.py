@@ -51,7 +51,7 @@ s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "DG", 0)
+PHI = FunctionSpace(mesh, "DG", 1)
 phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - Constant(0.8)
 with stop_annotating():
     phi = interpolate(phi_expr, PHI)
@@ -225,7 +225,7 @@ scale_factor = 4e-4
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 
-phi_pvd = File("phi_evolution.pvd", target_continuity=H1)
+phi_pvd = File("phi_evolution.pvd")
 
 
 def deriv_cb(phi):

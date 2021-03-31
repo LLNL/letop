@@ -34,7 +34,7 @@ s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "DG", 0)
+PHI = FunctionSpace(mesh, "DG", 1)
 lx = 2.0
 ly = 1.0
 phi_expr = (
@@ -128,9 +128,9 @@ beta_param = 1e0
 reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
 )
-reinit_solver = ReinitSolverDG(mesh, n_steps=10, dt=2e-3)
+reinit_solver = ReinitSolverDG(mesh, n_steps=10, dt=1e-3)
 hj_solver = HJLocalDG(mesh, PHI)
-dt = 0.0002
+dt = 0.0001
 tol = 1e-5
 
 vol_constraint = Constraint(Vhat, Vval, VolControl)
