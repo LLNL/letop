@@ -1,21 +1,22 @@
+import sys
+
+import numpy as np
+import pytest
 from firedrake import (
-    UnitSquareMesh,
-    FunctionSpace,
-    interpolate,
-    File,
-    errornorm,
-    Constant,
-    SpatialCoordinate,
-    FiniteElement,
     H1,
+    Constant,
+    File,
+    FiniteElement,
+    FunctionSpace,
+    SpatialCoordinate,
+    UnitSquareMesh,
     ds,
+    errornorm,
+    interpolate,
 )
 from firedrake.bcs import DirichletBC
 from firedrake.functionspace import VectorFunctionSpace
-import pytest
-import sys
-import numpy as np
-from ufl import sin, pi
+from ufl import pi, sin
 
 sys.path.append("../")
 from lestofire.optimization import HJLocalDG
@@ -27,7 +28,9 @@ def time_loop(hj_solver, phi_expr, phi0):
     t = 0.0
     V = phi0.function_space()
     mesh = V.ufl_domain()
-    beta = interpolate(Constant((1.0, 0.0)), VectorFunctionSpace(mesh, "DG", 0))
+    beta = interpolate(
+        Constant((1.0, 0.0)), VectorFunctionSpace(mesh, "DG", V.ufl_element().degree())
+    )
 
     phi_n = interpolate(phi_expr(0.0), V)
     phi_exact = interpolate(phi_expr(0.0), V)
@@ -46,10 +49,17 @@ def time_loop(hj_solver, phi_expr, phi0):
     return error_phi
 
 
-def test_dg():
+@pytest.mark.parametrize(
+    "error, p",
+    [
+        (0.006192889800985826, 0),
+        (0.0032936167264323423, 1),
+    ],
+)
+def test_dg(error, p):
 
     mesh = UnitSquareMesh(N, N)
-    V = FunctionSpace(mesh, "DG", 0)
+    V = FunctionSpace(mesh, "DG", p)
     hmin = np.sqrt(2.0 / (N * N))
 
     X = SpatialCoordinate(mesh)
@@ -62,5 +72,4 @@ def test_dg():
     hj_solver = HJLocalDG(mesh, V, bcs=bcs, hmin=hmin, n_steps=1)
     error_phi = time_loop(hj_solver, phi_expr, phi0)
 
-    error_dg_after_50 = 0.006192889800985826
-    assert pytest.approx(error_phi, 1e-8) == error_dg_after_50
+    assert pytest.approx(error_phi, 1e-8) == error

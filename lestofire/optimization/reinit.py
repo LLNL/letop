@@ -1,7 +1,25 @@
-from firedrake import (H1, Constant, FacetNormal, File, Function,
-                       FunctionSpace, Max, TestFunction, TrialFunction,
-                       as_vector, div, dS, ds, dx, inner, jump, lhs, rhs,
-                       solve, sqrt)
+from firedrake import (
+    H1,
+    Constant,
+    FacetNormal,
+    File,
+    Function,
+    FunctionSpace,
+    Max,
+    TestFunction,
+    TrialFunction,
+    as_vector,
+    div,
+    dS,
+    ds,
+    dx,
+    inner,
+    jump,
+    lhs,
+    rhs,
+    solve,
+    sqrt,
+)
 from firedrake.bcs import DirichletBC
 from firedrake.norms import errornorm
 from firedrake.ufl_expr import CellSize
@@ -43,11 +61,13 @@ def max_component(vector1, vector2):
 
 
 class ReinitSolverDG(object):
-    def __init__(self, mesh, dt=1e-4, n_steps=10, iterative=False, h_factor=2.0):
+    def __init__(
+        self, mesh, dt=1e-4, n_steps=10, iterative=False, h_factor=2.0, phi_pvd=None
+    ):
         self.dt = dt
         self.n_steps = n_steps
         self.phi_solution = None
-        # self.phi_pvd = File("reinit.pvd",  target_continuity=H1)
+        self.phi_pvd = phi_pvd
         self.h_factor = h_factor
 
         if iterative:
@@ -175,8 +195,8 @@ class ReinitSolverDG(object):
             solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
 
             # if j % 1 == 0:
-            #    if self.phi_pvd:
-            #        self.phi_pvd.write(phi0)
+            if self.phi_pvd:
+                self.phi_pvd.write(phi0)
 
             dt = self.dt
             b = (phi - phi0) * rho / Constant(dt) * dx + (

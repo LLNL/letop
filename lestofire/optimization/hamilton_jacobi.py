@@ -73,17 +73,15 @@ def check_elem_fe(elem_fe):
         sub_elem = elem_fe.sub_elements()
         if (
             sub_elem[0].family() not in supported_fe
-            or sub_elem[0].degree() != 0
             or sub_elem[1].family() not in supported_fe
-            or sub_elem[1].degree() != 0
         ):
             raise RuntimeError(
-                "Only zero degree Discontinuous Galerkin function space for extruded elements is supported"
+                "Only Discontinuous Galerkin function space for extruded elements is supported"
             )
     else:
-        if elem_fe.family() not in supported_fe or elem_fe.degree() != 0:
+        if elem_fe.family() not in supported_fe:
             raise RuntimeError(
-                "Only zero degree Discontinuous Galerkin function space is supported"
+                "Only Discontinuous Galerkin function space is supported"
             )
 
 
