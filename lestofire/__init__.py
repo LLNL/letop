@@ -8,6 +8,7 @@ from .optimization import (
     ReinitSolverDG,
 )
 from .levelset import LevelSetFunctional, RegularizationSolver
+from .physics import NavierStokesBrinkmannSolver, NavierStokesBrinkmannForm, hs
 from .utils import petsc_print
 
 __all__ = ["__author__", "__email__", "__license__", "__version__", "__status__"]
