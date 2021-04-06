@@ -1,3 +1,4 @@
+from cmath import tau
 import firedrake as fd
 from firedrake import inner, dot, grad, div, dx, ds, dot, dS, jump, avg, Constant, exp
 from firedrake.function import Function
@@ -42,7 +43,6 @@ def NavierStokesBrinkmannForm(
     assert isinstance(W_elem.sub_elements()[0], fd.VectorElement)
 
     v, q = fd.TestFunctions(W)
-
     u, p = fd.split(w)
 
     # Main NS form
@@ -57,17 +57,16 @@ def NavierStokesBrinkmannForm(
     def add_measures(list_dd):
         return sum([dx(dd) for dd in list_dd[1::]], dx(list_dd[0]))
 
+    def alpha(phi):
+        return Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min)
+
     if brinkmann_penalty:
         if design_domain:
             dx_brinkmann = add_measures(Enlist(design_domain))
         else:
             dx_brinkmann = dx
-        F = (
-            F
-            + (Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min))
-            * inner(u, v)
-            * dx_brinkmann
-        )
+
+        F = F + alpha(phi) * inner(u, v) * dx_brinkmann
 
     if no_flow_domain:
         dx_no_flow = add_measures(Enlist(no_flow_domain))
@@ -75,34 +74,35 @@ def NavierStokesBrinkmannForm(
 
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
-    h = fd.CellDiameter(mesh)
+    if brinkmann_penalty:
+        R_U = R_U + alpha(phi) * u
+    h = fd.CellSize(mesh)
 
     beta_gls = 0.9
-    tau_gls = beta_gls * (
-        (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
-    ) ** (-0.5)
+    tau_gls = (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
+    if brinkmann_penalty:
+        tau_gls += (alpha(phi) / 1.0) ** 2
 
+    tau_gls = beta_gls * tau_gls ** (-0.5)
+
+    degree = 8
     F = F + tau_gls * inner(R_U, dot(u, grad(v)) - nu * div(grad(v)) + grad(q)) * dx(
-        degree=4
+        degree=degree
     )
+    if brinkmann_penalty:
+        F = F + tau_gls * inner(R_U, alpha(phi) * v) * dx(degree=degree)
     return F
 
 
 class NavierStokesBrinkmannSolver(object):
-    def __init__(
-        self,
-        problem: fd.NonlinearVariationalProblem,
-        nullspace=None,
-        solver_parameters=None,
-    ) -> None:
+    def __init__(self, problem: fd.NonlinearVariationalProblem, **kwargs) -> None:
         """Same than NonlinearVariationalSolver, but with just the SIMPLE preconditioner by default
-
         Args:
             problem ([type]): [description]
             nullspace ([type], optional): [description]. Defaults to None.
             solver_parameters ([type], optional): [description]. Defaults to None.
         """
-        solver_parameters_simple = {
+        solver_parameters_default = {
             "snes_type": "newtonls",
             "snes_linesearch_type": "l2",
             "snes_linesearch_maxstep": 1.0,
@@ -118,8 +118,8 @@ class NavierStokesBrinkmannSolver(object):
             # "default_sub_matrix_type": "aij",
             "ksp_rtol": 1.0e-4,
             "ksp_atol": 1.0e-8,
-            "ksp_max_it": 500,
-            "ksp_monitor": None,
+            "ksp_max_it": 2000,
+            # "ksp_monitor": None,
             "ksp_converged_reason": None,
             "pc_type": "fieldsplit",
             "pc_fieldsplit_type": "schur",
@@ -128,7 +128,7 @@ class NavierStokesBrinkmannSolver(object):
             "fieldsplit_0": {
                 "ksp_type": "richardson",
                 "ksp_richardson_self_scale": False,
-                "ksp_converged_reason": None,
+                # "ksp_converged_reason": None,
                 "ksp_max_it": 1,
                 # "ksp_monitor": None,
                 "pc_type": "ml",
@@ -138,21 +138,20 @@ class NavierStokesBrinkmannSolver(object):
             },
             "fieldsplit_1": {
                 # "ksp_monitor": None,
-                "ksp_converged_reason": None,
+                # "ksp_converged_reason": None,
                 "ksp_type": "preonly",
                 "pc_type": "ml",
             },
             "fieldsplit_1_upper_ksp_type": "preonly",
             "fieldsplit_1_upper_pc_type": "jacobi",
         }
-        self.solver_parameters = solver_parameters_simple
+        solver_parameters = kwargs.pop("solver_parameters")
         if solver_parameters:
-            self.solver_parameters.update(solver_parameters)
+            solver_parameters_default.update(solver_parameters)
 
         self.solver = fd.NonlinearVariationalSolver(
             problem,
-            nullspace=nullspace,
-            solver_parameters=self.solver_parameters,
+            solver_parameters=solver_parameters_default,
         )
 
     def solve(self):
