@@ -18,7 +18,7 @@ s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
 
 x, y = SpatialCoordinate(mesh)
-PHI = FunctionSpace(mesh, "DG", 0)
+PHI = FunctionSpace(mesh, "DG", 1)
 lx = 1.0
 ly = 1.0
 # phi_expr = -0.5 * cos(3.0 / lx * pi * x + 1.0) * cos(3.0 * pi * y) - 0.3
@@ -112,7 +112,7 @@ J = assemble(
 
 c = Control(s)
 
-phi_pvd = File("phi_evolution_euclid.pvd", target_continuity=H1)
+phi_pvd = File("phi_evolution_euclid.pvd")
 
 
 def deriv_cb(phi):
