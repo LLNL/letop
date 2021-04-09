@@ -87,6 +87,24 @@ def check_elem_fe(elem_fe):
 
 class HJLocalDG(object):
     def __init__(self, mesh, PHI, bcs=None, f=Constant(0.0), hmin=None, n_steps=1):
+        """Solver for the Hamilton Jacobi (HJ) PDE with a Local Discontinuous Galerkin method based on
+            Jue Yan, Stanley Osher,
+            A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
+            Journal of Computational Physics,
+            Volume 230, Issue 1,
+            2011,
+            Pages 232-244,
+
+        Args:
+            mesh ([type]): Domain mesh
+            PHI ([type]): Level set Function space
+            bcs ([type], optional): Dirichlet boundary conditions. Defaults to None.
+            f ([type], optional): Source term in the HJ PDE. Defaults to Constant(0.0).
+            hmin ([type], optional): Minimum mesh element size.
+                                    If set, it will calculate the time step size for stability.
+                                    Defaults to None.
+            n_steps (int, optional): Number of time steps. Defaults to 1.
+        """
         check_elem_fe(PHI.ufl_element())
         self.PHI = PHI
         self.mesh = mesh
@@ -98,17 +116,15 @@ class HJLocalDG(object):
 
     @no_annotations
     def solve(self, velocity, phin, scaling=1.0):
-        """Jue Yan, Stanley Osher,
-        A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
-        Journal of Computational Physics,
-        Volume 230, Issue 1,
-        2011,
-        Pages 232-244,
+        """Solve the HJ PDE for self.n_steps steps
 
         Args:
-            phi0 ([type]): Initial level set
+            velocity ([type]): Advection direction
+            phin ([type]): Initial level set function
+            scaling (float, optional): Time step scaling. Defaults to 1.0.
+
         Returns:
-            [type]: Solution after "n_steps" number of steps
+            [type]: Updated level set function
         """
         from functools import partial
 

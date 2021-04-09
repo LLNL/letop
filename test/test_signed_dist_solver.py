@@ -2,9 +2,18 @@ import sys
 
 sys.path.append("../")
 import pytest
-from firedrake import (H1, File, Function, FunctionSpace, Mesh,
-                       SpatialCoordinate, UnitSquareMesh, errornorm,
-                       interpolate, sqrt)
+from firedrake import (
+    H1,
+    File,
+    Function,
+    FunctionSpace,
+    Mesh,
+    SpatialCoordinate,
+    UnitSquareMesh,
+    errornorm,
+    interpolate,
+    sqrt,
+)
 from lestofire.optimization import ReinitSolverDG
 from ufl import sin
 
@@ -39,9 +48,7 @@ def test_cone(test_mesh, x_shift, error, p):
         target_continuity = None
     phi_pvd = File("reinit.pvd", target_continuity=target_continuity)
 
-    solver = ReinitSolverDG(
-        test_mesh, n_steps=200, dt=2e-3, h_factor=5.0, phi_pvd=phi_pvd
-    )
+    solver = ReinitSolverDG(n_steps=200, dt=2e-3, h_factor=5.0, phi_pvd=phi_pvd)
 
     radius = 0.2
     x, y = SpatialCoordinate(test_mesh)

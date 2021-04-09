@@ -51,22 +51,45 @@ iterative_parameters = {
 
 
 class RegularizationSolver(object):
-
-    """Solver to regularize the optimization problem"""
-
     @no_annotations
     def __init__(
         self,
         S,
         mesh,
-        beta=1e3,
+        beta=1,
         gamma=1.0e4,
         bcs=None,
         dx=dx,
-        sim_domain=None,
+        design_domain=None,
         solver_parameters=direct_parameters,
         output_dir="./",
     ):
+        """
+        Solver class to regularize the shape derivatives as explained in
+        Frédéric de Gournay
+        Velocity Extension for the Level-set Method and Multiple Eigenvalues in Shape Optimization
+        SIAM J. Control Optim., 45(1), 343–367. (25 pages)
+        Args:
+            S ([type]): Function space of the mesh coordinates
+            mesh ([type]): Mesh
+            beta ([type], optional): Regularization parameter.
+                                    It should be finite multiple of the mesh size.
+                                    Defaults to 1.
+            gamma ([type], optional): Penalty parameter for the penalization of the normal components
+                                      of the regularized shape derivatives on the boundary. Defaults to 1.0e4.
+            bcs ([type], optional): Dirichlet Boundary conditions.
+                                    They should be setting the regularized shape derivatives to zero
+                                    wherever there are boundary conditions on the original PDE.
+                                    Defaults to None.
+            dx ([type], optional): [description]. Defaults to dx.
+            design_domain ([type], optional): If we're interested in setting the shape derivatives to
+                                              zero outside of the design_domain,
+                                              we pass design_domain marker.
+                                              This is convenient when we want to fix certain regions in the domain.
+                                              Defaults to None.
+            solver_parameters ([type], optional): Solver options. Defaults to direct_parameters.
+            output_dir (str, optional): Plot the output somewhere. Defaults to "./".
+        """
         n = FacetNormal(mesh)
         theta, xi = [TrialFunction(S), TestFunction(S)]
         self.xi = xi
@@ -89,14 +112,14 @@ class RegularizationSolver(object):
             self.bcs = []
         else:
             self.bcs = Enlist(bcs)
-        if sim_domain is not None:
+        if design_domain is not None:
             # Heaviside step function in domain of interest
             V_DG0_B = FunctionSpace(mesh, "DG", 0)
             I_B = Function(V_DG0_B)
             I_B.assign(1.0)
             par_loop(
                 ("{[i] : 0 <= i < f.dofs}", "f[i, 0] = 0.0"),
-                dx(sim_domain),
+                dx(design_domain),
                 {"f": (I_B, WRITE)},
                 is_loopy_kernel=True,
             )
@@ -137,11 +160,13 @@ class RegularizationSolver(object):
         self.solver_parameters = solver_parameters
 
     @no_annotations
-    def update_beta_param(self, new_value):
-        self.beta_param.dat.data[0] = new_value
-
-    @no_annotations
     def solve(self, velocity, dJ):
+        """Solve the problem
+
+        Args:
+            velocity ([type]): Solution. velocity means regularized shape derivatives
+            dJ ([type]): Shape derivatives to be regularized
+        """
         for bc in self.bcs:
             bc.apply(dJ)
 

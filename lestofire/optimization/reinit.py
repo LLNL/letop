@@ -61,9 +61,15 @@ def max_component(vector1, vector2):
 
 
 class ReinitSolverDG(object):
-    def __init__(
-        self, mesh, dt=1e-4, n_steps=10, iterative=False, h_factor=2.0, phi_pvd=None
-    ):
+    def __init__(self, dt=1e-4, n_steps=10, h_factor=2.0, phi_pvd=None):
+        """Solver to reinitialize the level set function as a signed distance function
+
+        Args:
+            dt ([type], optional): Time step. Defaults to 1e-4.
+            n_steps (int, optional): Number of time steps. Defaults to 10.
+            h_factor (float, optional): Regularization factor for the derivative. Defaults to 2.0.
+            phi_pvd ([type], optional): Plotting File. Defaults to None.
+        """
         self.dt = dt
         self.n_steps = n_steps
         self.phi_solution = None

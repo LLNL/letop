@@ -68,7 +68,7 @@ def test_2D_dirichlet_regions():
     s = Function(S, name="deform")
     beta = 1.0
     reg_solver = RegularizationSolver(
-        S, mesh, beta=beta, gamma=0.0, dx=dx, sim_domain=0
+        S, mesh, beta=beta, gamma=0.0, dx=dx, design_domain=0
     )
 
     # Exact solution with free Neumann boundary conditions for this domain
@@ -128,7 +128,7 @@ def test_3D_dirichlet_regions():
         beta=beta,
         gamma=0.0,
         dx=dx,
-        sim_domain=0,
+        design_domain=0,
         solver_parameters=solver_parameters_amg,
     )
 

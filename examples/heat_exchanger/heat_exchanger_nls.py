@@ -253,11 +253,11 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 velocity = Function(S)
 beta_param = 0.08
 reg_solver = RegularizationSolver(
-    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, design_domain=0
 )
 
 
-reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
+reinit_solver = ReinitSolverDG(n_steps=20, dt=1e-3)
 hmin = 0.002
 hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 tol = 1e-5
