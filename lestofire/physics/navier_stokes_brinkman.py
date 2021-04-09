@@ -5,12 +5,14 @@ from firedrake.function import Function
 from pyadjoint.enlisting import Enlist
 import ufl
 from .utils import hs
+from typing import Union
+from ufl.algebra import Product
 
 
 def NavierStokesBrinkmannForm(
     W: fd.FunctionSpace,
     w: fd.Function,
-    phi: fd.Function,
+    phi: Union[fd.Function, Product],
     nu,
     brinkmann_penalty=None,
     brinkmann_min=0.0,
@@ -61,7 +63,7 @@ def NavierStokesBrinkmannForm(
         return Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min)
 
     if brinkmann_penalty:
-        if design_domain:
+        if design_domain is not None:
             dx_brinkmann = add_measures(Enlist(design_domain))
         else:
             dx_brinkmann = dx
@@ -74,23 +76,31 @@ def NavierStokesBrinkmannForm(
 
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
-    if brinkmann_penalty:
-        R_U = R_U + alpha(phi) * u
-    h = fd.CellSize(mesh)
-
     beta_gls = 0.9
-    tau_gls = (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
-    if brinkmann_penalty:
-        tau_gls += (alpha(phi) / 1.0) ** 2
-
-    tau_gls = beta_gls * tau_gls ** (-0.5)
-
+    h = fd.CellSize(mesh)
+    tau_gls = beta_gls * (
+        (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
+    ) ** (-0.5)
     degree = 8
-    F = F + tau_gls * inner(R_U, dot(u, grad(v)) - nu * div(grad(v)) + grad(q)) * dx(
-        degree=degree
-    )
+
+    theta_U = dot(u, grad(v)) - nu * div(grad(v)) + grad(q)
+    F = F + tau_gls * inner(R_U, theta_U) * dx(degree=degree)
     if brinkmann_penalty:
-        F = F + tau_gls * inner(R_U, alpha(phi) * v) * dx(degree=degree)
+        tau_gls_alpha = beta_gls * (
+            (4.0 * dot(u, u) / h ** 2)
+            + 9.0 * (4.0 * nu / h ** 2) ** 2
+            + (alpha(phi) / 1.0) ** 2
+        ) ** (-0.5)
+        R_U_alpha = R_U + alpha(phi) * u
+        theta_alpha = theta_U + alpha(phi) * v
+
+        F = F + tau_gls_alpha * inner(R_U_alpha, theta_alpha) * dx_brinkmann(
+            degree=degree
+        )
+        if (
+            design_domain is not None
+        ):  # Substract this domain from the original integral
+            F = F - tau_gls * inner(R_U, theta_U) * dx_brinkmann(degree=degree)
     return F
 
 
@@ -145,7 +155,7 @@ class NavierStokesBrinkmannSolver(object):
             "fieldsplit_1_upper_ksp_type": "preonly",
             "fieldsplit_1_upper_pc_type": "jacobi",
         }
-        solver_parameters = kwargs.pop("solver_parameters")
+        solver_parameters = kwargs.pop("solver_parameters", None)
         if solver_parameters:
             solver_parameters_default.update(solver_parameters)
 

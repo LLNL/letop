@@ -12,7 +12,8 @@ from lestofire import (
 
 from nullspace_optimizer.lestofire import InfDimProblem, Constraint, nlspace_solve_shape
 
-mesh = Mesh("./mesh_stokes.msh")
+# mesh = Mesh("./mesh_stokes.msh")
+mesh = Mesh("./mesh_stokes_inlets.msh")
 S = VectorFunctionSpace(mesh, "CG", 1)
 s = Function(S, name="deform")
 mesh.coordinates.assign(mesh.coordinates + s)
@@ -36,7 +37,9 @@ P = FunctionSpace(mesh, "CG", 1)
 W = V * P
 w_sol = Function(W)
 brinkmann_penalty = 1e6
-F = NavierStokesBrinkmannForm(W, w_sol, phi, nu, brinkmann_penalty=brinkmann_penalty)
+F = NavierStokesBrinkmannForm(
+    W, w_sol, phi, nu, brinkmann_penalty=brinkmann_penalty, design_domain=0
+)
 
 x, y = SpatialCoordinate(mesh)
 u_inflow = 1.0
@@ -99,14 +102,14 @@ pvd_file.write(u, p)
 
 u, p = split(w_sol)
 
-Vol = assemble(hs(-phi) * Constant(1.0) * dx(domain=mesh))
+Vol = assemble(hs(-phi) * Constant(1.0) * dx(0, domain=mesh))
 VControl = Control(Vol)
 Vval = assemble(Constant(0.3) * dx(domain=mesh), annotate=False)
 with stop_annotating():
     print("Initial constraint function value {}".format(Vol))
 
 J = assemble(
-    Constant(brinkmann_penalty) * hs(phi) * inner(u, u) * dx
+    Constant(brinkmann_penalty) * hs(phi) * inner(u, u) * dx(0)
     + nu / Constant(2.0) * inner(grad(u), grad(u)) * dx
 )
 
@@ -126,7 +129,9 @@ Vhat = LevelSetFunctional(Vol, c, phi)
 velocity = Function(S)
 bcs_vel_1 = DirichletBC(S, noslip, (1, 2, 3, 4))
 bcs_vel = [bcs_vel_1]
-reg_solver = RegularizationSolver(S, mesh, beta=0.5, gamma=1e5, dx=dx, bcs=bcs_vel)
+reg_solver = RegularizationSolver(
+    S, mesh, beta=0.5, gamma=1e5, dx=dx, bcs=bcs_vel, sim_domain=0
+)
 
 
 reinit_pvd = File("reinit.pvd")
