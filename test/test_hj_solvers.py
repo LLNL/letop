@@ -69,7 +69,7 @@ def test_dg(error, p):
 
     phi0 = interpolate(phi_expr(0.0), V)
     bcs = DirichletBC(V, phi0, (1,), method="geometric")
-    hj_solver = HJLocalDG(mesh, V, bcs=bcs, hmin=hmin, n_steps=1)
+    hj_solver = HJLocalDG(bcs=bcs, hmin=hmin, n_steps=1)
     error_phi = time_loop(hj_solver, phi_expr, phi0)
 
     assert pytest.approx(error_phi, 1e-8) == error

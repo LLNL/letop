@@ -86,7 +86,7 @@ def check_elem_fe(elem_fe):
 
 
 class HJLocalDG(object):
-    def __init__(self, mesh, PHI, bcs=None, f=Constant(0.0), hmin=None, n_steps=1):
+    def __init__(self, bcs=None, f=Constant(0.0), hmin=None, n_steps=1):
         """Solver for the Hamilton Jacobi (HJ) PDE with a Local Discontinuous Galerkin method based on
             Jue Yan, Stanley Osher,
             A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
@@ -105,9 +105,6 @@ class HJLocalDG(object):
                                     Defaults to None.
             n_steps (int, optional): Number of time steps. Defaults to 1.
         """
-        check_elem_fe(PHI.ufl_element())
-        self.PHI = PHI
-        self.mesh = mesh
         self.f = f
         self.bcs = bcs
         self.hmin = hmin
@@ -132,6 +129,7 @@ class HJLocalDG(object):
 
         phi0 = phin.copy(deepcopy=True)
         DG0 = phi0.function_space()
+        check_elem_fe(DG0.ufl_element())
         mesh = DG0.ufl_domain()
         n = FacetNormal(mesh)
         phi = TrialFunction(DG0)
