@@ -29,22 +29,6 @@ from ufl import VectorElement
 from ufl.algebra import Abs
 from ufl.geometry import CellDiameter
 
-direct_parameters = {
-    "mat_type": "aij",
-    "ksp_type": "preonly",
-    "pc_type": "lu",
-    "pc_factor_mat_solver_type": "mumps",
-}
-
-iterative_parameters = {
-    "ksp_type": "cg",
-    "ksp_max_it": 2000,
-    "ksp_atol": 1e-9,
-    "ksp_rtol": 1e-9,
-    "pc_type": "bjacobi",
-    "ksp_converged_reason": None,
-}
-
 
 def max_component(vector1, vector2):
     """UFL implementation of max component wise between two vectors
@@ -75,11 +59,6 @@ class ReinitSolverDG(object):
         self.phi_solution = None
         self.phi_pvd = phi_pvd
         self.h_factor = h_factor
-
-        if iterative:
-            self.parameters = iterative_parameters
-        else:
-            self.parameters = direct_parameters
 
     @no_annotations
     def solve(self, phi0):
