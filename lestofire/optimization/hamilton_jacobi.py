@@ -20,15 +20,21 @@ from firedrake import (
     solve,
     sqrt,
 )
+import math
 from firedrake.bcs import DirichletBC
 from firedrake.functionspace import FunctionSpace
 from firedrake.mesh import ExtrudedMeshTopology
 from firedrake.ufl_expr import FacetNormal
 from firedrake.utility_meshes import UnitSquareMesh
+from firedrake.variational_solver import (
+    LinearVariationalProblem,
+    LinearVariationalSolver,
+)
 from pyadjoint import no_annotations
 from pyadjoint.tape import stop_annotating
 from ufl import VectorElement, as_vector
 from ufl.algebra import Abs
+from ufl import lhs, rhs
 
 
 def calculate_max_vel(velocity):
@@ -176,13 +182,6 @@ class HJLocalDG(object):
             "sub_pc_type": "ilu",
         }
 
-        p1_0 = Function(VDG0)
-        p2_0 = Function(VDG0)
-        from ufl import lhs, rhs
-
-        solve(lhs(a1) == rhs(a1), p1_0, solver_parameters=jacobi_solver)
-        solve(lhs(a2) == rhs(a2), p2_0, solver_parameters=jacobi_solver)
-
         def H(p):
             return inner(velocity, p)
 
@@ -202,24 +201,34 @@ class HJLocalDG(object):
 
         if self.hmin:
             maxv = calculate_max_vel(velocity)
-            self.dt = self.hmin / maxv * scaling
+            self.dt = self.hmin / maxv
+            self.n_steps = math.ceil(scaling / self.dt)
         else:
             self.dt = scaling
         dt = self.dt
+        print(f"time step: {self.dt}, n_steps: {self.n_steps}")
+
+        problem_phi_1 = LinearVariationalProblem(lhs(a1), rhs(a1), p1)
+        solver_phi_1 = LinearVariationalSolver(
+            problem_phi_1, solver_parameters=jacobi_solver
+        )
+
+        problem_phi_2 = LinearVariationalProblem(lhs(a2), rhs(a2), p2)
+        solver_phi_2 = LinearVariationalSolver(
+            problem_phi_2, solver_parameters=jacobi_solver
+        )
+
+        b = (phi - phi0) * rho / Constant(dt) * dx + (
+            H((p1 + p2) / Constant(2.0))
+            - Constant(1.0 / 2.0) * inner(alpha(p1, p2), (p1 - p2))
+        ) * rho * dx
+        problem_phi0 = LinearVariationalProblem(lhs(b), rhs(b), phi0)
+        solver_phi0 = LinearVariationalSolver(
+            problem_phi0, solver_parameters=jacobi_solver
+        )
+
         for j in range(self.n_steps):
-
-            solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
-            solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
-
-            b = (phi - phi0) * rho / Constant(dt) * dx + (
-                H((p1 + p2) / Constant(2.0))
-                - Constant(1.0 / 2.0) * inner(alpha(p1, p2), (p1 - p2))
-            ) * rho * dx
-            solve(
-                lhs(b) == rhs(b),
-                phi0,
-                bcs=self.bcs,
-                solver_parameters=jacobi_solver,
-            )
-
+            solver_phi_1.solve()
+            solver_phi_2.solve()
+            solver_phi0.solve()
         return phi0

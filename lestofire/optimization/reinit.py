@@ -19,6 +19,8 @@ from firedrake import (
     rhs,
     solve,
     sqrt,
+    LinearVariationalProblem,
+    LinearVariationalSolver,
 )
 from firedrake.bcs import DirichletBC
 from firedrake.norms import errornorm
@@ -190,20 +192,35 @@ class ReinitSolverDG(object):
         p1 = Function(VDG0)
         p2 = Function(VDG0)
         phin = Function(DG0)
+
+        problem_phi_1 = LinearVariationalProblem(lhs(a1), rhs(a1), p1)
+        solver_phi_1 = LinearVariationalSolver(
+            problem_phi_1, solver_parameters=jacobi_solver
+        )
+
+        problem_phi_2 = LinearVariationalProblem(lhs(a2), rhs(a2), p2)
+        solver_phi_2 = LinearVariationalSolver(
+            problem_phi_2, solver_parameters=jacobi_solver
+        )
+        dt = self.dt
+        b = (phi - phi0) * rho / Constant(dt) * dx + (
+            H((p1 + p2) / Constant(2.0))
+            - Constant(1.0 / 2.0) * inner(alpha(p1, p2), (p1 - p2))
+        ) * rho * dx
+
+        problem_phi0 = LinearVariationalProblem(lhs(b), rhs(b), phin)
+        solver_phi0 = LinearVariationalSolver(
+            problem_phi0, solver_parameters=jacobi_solver
+        )
         for j in range(self.n_steps):
-            solve(lhs(a1) == rhs(a1), p1, solver_parameters=jacobi_solver)
-            solve(lhs(a2) == rhs(a2), p2, solver_parameters=jacobi_solver)
+            solver_phi_1.solve()
+            solver_phi_2.solve()
 
             # if j % 1 == 0:
             if self.phi_pvd:
                 self.phi_pvd.write(phi0)
 
-            dt = self.dt
-            b = (phi - phi0) * rho / Constant(dt) * dx + (
-                H((p1 + p2) / Constant(2.0))
-                - Constant(1.0 / 2.0) * inner(alpha(p1, p2), (p1 - p2))
-            ) * rho * dx
-            solve(lhs(b) == rhs(b), phin, solver_parameters=jacobi_solver)
+            solver_phi0.solve()
             print(f"Residual: {errornorm(phi0, phin)}")
             phi0.assign(phin)
 
