@@ -30,7 +30,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Level set method parameters")
 parser.add_argument(
-    "--mu", action="store", dest="mu", type=float, help="Viscosity", default=0.02
+    "--mu", action="store", dest="mu", type=float, help="Viscosity", default=0.03
 )
 parser.add_argument(
     "--n_iters",
@@ -258,20 +258,20 @@ reg_solver = RegularizationSolver(
 
 
 reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
-hmin = 0.002
+hmin = 0.001
 hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 tol = 1e-5
-dt = 0.004
+dt = 0.02
 params = {
     "alphaC": 1.0,
     "debug": 5,
     "alphaJ": 1.0,
     "dt": dt,
-    "K": 4.0,
+    "K": 1e-3,
     "maxit": opts.n_iters,
     "maxtrials": 5,
     "itnormalisation": 10,
-    "tol_merit": 5e-2,  # new merit can be within 5% of the previous merit
+    "tol_merit": 5e-3,  # new merit can be within 0.5% of the previous merit
     # "normalize_tol" : -1,
     "tol": tol,
 }
@@ -285,5 +285,6 @@ problem = InfDimProblem(
         Constraint(P1hat, 1.0, P1control),
         Constraint(P2hat, 1.0, P2control),
     ],
+    reinit_steps=5,
 )
 results = nlspace_solve_shape(problem, params)
