@@ -94,6 +94,7 @@ class RegularizationSolver(object):
             V_DG0_B = FunctionSpace(mesh, "DG", 0)
             I_B = Function(V_DG0_B)
             I_B.assign(1.0)
+            # Set to zero all the cells within sim_domain
             par_loop(
                 ("{[i] : 0 <= i < f.dofs}", "f[i, 0] = 0.0"),
                 dx(sim_domain),

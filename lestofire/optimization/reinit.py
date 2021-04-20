@@ -30,6 +30,7 @@ from pyadjoint.tape import no_annotations
 from ufl import VectorElement
 from ufl.algebra import Abs
 from ufl.geometry import CellDiameter
+from pyop2.profiling import timed_function
 
 direct_parameters = {
     "mat_type": "aij",
@@ -77,6 +78,7 @@ class ReinitSolverDG(object):
         else:
             self.parameters = direct_parameters
 
+    @timed_function("Solve Reinitialization solver")
     @no_annotations
     def solve(self, phi0):
         """Jue Yan, Stanley Osher,

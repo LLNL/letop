@@ -35,6 +35,7 @@ from pyadjoint.tape import stop_annotating
 from ufl import VectorElement, as_vector
 from ufl.algebra import Abs
 from ufl import lhs, rhs
+from pyop2.profiling import timed_function
 
 
 def calculate_max_vel(velocity):
@@ -102,6 +103,7 @@ class HJLocalDG(object):
         self.dt = 1.0
         self.n_steps = n_steps
 
+    @timed_function("Solve Hamilton-Jacobi solver")
     @no_annotations
     def solve(self, velocity, phin, scaling=1.0):
         """Jue Yan, Stanley Osher,
