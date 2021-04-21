@@ -42,7 +42,7 @@ parser.add_argument(
     default=1000,
     help="Number of optimization iterations",
 )
-opts = parser.parse_args()
+opts, unknown = parser.parse_known_args()
 
 output_dir = "2D/"
 
@@ -77,7 +77,7 @@ temperature_parameters = parameters
 u_inflow = 1.0
 tin1 = Constant(10.0)
 tin2 = Constant(100.0)
-nu = Constant(1.0)
+nu = Constant(0.5)
 brinkmann_penalty = 1e4
 
 Re = u_inflow * width / mu.values()[0]
@@ -92,7 +92,13 @@ W = FunctionSpace(mesh, TH)
 # Stokes 1
 w_sol1 = Function(W)
 F1 = NavierStokesBrinkmannForm(
-    W, w_sol1, phi, nu, brinkmann_penalty=brinkmann_penalty, design_domain=0
+    W,
+    w_sol1,
+    -phi,
+    nu,
+    brinkmann_penalty=brinkmann_penalty,
+    design_domain=0,
+    no_flow_domain=[3, 5],
 )
 
 
@@ -117,7 +123,13 @@ bcs1 = [bcs1_1, bcs1_2, bcs1_3, bcs1_4, bcs1_5]
 # Stokes 2
 w_sol2 = Function(W)
 F2 = NavierStokesBrinkmannForm(
-    W, w_sol2, -phi, nu, brinkmann_penalty=brinkmann_penalty, design_domain=0
+    W,
+    w_sol2,
+    phi,
+    nu,
+    brinkmann_penalty=brinkmann_penalty,
+    design_domain=0,
+    no_flow_domain=[2, 4],
 )
 inflow2 = as_vector(
     [u_inflow * sin(((y - (line_sep + dist_center)) * pi) / inlet_width), 0.0]
@@ -190,10 +202,10 @@ t.rename("Temperature")
 
 File("temperature.pvd").write(t)
 
-power_drop = 1e1
+power_drop = 3e1
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
-scale_factor = 4e-4
+scale_factor = 4e-5
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 
@@ -243,10 +255,10 @@ reg_solver = RegularizationSolver(
 
 
 reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
-hmin = 0.001
+hmin = 0.0001
 hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 tol = 1e-5
-dt = 0.001
+dt = 0.005
 params = {
     "alphaC": 1.0,
     "debug": 5,
@@ -254,6 +266,7 @@ params = {
     "dt": dt,
     "K": 1e-3,
     "maxit": opts.n_iters,
+    # "maxit": 2,
     "maxtrials": 5,
     "itnormalisation": 10,
     "tol_merit": 5e-3,  # new merit can be within 0.5% of the previous merit

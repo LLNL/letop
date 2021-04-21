@@ -7,6 +7,7 @@ import ufl
 from .utils import hs
 from typing import Union
 from ufl.algebra import Product
+from functools import partial
 
 
 def NavierStokesBrinkmannForm(
@@ -56,8 +57,8 @@ def NavierStokesBrinkmannForm(
     )
 
     # Brinkmann terms for design
-    def add_measures(list_dd):
-        return sum([dx(dd) for dd in list_dd[1::]], dx(list_dd[0]))
+    def add_measures(list_dd, **kwargs):
+        return sum([dx(dd, kwargs) for dd in list_dd[1::]], dx(list_dd[0]))
 
     def alpha(phi):
         return Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min)
@@ -71,8 +72,8 @@ def NavierStokesBrinkmannForm(
         F = F + alpha(phi) * inner(u, v) * dx_brinkmann
 
     if no_flow_domain:
-        dx_no_flow = add_measures(Enlist(no_flow_domain))
-        F = F + brinkmann_penalty * inner(u, v) * dx_no_flow
+        dx_no_flow = partial(add_measures, Enlist(no_flow_domain))
+        F = F + Constant(brinkmann_penalty) * inner(u, v) * dx_no_flow()
 
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
@@ -101,6 +102,20 @@ def NavierStokesBrinkmannForm(
             design_domain is not None
         ):  # Substract this domain from the original integral
             F = F - tau_gls * inner(R_U, theta_U) * dx_brinkmann(degree=degree)
+    if no_flow_domain:
+        tau_gls_alpha = beta_gls * (
+            (4.0 * dot(u, u) / h ** 2)
+            + 9.0 * (4.0 * nu / h ** 2) ** 2
+            + (Constant(brinkmann_penalty) / 1.0) ** 2
+        ) ** (-0.5)
+        R_U_alpha = R_U + Constant(brinkmann_penalty) * u
+        theta_alpha = theta_U + Constant(brinkmann_penalty) * v
+
+        F = F + tau_gls_alpha * inner(R_U_alpha, theta_alpha) * dx_no_flow(
+            degree=degree
+        )
+        # Substract this domain from the original integral
+        F = F - tau_gls * inner(R_U, theta_U) * dx_no_flow(degree=degree)
     return F
 
 
