@@ -6,6 +6,8 @@ from lestofire import (
     RegularizationSolver,
     HJLocalDG,
     ReinitSolverDG,
+    NavierStokesBrinkmannForm,
+    NavierStokesBrinkmannSolver,
 )
 from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
@@ -40,7 +42,7 @@ parser.add_argument(
     default=1000,
     help="Number of optimization iterations",
 )
-opts = parser.parse_args()
+opts, unknown = parser.parse_known_args()
 
 output_dir = "2D/"
 
@@ -63,7 +65,7 @@ with stop_annotating():
 mu = Constant(opts.mu)  # viscosity
 alphamin = 1e-12
 alphamax = 2.5 / (2e-4)
-parameters = {
+solver_parameters = {
     "mat_type": "aij",
     "ksp_type": "preonly",
     "ksp_converged_reason": None,
@@ -72,41 +74,32 @@ parameters = {
 }
 stokes_parameters = parameters
 temperature_parameters = parameters
-u_inflow = 2e-3
+u_inflow = 1.0
 tin1 = Constant(10.0)
 tin2 = Constant(100.0)
+nu = Constant(0.5)
+brinkmann_penalty = 1e4
 
 Re = u_inflow * width / mu.values()[0]
 
 
-P2 = VectorElement("CG", mesh.ufl_cell(), 2)
+P2 = VectorElement("CG", mesh.ufl_cell(), 1)
 P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
 TH = P2 * P1
 W = FunctionSpace(mesh, TH)
 
-U = TrialFunction(W)
-u, p = split(U)
-V = TestFunction(W)
-v, q = split(V)
 
-
-epsilon = Constant(10000.0)
-
-
-def hs(phi, epsilon):
-    return Constant(alphamax) * Constant(1.0) / (
-        Constant(1.0) + exp(-epsilon * phi)
-    ) + Constant(alphamin)
-
-
-def stokes(phi, BLOCK_INLET_MOUTH, BLOCK_OUTLET_MOUTH):
-    a_fluid = mu * inner(grad(u), grad(v)) - div(v) * p - q * div(u)
-    darcy_term = inner(u, v)
-    return (
-        a_fluid * dx
-        + hs(phi, epsilon) * darcy_term * dx(0)
-        + alphamax * darcy_term * (dx(BLOCK_INLET_MOUTH) + dx(BLOCK_OUTLET_MOUTH))
-    )
+# Stokes 1
+w_sol1 = Function(W)
+F1 = NavierStokesBrinkmannForm(
+    W,
+    w_sol1,
+    -phi,
+    nu,
+    brinkmann_penalty=brinkmann_penalty,
+    design_domain=0,
+    no_flow_domain=[3, 5],
+)
 
 
 # Dirichelt boundary conditions
@@ -117,13 +110,9 @@ inflow1 = as_vector(
         0.0,
     ]
 )
-inflow2 = as_vector(
-    [u_inflow * sin(((y - (line_sep + dist_center)) * pi) / inlet_width), 0.0]
-)
 
 noslip = Constant((0.0, 0.0))
 
-# Stokes 1
 bcs1_1 = DirichletBC(W.sub(0), noslip, WALLS)
 bcs1_2 = DirichletBC(W.sub(0), inflow1, INLET1)
 bcs1_3 = DirichletBC(W.sub(1), Constant(0.0), OUTLET1)
@@ -132,6 +121,19 @@ bcs1_5 = DirichletBC(W.sub(0), noslip, OUTLET2)
 bcs1 = [bcs1_1, bcs1_2, bcs1_3, bcs1_4, bcs1_5]
 
 # Stokes 2
+w_sol2 = Function(W)
+F2 = NavierStokesBrinkmannForm(
+    W,
+    w_sol2,
+    phi,
+    nu,
+    brinkmann_penalty=brinkmann_penalty,
+    design_domain=0,
+    no_flow_domain=[2, 4],
+)
+inflow2 = as_vector(
+    [u_inflow * sin(((y - (line_sep + dist_center)) * pi) / inlet_width), 0.0]
+)
 bcs2_1 = DirichletBC(W.sub(0), noslip, WALLS)
 bcs2_2 = DirichletBC(W.sub(0), inflow2, INLET2)
 bcs2_3 = DirichletBC(W.sub(1), Constant(0.0), OUTLET2)
@@ -140,97 +142,93 @@ bcs2_5 = DirichletBC(W.sub(0), noslip, OUTLET1)
 bcs2 = [bcs2_1, bcs2_2, bcs2_3, bcs2_4, bcs2_5]
 
 # Forward problems
-U1, U2 = Function(W), Function(W)
-L = inner(Constant((0.0, 0.0, 0.0)), V) * dx
-problem = LinearVariationalProblem(stokes(-phi, INMOUTH2, OUTMOUTH2), L, U1, bcs=bcs1)
-nullspace = MixedVectorSpaceBasis(W, [W.sub(0), VectorSpaceBasis(constant=True)])
-solver_stokes1 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
-solver_stokes1.solve()
-problem = LinearVariationalProblem(stokes(phi, INMOUTH1, OUTMOUTH1), L, U2, bcs=bcs2)
-solver_stokes2 = LinearVariationalSolver(problem, solver_parameters=stokes_parameters)
-solver_stokes2.solve()
+problem1 = NonlinearVariationalProblem(F1, w_sol1, bcs=bcs1)
+problem2 = NonlinearVariationalProblem(F2, w_sol2, bcs=bcs2)
+solver1 = NonlinearVariationalSolver(problem1, solver_parameters=solver_parameters)
+solver1.solve()
+w_sol1_control = Control(w_sol1)
+solver2 = NonlinearVariationalSolver(problem2, solver_parameters=solver_parameters)
+solver2.solve()
+w_sol2_control = Control(w_sol2)
+
 
 # Convection difussion equation
-ks = Constant(1e0)
+k = Constant(1e-3)
 cp_value = 5.0e5
 cp = Constant(cp_value)
-T = FunctionSpace(mesh, "DG", 1)
-t = Function(T, name="Temperature")
-w = TestFunction(T)
+t1 = Constant(1.0)
+t2 = Constant(10.0)
 
 # Mesh-related functions
+u1, p1 = split(w_sol1)
+u2, p2 = split(w_sol2)
+
 n = FacetNormal(mesh)
 h = CellDiameter(mesh)
-u1, p1 = split(U1)
-u2, p2 = split(U2)
+T = FunctionSpace(mesh, "CG", 1)
+t, rho = Function(T), TestFunction(T)
+n = FacetNormal(mesh)
+beta = u1 + u2
+F = (inner(beta, grad(t)) * rho + k * inner(grad(t), grad(rho))) * dx - inner(
+    k * grad(t), n
+) * rho * (ds(OUTLET1) + ds(OUTLET2))
+
+R_U = dot(beta, grad(t)) - k * div(grad(t))
+beta_gls = 0.9
+h = CellSize(mesh)
+tau_gls = beta_gls * (
+    (4.0 * dot(beta, beta) / h ** 2) + 9.0 * (4.0 * k / h ** 2) ** 2
+) ** (-0.5)
+degree = 4
+
+theta_U = dot(beta, grad(rho)) - k * div(grad(rho))
+F_T = F + tau_gls * inner(R_U, theta_U) * dx(degree=degree)
 
 
-def upwind(u):
-    return (dot(u, n) + abs(dot(u, n))) / 2.0
+bc1 = DirichletBC(T, t1, INLET1)
+bc2 = DirichletBC(T, t2, INLET2)
+bcs = [bc1, bc2]
+problem_T = NonlinearVariationalProblem(F_T, t, bcs=bcs)
+solver_parameters = {
+    "ksp_type": "fgmres",
+    "snes_atol": 1e-7,
+    "pc_type": "hypre",
+    "pc_hypre_type": "euclid",
+    "ksp_max_it": 300,
+}
+solver_T = NonlinearVariationalSolver(problem_T, solver_parameters=solver_parameters)
+solver_T.solve()
+t.rename("Temperature")
 
+File("temperature.pvd").write(t)
 
-u1n = upwind(u1)
-u2n = upwind(u2)
-
-# Penalty term
-alpha = Constant(500.0)
-# Bilinear form
-a_int = dot(grad(w), ks * grad(t) - cp * (u1 + u2) * t) * dx
-
-a_fac = (
-    Constant(-1.0) * ks * dot(avg(grad(w)), jump(t, n)) * dS
-    + Constant(-1.0) * ks * dot(jump(w, n), avg(grad(t))) * dS
-    + ks("+") * (alpha("+") / avg(h)) * dot(jump(w, n), jump(t, n)) * dS
-)
-
-a_vel = (
-    dot(
-        jump(w),
-        cp * (u1n("+") + u2n("+")) * t("+") - cp * (u1n("-") + u2n("-")) * t("-"),
-    )
-    * dS
-    + dot(w, cp * (u1n + u2n) * t) * ds
-)
-
-a_bnd = (
-    dot(w, cp * dot(u1 + u2, n) * t) * (ds(INLET1) + ds(INLET2))
-    + w * t * (ds(INLET1) + ds(INLET2))
-    - w * tin1 * ds(INLET1)
-    - w * tin2 * ds(INLET2)
-    + alpha / h * ks * w * t * (ds(INLET1) + ds(INLET2))
-    - ks * dot(grad(w), t * n) * (ds(INLET1) + ds(INLET2))
-    - ks * dot(grad(t), w * n) * (ds(INLET1) + ds(INLET2))
-)
-
-aT = a_int + a_fac + a_vel + a_bnd
-
-LT_bnd = (
-    alpha / h * ks * tin1 * w * ds(INLET1)
-    + alpha / h * ks * tin2 * w * ds(INLET2)
-    - tin1 * ks * dot(grad(w), n) * ds(INLET1)
-    - tin2 * ks * dot(grad(w), n) * ds(INLET2)
-)
-eT = aT - LT_bnd
-
-problem = NonlinearVariationalProblem(eT, t)
-solver_temp = NonlinearVariationalSolver(
-    problem, solver_parameters=temperature_parameters
-)
-solver_temp.solve()
-
-power_drop = 1e-2
+power_drop = 3e1
 Power1 = assemble(p1 / power_drop * ds(INLET1))
 Power2 = assemble(p2 / power_drop * ds(INLET2))
-scale_factor = 4e-4
+scale_factor = 4e-5
 Jform = assemble(Constant(-scale_factor * cp_value) * inner(t * u1, n) * ds(OUTLET1))
 
 
 phi_pvd = File("phi_evolution.pvd")
 
 
+flow_pvd = File("flow_opti.pvd")
+
+
+w_pvd_1 = Function(W)
+w_pvd_2 = Function(W)
+
+
 def deriv_cb(phi):
     with stop_annotating():
         phi_pvd.write(phi[0])
+        w_pvd_1.assign(w_sol1_control.tape_value())
+        u1, p1 = w_pvd_1.split()
+        u1.rename("vel1")
+        w_pvd_2.assign(w_sol2_control.tape_value())
+        u2, p2 = w_pvd_2.split()
+        u2.rename("vel2")
+        flow_pvd.write(u1, u2)
 
 
 c = Control(s)
@@ -243,7 +241,6 @@ P1control = Control(Power1)
 P2hat = LevelSetFunctional(Power2, c, phi)
 P2control = Control(Power2)
 
-tape = get_working_tape()
 Jhat_v = Jhat(phi)
 print("Initial cost function value {:.5f}".format(Jhat_v), flush=True)
 print("Power drop 1 {:.5f}".format(Power1), flush=True)
@@ -253,15 +250,15 @@ print("Power drop 2 {:.5f}".format(Power2), flush=True)
 velocity = Function(S)
 beta_param = 0.08
 reg_solver = RegularizationSolver(
-    S, mesh, beta=beta_param, gamma=1e5, dx=dx, design_domain=0
+    S, mesh, beta=beta_param, gamma=1e5, dx=dx, sim_domain=0
 )
 
 
-reinit_solver = ReinitSolverDG(n_steps=20, dt=1e-3)
-hmin = 0.001
-hj_solver = HJLocalDG(hmin=hmin)
+reinit_solver = ReinitSolverDG(mesh, n_steps=20, dt=1e-3)
+hmin = 0.0001
+hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 tol = 1e-5
-dt = 0.02
+dt = 0.005
 params = {
     "alphaC": 1.0,
     "debug": 5,
@@ -269,6 +266,7 @@ params = {
     "dt": dt,
     "K": 1e-3,
     "maxit": opts.n_iters,
+    # "maxit": 2,
     "maxtrials": 5,
     "itnormalisation": 10,
     "tol_merit": 5e-3,  # new merit can be within 0.5% of the previous merit
