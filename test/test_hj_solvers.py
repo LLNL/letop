@@ -35,7 +35,7 @@ def time_loop(hj_solver, phi_expr, phi0):
     phi_n = interpolate(phi_expr(0.0), V)
     phi_exact = interpolate(phi_expr(0.0), V)
 
-    for i in range(50):
+    for i in range(100):
 
         # Solve
         phi0.interpolate(phi_expr(t))
@@ -46,21 +46,22 @@ def time_loop(hj_solver, phi_expr, phi0):
 
         phi_exact.interpolate(phi_expr(t))
         error_phi = errornorm(phi_exact, phi_n)
+        print(f"error: {error_phi}")
     return error_phi
 
 
 @pytest.mark.parametrize(
     "error, p",
     [
-        (0.006192889800985826, 0),
-        (0.0032936167264323423, 1),
+        (0.01851087204462283, 0),
+        (0.0032395784050385204, 1),
     ],
 )
 def test_dg(error, p):
 
     mesh = UnitSquareMesh(N, N)
     V = FunctionSpace(mesh, "DG", p)
-    hmin = np.sqrt(2.0 / (N * N))
+    hmin = (1.0 / N * 0.5) * (0.1) ** p
 
     X = SpatialCoordinate(mesh)
 

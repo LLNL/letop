@@ -93,7 +93,7 @@ def check_elem_fe(elem_fe):
 
 
 class HJLocalDG(object):
-    def __init__(self, bcs=None, f=Constant(0.0), hmin=None, n_steps=1):
+    def __init__(self, bcs=None, f=Constant(0.0), hmin=None, n_steps=None):
         """Solver for the Hamilton Jacobi (HJ) PDE with a Local Discontinuous Galerkin method based on
             Jue Yan, Stanley Osher,
             A local discontinuous Galerkin method for directly solving Hamilton–Jacobi equations,
@@ -218,7 +218,8 @@ class HJLocalDG(object):
         if self.hmin:
             maxv = calculate_max_vel(velocity)
             self.dt = self.hmin / maxv
-            self.n_steps = math.ceil(scaling / self.dt)
+            if self.n_steps is None:
+                self.n_steps = math.ceil(scaling / self.dt)
         else:
             self.dt = scaling
         dt = self.dt
@@ -238,7 +239,7 @@ class HJLocalDG(object):
             H((p1 + p2) / Constant(2.0))
             - Constant(1.0 / 2.0) * inner(alpha(p1, p2), (p1 - p2))
         ) * rho * dx
-        problem_phi0 = LinearVariationalProblem(lhs(b), rhs(b), phi0)
+        problem_phi0 = LinearVariationalProblem(lhs(b), rhs(b), phi0, bcs=self.bcs)
         solver_phi0 = LinearVariationalSolver(
             problem_phi0, solver_parameters=jacobi_solver
         )
