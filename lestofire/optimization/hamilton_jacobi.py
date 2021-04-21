@@ -219,11 +219,13 @@ class HJLocalDG(object):
             maxv = calculate_max_vel(velocity)
             self.dt = self.hmin / maxv
             if self.n_steps is None:
-                self.n_steps = math.ceil(scaling / self.dt)
+                n_steps = math.ceil(scaling / self.dt)
+            else:
+                n_steps = self.n_steps
         else:
             self.dt = scaling
         dt = self.dt
-        print(f"time step: {self.dt}, n_steps: {self.n_steps}")
+        print(f"time step: {self.dt}, n_steps: {n_steps}")
 
         problem_phi_1 = LinearVariationalProblem(lhs(a1), rhs(a1), p1)
         solver_phi_1 = LinearVariationalSolver(
@@ -244,7 +246,7 @@ class HJLocalDG(object):
             problem_phi0, solver_parameters=jacobi_solver
         )
 
-        for j in range(self.n_steps):
+        for j in range(n_steps):
             solver_phi_1.solve()
             solver_phi_2.solve()
             solver_phi0.solve()
