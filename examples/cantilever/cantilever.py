@@ -96,7 +96,7 @@ with stop_annotating():
     File("u_sol.pvd").write(u_sol)
 
 Jform = assemble(
-    Constant(100.0) * inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx
+    Constant(1.0) * inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx
 )
 
 with stop_annotating():
@@ -129,7 +129,8 @@ reg_solver = RegularizationSolver(
     S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
 )
 reinit_solver = ReinitSolverDG(mesh, n_steps=10, dt=1e-3)
-hj_solver = HJLocalDG(mesh, PHI)
+hmin = 0.0001
+hj_solver = HJLocalDG(mesh, PHI, hmin=hmin)
 dt = 0.0001
 tol = 1e-5
 
@@ -147,10 +148,10 @@ parameters = {
 }
 
 params = {
-    "alphaC": 10.0,
+    "alphaC": 1.0,
     "K": 0.1,
     "debug": 5,
-    "alphaJ": 10.0,
+    "alphaJ": 1.0,
     "dt": dt,
     "maxtrials": 10,
     "maxit": opts.n_iters,
