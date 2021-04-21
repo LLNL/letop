@@ -16,7 +16,7 @@ def min_mesh_size(mesh):
     """
     DG0 = fd.FunctionSpace(mesh, "DG", 0)
     h_sizes = fd.assemble(
-        fd.CellDiameter(mesh) * fd.TestFunction(DG0) * fd.dx
+        fd.CellDiameter(mesh) / fd.CellVolume(mesh) * fd.TestFunction(DG0) * fd.dx
     ).dat.data_ro
     local_min_size = np.max(h_sizes)
     return local_min_size

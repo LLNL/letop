@@ -16,10 +16,12 @@ from firedrake import (
     READ,
     RW,
     File,
+    warning,
 )
 from pyadjoint.enlisting import Enlist
 from pyadjoint import no_annotations
 from firedrake.mesh import ExtrudedMeshTopology
+from lestofire.physics import min_mesh_size
 
 from ufl import grad, inner, dot, dx, ds
 from ufl import ds_b, ds_t, ds_tb, ds_v
@@ -70,6 +72,12 @@ class RegularizationSolver(object):
         n = FacetNormal(mesh)
         theta, xi = [TrialFunction(S), TestFunction(S)]
         self.xi = xi
+
+        hmin = min_mesh_size(mesh)
+        if beta > 20.0 * hmin:
+            warning(
+                f"Length scale parameter beta ({beta}) is much larger than the mesh size {hmin}"
+            )
 
         self.beta_param = Constant(beta)
 
