@@ -86,6 +86,7 @@ def NavierStokesBrinkmannForm(
 
     theta_U = dot(u, grad(v)) - nu * div(grad(v)) + grad(q)
     F = F + tau_gls * inner(R_U, theta_U) * dx(degree=degree)
+
     if brinkmann_penalty:
         tau_gls_alpha = beta_gls * (
             (4.0 * dot(u, u) / h ** 2)
@@ -102,6 +103,7 @@ def NavierStokesBrinkmannForm(
             design_domain is not None
         ):  # Substract this domain from the original integral
             F = F - tau_gls * inner(R_U, theta_U) * dx_brinkmann(degree=degree)
+
     if no_flow_domain:
         tau_gls_alpha = beta_gls * (
             (4.0 * dot(u, u) / h ** 2)
@@ -131,9 +133,9 @@ class NavierStokesBrinkmannSolver(object):
             "snes_type": "newtonls",
             "snes_linesearch_type": "l2",
             "snes_linesearch_maxstep": 1.0,
-            "snes_monitor": None,
-            "snes_linesearch_monitor": None,
-            "snes_rtol": 1.0e-4,
+            # "snes_monitor": None,
+            # "snes_linesearch_monitor": None,
+            "snes_rtol": 1.0e-5,
             "snes_atol": 1.0e-8,
             "snes_stol": 0.0,
             "snes_max_linear_solve_fail": 10,
@@ -141,7 +143,7 @@ class NavierStokesBrinkmannSolver(object):
             "ksp_type": "fgmres",
             "mat_type": "aij",
             # "default_sub_matrix_type": "aij",
-            "ksp_rtol": 1.0e-4,
+            "ksp_rtol": 1.0e-5,
             "ksp_atol": 1.0e-8,
             "ksp_max_it": 2000,
             # "ksp_monitor": None,
