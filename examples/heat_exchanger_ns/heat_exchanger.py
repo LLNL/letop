@@ -1,14 +1,9 @@
 from firedrake import *
 from firedrake_adjoint import *
 
-from lestofire import (
-    LevelSetFunctional,
-    RegularizationSolver,
-    HJLocalDG,
-    ReinitSolverDG,
-    NavierStokesBrinkmannForm,
-    NavierStokesBrinkmannSolver,
-)
+from lestofire.levelset import LevelSetFunctional, RegularizationSolver
+from lestofire.optimization import HJLocalDG, ReinitSolverDG
+from lestofire.physics import NavierStokesBrinkmannForm, NavierStokesBrinkmannSolver
 from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
 from params import (

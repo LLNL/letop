@@ -18,7 +18,7 @@ from firedrake import (
     conditional,
 )
 import numpy as np
-from lestofire import RegularizationSolver
+from lestofire.levelset import RegularizationSolver
 
 
 def regularization_form(r):

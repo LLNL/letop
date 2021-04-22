@@ -6,12 +6,8 @@ from ufl import min_value, max_value
 
 from mesh_stokes_flow import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, WALLS
 
-from lestofire import (
-    LevelSetFunctional,
-    RegularizationSolver,
-    HJStabSolver,
-    ReinitSolver
-)
+from lestofire.levelset import LevelSetFunctional, RegularizationSolver
+from lestofire.optimization import HJLocalDG, ReinitSolverDG
 from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 from pyadjoint import no_annotations, stop_annotating
 
@@ -100,10 +96,10 @@ def main():
     c = Control(s)
 
     phi_pvd = File("phi_evolution.pvd")
+
     def deriv_cb(phi):
         with stop_annotating():
             phi_pvd.write(phi[0])
-
 
     Jhat = LevelSetFunctional(J, c, phi, derivative_cb_pre=deriv_cb)
     Vhat = LevelSetFunctional(Vol, c, phi)
@@ -127,11 +123,7 @@ def main():
 
     vol_constraint = Constraint(Vhat, Vval, VControl)
     problem = InfDimProblem(
-        Jhat,
-        reg_solver,
-        hj_solver,
-        reinit_solver,
-        ineqconstraints=vol_constraint
+        Jhat, reg_solver, hj_solver, reinit_solver, ineqconstraints=vol_constraint
     )
 
     parameters = {

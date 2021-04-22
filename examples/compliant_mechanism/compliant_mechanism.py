@@ -1,16 +1,9 @@
 from firedrake import *
 from firedrake_adjoint import *
 
-from lestofire import (
-    LevelSetFunctional,
-    RegularizationSolver,
-    HJDG,
-    HJLocalDG,
-    ReinitSolverDG,
-    nlspace_solve_shape,
-    Constraint,
-    InfDimProblem,
-)
+from lestofire.levelset import LevelSetFunctional, RegularizationSolver
+from lestofire.optimization import HJLocalDG, ReinitSolverDG
+from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
 
 from pyadjoint import no_annotations
 from params import SPRING, LOAD, DIRCH, FIXED
