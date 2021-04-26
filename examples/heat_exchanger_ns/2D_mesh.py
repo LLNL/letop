@@ -1,6 +1,6 @@
 import pygmsh as pg
-from params import height, width, dist_center, inlet_width, inlet_depth, line_sep, ymin1, ymin2
-from params import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, INLET1, INLET2, OUTLET1, OUTLET2, WALLS, DOMAIN
+from parameters import height, width, dist_center, inlet_width, inlet_depth, line_sep, ymin1, ymin2
+from parameters import INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH2, INLET1, INLET2, OUTLET1, OUTLET2, WALLS, DOMAIN
 
 def main():
     #geom = pg.built_in.Geometry()
