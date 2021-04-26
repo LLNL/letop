@@ -44,3 +44,30 @@ def hs(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
         epsilon = fd.Constant(math.log(0.95 ** 2 / 0.05 ** 2) / (width_h * hmin))
 
     return fd.Constant(1.0) / (fd.Constant(1.0) + ufl.exp(-epsilon * phi))
+
+
+def dirac_delta(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
+    """Dirac delta approximation
+
+    Args:
+        phi (fd.Function): Level set
+        epsilon ([type], optional): Parameter to approximate the Heaviside. Defaults to Constant(10000.0).
+        width_h (float): Width of the Heaviside approximation transition in terms of multiple of the mesh element size
+
+    Returns:
+        [type]: [description]
+    """
+    if width_h:
+        if epsilon:
+            fd.warning(
+                "Epsilon and width_h are both defined, pick one or the other. Overriding epsilon choice"
+            )
+        mesh = phi.ufl_domain()
+        hmin = min_mesh_size(mesh)
+        epsilon = fd.Constant(math.log(0.95 ** 2 / 0.05 ** 2) / (width_h * hmin))
+
+    return (
+        fd.Constant(epsilon)
+        * ufl.exp(-epsilon * phi)
+        / (fd.Constant(1.0) + ufl.exp(-epsilon * phi)) ** 2
+    )
