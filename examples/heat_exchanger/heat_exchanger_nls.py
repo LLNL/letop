@@ -19,7 +19,7 @@ from firedrake import (
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.optimization import HJLocalDG, ReinitSolverDG
 from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
-from .parameters import (
+from parameters import (
     INMOUTH2,
     INMOUTH1,
     line_sep,
@@ -30,7 +30,6 @@ from .parameters import (
     INLET2,
     OUTLET1,
     OUTLET2,
-    width,
     OUTMOUTH1,
     OUTMOUTH2,
 )
@@ -302,7 +301,7 @@ def heat_exchanger_optimization():
         ],
         reinit_steps=5,
     )
-    results = nlspace_solve_shape(problem, params)
+    _ = nlspace_solve_shape(problem, params)
 
 
 if __name__ == "__main__":

@@ -28,8 +28,10 @@ def hs(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
 
     Args:
         phi (fd.Function): Level set
-        epsilon ([type], optional): Parameter to approximate the Heaviside. Defaults to Constant(10000.0).
-        width_h (float): Width of the Heaviside approximation transition in terms of multiple of the mesh element size
+        epsilon ([type], optional): Parameter to approximate the Heaviside.
+        Defaults to Constant(10000.0).
+        width_h (float): Width of the Heaviside approximation transition in
+        terms of multiple of the mesh element size
 
     Returns:
         [type]: [description]
@@ -37,7 +39,8 @@ def hs(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
     if width_h:
         if epsilon:
             fd.warning(
-                "Epsilon and width_h are both defined, pick one or the other. Overriding epsilon choice"
+                "Epsilon and width_h are both defined, pick one or the other. \
+                Overriding epsilon choice"
             )
         mesh = phi.ufl_domain()
         hmin = min_mesh_size(mesh)
@@ -51,8 +54,10 @@ def dirac_delta(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
 
     Args:
         phi (fd.Function): Level set
-        epsilon ([type], optional): Parameter to approximate the Heaviside. Defaults to Constant(10000.0).
-        width_h (float): Width of the Heaviside approximation transition in terms of multiple of the mesh element size
+        epsilon ([type], optional): Parameter to approximate the Heaviside.
+        Defaults to Constant(10000.0).
+        width_h (float): Width of the Heaviside approximation transition in
+        terms of multiple of the mesh element size
 
     Returns:
         [type]: [description]
@@ -60,7 +65,8 @@ def dirac_delta(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
     if width_h:
         if epsilon:
             fd.warning(
-                "Epsilon and width_h are both defined, pick one or the other. Overriding epsilon choice"
+                "Epsilon and width_h are both defined, pick one or the other. \
+                Overriding epsilon choice"
             )
         mesh = phi.ufl_domain()
         hmin = min_mesh_size(mesh)

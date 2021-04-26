@@ -172,7 +172,7 @@ def compliance_optimization():
         "itnormalisation": 50,
         "tol": tol,
     }
-    results = nlspace_solve_shape(problem, params)
+    _ = nlspace_solve_shape(problem, params)
 
 
 if __name__ == "__main__":
