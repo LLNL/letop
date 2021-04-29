@@ -20,10 +20,6 @@ from ufl import sin
 N = 50
 
 
-@pytest.fixture(scope="module")
-def mesh():
-    return UnitSquareMesh(N, N)
-
 
 @pytest.mark.parametrize(
     "test_mesh,x_shift,error, p",
