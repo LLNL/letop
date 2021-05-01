@@ -143,14 +143,13 @@ def compliance_optimization():
     reinit_solver = ReinitSolverDG(n_steps=10, dt=1e-3)
     hmin = 0.0001
     # Hamilton-Jacobi equation to advect the level set
-    hj_solver = HJLocalDG(hmin=hmin)
     dt = 0.001
     tol = 1e-5
 
     # Optimization problem
     vol_constraint = Constraint(Vhat, Vval, VolControl)
     problem = InfDimProblem(
-        Jhat, reg_solver, hj_solver, reinit_solver, ineqconstraints=vol_constraint
+        Jhat, reg_solver, reinit_solver, ineqconstraints=vol_constraint
     )
 
     parameters = {
