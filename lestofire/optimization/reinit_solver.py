@@ -17,16 +17,28 @@ class ReinitializationSolver(object):
     def __init__(
         self,
         V,
-        h_factor,
+        h_factor: float,
         monitor_callback=None,
-        stopping_criteria=0.1,
+        stopping_criteria: float = 0.1,
+        poststep: bool = True,
         solver_parameters: dict = None,
     ) -> None:
+        """Reinitialization solver
+
+        Args:
+            V ([type]): [description]
+            h_factor (float): Used to approximate the signed distance function
+            monitor_callback ([type], optional): [description]. Defaults to None.
+            stopping_criteria (float, optional): Min value for the time derivative. Defaults to 0.1.
+            poststep (bool, optional): Choose to add the postep (to check the stopping criteria). Defaults to True
+            solver_parameters (dict, optional): [description]. Defaults to None.
+        """
         self.h_factor = h_factor
         self.monitor_callback = Enlist(monitor_callback)
         self.error_prev = 1.0
         self.stopping_criteria = stopping_criteria
         self.solver_parameters = solver_parameters
+        self.poststep = poststep
 
         pass
 
@@ -102,7 +114,8 @@ class ReinitializationSolver(object):
             solver_parameters=self.solver_parameters,
             monitor_callback=self.monitor_callback,
         )
-        solver.ts.setPostStep(poststep)
+        if self.poststep:
+            solver.ts.setPostStep(poststep)
         solver.solve()
 
         return phi0

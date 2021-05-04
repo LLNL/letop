@@ -35,13 +35,12 @@ def test_cone(test_mesh, x_shift, error, p):
 
     solver_parameters = {
         "ts_type": "rk",
-        # "ts_view": None,
         "ts_rk_type": "5dp",
         "ts_atol": 1e-5,
         "ts_rtol": 1e-5,
         "ts_dt": 1e-3,
         "ts_converged_reason": None,
-        # "ts_monitor": None,
+        "ts_monitor": None,
         "ts_adapt_type": "dsp",
     }
     solver = ReinitializationSolver(
@@ -49,6 +48,7 @@ def test_cone(test_mesh, x_shift, error, p):
         5.0,
         monitor_callback=monitor,
         stopping_criteria=0.0,
+        poststep=False,
         solver_parameters=solver_parameters,
     )
 
@@ -87,13 +87,6 @@ def test_monitor(test_mesh, x_shift, error, p):
         print(f"Error: {fd.errornorm(phi_prev, phi_sol)}")
         phi_prev.assign(phi_sol)
 
-    solver = ReinitializationSolver(DGp, 5.0, monitor_callback=monitor)
-
-    radius = 0.2
-    x, y = fd.SpatialCoordinate(test_mesh)
-    phi_init = (x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5) - radius * radius
-    phi0 = fd.Function(DGp).interpolate(phi_init)
-
     solver_parameters = {
         "ts_type": "rk",
         "ts_view": None,
@@ -104,7 +97,20 @@ def test_monitor(test_mesh, x_shift, error, p):
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
     }
-    phin = solver.solve(phi0, 0.4, solver_parameters=solver_parameters)
+    solver = ReinitializationSolver(
+        DGp,
+        5.0,
+        monitor_callback=monitor,
+        solver_parameters=solver_parameters,
+        poststep=False,
+    )
+
+    radius = 0.2
+    x, y = fd.SpatialCoordinate(test_mesh)
+    phi_init = (x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5) - radius * radius
+    phi0 = fd.Function(DGp).interpolate(phi_init)
+
+    phin = solver.solve(phi0, 0.4)
     phi_solution = fd.interpolate(
         sqrt((x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5)) - radius, DGp
     )

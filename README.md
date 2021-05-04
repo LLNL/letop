@@ -31,3 +31,8 @@ Make use of the pyadjoint context manager `stop_annotating()` and the decorator 
 
 - When using `interpolate()` or `project` from Firedrake as they might annotate unnecessary operations and render the shape derivatives wrong.
 - Similarly, when extending Lestofire routines, make sure you are not annotating additional operations as Firedrake annotates everything by default when importing `firedrake_adjoint`.
+
+## Heuristics to keep in mind
+
+- The isocontours of the level set must have enough mesh resolution, otherwise the reinitialization solver might fail.
+- If the level set is unstable during the optimization, tune the accuracy of the Hamilton-Jacobi solver by settings the options `hj_ts_atol` and `hj_ts_rtol` in `InfDimProblem`'s `solver_parameters` argument. It could also be that the optimization "time step" `dt` is too high.
