@@ -9,7 +9,6 @@ from firedrake.bcs import DirichletBC
 from firedrake.linear_solver import LinearSolver
 from firedrake.petsc import OptionsManager, PETSc
 from firedrake.ufl_expr import FacetNormal
-from firedrake_ts.solving_utils import check_ts_convergence
 from ufl import Max, as_vector, diag, outer, lhs, rhs
 from pyadjoint.enlisting import Enlist
 
@@ -17,6 +16,35 @@ from .hj_context import _HJContext
 from typing import Union, List, Callable, Tuple
 from functools import lru_cache
 from ufl import Form
+
+
+def _make_reasons(reasons):
+    return dict(
+        [(getattr(reasons, r), r) for r in dir(reasons) if not r.startswith("_")]
+    )
+
+
+TSReasons = _make_reasons(PETSc.TS.ConvergedReason())
+
+
+def check_ts_convergence(ts):
+    r = ts.getConvergedReason()
+    # TODO: submit PR to petsc4py to add the following reasons
+    # TSFORWARD_DIVERGED_LINEAR_SOLVE = -3,
+    # TSADJOINT_DIVERGED_LINEAR_SOLVE = -4
+    if r == -3:
+        raise fd.ConvergenceError(
+            "TS solve failed to converge. Reason: TSFORWARD_DIVERGED_LINEAR_SOLVE"
+        )
+    if r == -4:
+        raise fd.ConvergenceError(
+            "TS solve failed to converge. Reason: TSADJOINT_DIVERGED_LINEAR_SOLVE"
+        )
+    reason = TSReasons[r]
+    if r < 0:
+        raise fd.ConvergenceError(
+            f"TS solve failed to converge after {ts.getStepNumber()} iterations. Reason: {reason}"
+        )
 
 
 @lru_cache(1000)
