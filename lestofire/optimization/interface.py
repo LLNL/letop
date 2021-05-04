@@ -256,6 +256,8 @@ class InfDimProblem(object):
     def retract(self, phi_n, delta_x, scaling=1):
         self.hj_solver.ts.setMaxTime(scaling)
         phi_n = self.hj_solver.solve(phi_n)
+        n_steps = self.hj_solver.ts.getStepNumber()
+        print(f"HJ Solver finished in {n_steps} steps")
         conv = self.hj_solver.ts.getConvergedReason()
         if conv == 2:
             fd.warning(
