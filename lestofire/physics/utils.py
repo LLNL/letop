@@ -23,7 +23,12 @@ def min_mesh_size(mesh):
     return local_min_size
 
 
-def hs(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
+def hs(
+    phi: fd.Function,
+    epsilon: fd.Constant = fd.Constant(10000.0),
+    width_h: float = None,
+    shift: float = 0.0,
+):
     """Heaviside approximation
 
     Args:
@@ -32,6 +37,7 @@ def hs(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
         Defaults to Constant(10000.0).
         width_h (float): Width of the Heaviside approximation transition in
         terms of multiple of the mesh element size
+        shift: (float): Shift the level set value to define the interface.
 
     Returns:
         [type]: [description]
@@ -44,9 +50,11 @@ def hs(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
             )
         mesh = phi.ufl_domain()
         hmin = min_mesh_size(mesh)
-        epsilon = fd.Constant(math.log(0.95 ** 2 / 0.05 ** 2) / (width_h * hmin))
+        epsilon = fd.Constant(math.log(0.99 ** 2 / 0.01 ** 2) / (width_h * hmin))
 
-    return fd.Constant(1.0) / (fd.Constant(1.0) + ufl.exp(-epsilon * phi))
+    return fd.Constant(1.0) / (
+        fd.Constant(1.0) + ufl.exp(-epsilon * (phi - fd.Constant(shift)))
+    )
 
 
 def dirac_delta(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):

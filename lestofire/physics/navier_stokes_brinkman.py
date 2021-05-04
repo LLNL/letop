@@ -5,7 +5,7 @@ from firedrake.function import Function
 from pyadjoint.enlisting import Enlist
 import ufl
 from .utils import hs
-from typing import Union
+from typing import Callable, Union
 from ufl.algebra import Product
 from functools import partial
 
@@ -19,6 +19,7 @@ def NavierStokesBrinkmannForm(
     brinkmann_min=0.0,
     design_domain=None,
     no_flow_domain=None,
+    hs: Callable = hs,
 ) -> ufl.form:
     """Returns the Galerkin Least Squares formulation for the Navier-Stokes problem with a Brinkmann term
 
