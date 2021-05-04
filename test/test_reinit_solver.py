@@ -10,15 +10,15 @@ N = 50
 @pytest.mark.parametrize(
     "test_mesh,x_shift,error, p",
     [
-        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.051326588312199745, 0),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05447032030474453, 0),
-        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02172097234980319, 0),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.018930025053364902, 0),
-        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.056360176396345746, 1),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05428718022564955, 1),
-        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.023154545651903394, 1),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.018158858201365733, 1),
-        (fd.UnitSquareMesh(12, 12, quadrilateral=True), 0.5, 0.055021199124857104, 2),
+        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.051679991911252984, 0),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05467660491552649, 0),
+        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.022107216282791796, 0),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.019569327325334684, 0),
+        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.056456035431546446, 1),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05434256956234183, 1),
+        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02372197275119883, 1),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.01832726713117936, 1),
+        (fd.UnitSquareMesh(12, 12, quadrilateral=True), 0.5, 0.05845317085436576, 2),
     ],
 )
 def test_cone(test_mesh, x_shift, error, p):
@@ -42,6 +42,7 @@ def test_cone(test_mesh, x_shift, error, p):
         "ts_converged_reason": None,
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
+        "ts_exact_final_time": "matchstep",
     }
     solver = ReinitializationSolver(
         DGp,
@@ -68,7 +69,7 @@ def test_cone(test_mesh, x_shift, error, p):
 @pytest.mark.parametrize(
     "test_mesh,x_shift,error, p",
     [
-        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.051326588312199745, 0),
+        (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.051679991911252984, 0),
     ],
 )
 def test_monitor(test_mesh, x_shift, error, p):
@@ -96,6 +97,7 @@ def test_monitor(test_mesh, x_shift, error, p):
         "ts_dt": 1e-3,
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
+        "ts_exact_final_time": "matchstep",
     }
     solver = ReinitializationSolver(
         DGp,
