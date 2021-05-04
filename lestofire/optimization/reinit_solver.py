@@ -15,17 +15,23 @@ from firedrake import PETSc
 
 class ReinitializationSolver(object):
     def __init__(
-        self, V, h_factor, monitor_callback=None, stopping_criteria=0.1
+        self,
+        V,
+        h_factor,
+        monitor_callback=None,
+        stopping_criteria=0.1,
+        solver_parameters: dict = None,
     ) -> None:
         self.h_factor = h_factor
         self.monitor_callback = Enlist(monitor_callback)
         self.error_prev = 1.0
         self.stopping_criteria = stopping_criteria
+        self.solver_parameters = solver_parameters
 
         pass
 
     @no_annotations
-    def solve(self, phi0: fd.Function, total_t: float, solver_parameters: dict = None):
+    def solve(self, phi0: fd.Function, total_t: float = 1.0):
         V = phi0.function_space()
         mesh = V.ufl_domain()
         F1 = flux_exterior_form(phi0, reinit=True)
@@ -48,9 +54,14 @@ class ReinitializationSolver(object):
                 x.copy(v)
             self.error_prev = fd.errornorm(phi_prev, phi_current)
             time_deriv = self.error_prev / ts.getTimeStep()
+            print(f"Residual: {time_deriv}")
 
-            if time_deriv < self.stopping_criteria:
+            current_t = ts.getTime()
+            current_dt = ts.getTimeStep()
+            if time_deriv < self.stopping_criteria or current_t > current_dt * 20:
                 ts.setConvergedReason(PETSc.TS.ConvergedReason.CONVERGED_USER)
+            elif time_deriv > 1e5 and ts.getStepNumber() > 5:
+                ts.setConvergedReason(PETSc.TS.ConvergedReason.DIVERGED_STEP_REJECTED)
             phi_prev.assign(phi_current)
 
         VDG0 = flux_function_space(V)
@@ -88,10 +99,9 @@ class ReinitializationSolver(object):
         )
         solver = HamiltonJacobiSolver(
             problem,
-            solver_parameters=solver_parameters,
+            solver_parameters=self.solver_parameters,
             monitor_callback=self.monitor_callback,
         )
-        # self.monitor_callback.append(monitor)
         solver.ts.setPostStep(poststep)
         solver.solve()
 

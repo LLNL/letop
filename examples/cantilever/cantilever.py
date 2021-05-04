@@ -15,8 +15,8 @@ from firedrake import (
 )
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import HJLocalDG, ReinitSolverDG
-from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
+from lestofire.optimization import InfDimProblem, Constraint
+from nullspace_optimizer.lestofire import nlspace_solve_shape
 
 import argparse
 
@@ -102,9 +102,13 @@ def compliance_optimization():
         "pc_factor_mat_solver_type": "mumps",
     }
     u_sol = fd.Function(W)
-    fd.solve(
-        a == L, u_sol, bcs=[bc], solver_parameters=parameters
-    )  # , nullspace=nullspace)
+    F = fd.action(a, u_sol) - L
+    problem = fd.NonlinearVariationalProblem(F, u_sol, bcs=bc)
+    solver = fd.NonlinearVariationalSolver(problem, solver_parameters=parameters)
+    solver.solve()
+    # fd.solve(
+    #    a == L, u_sol, bcs=[bc], solver_parameters=parameters
+    # )  # , nullspace=nullspace)
     with fda.stop_annotating():
         fd.File("u_sol.pvd").write(u_sol)
 
@@ -119,7 +123,7 @@ def compliance_optimization():
     VolPen = fd.assemble(hs(-phi, beta) * dx)
     # Needed to track the value of the volume
     VolControl = fda.Control(VolPen)
-    Vval = total_volume / 3.0
+    Vval = total_volume / 2.0
 
     phi_pvd = fd.File("phi_evolution.pvd", target_continuity=fd.H1)
 
@@ -139,18 +143,13 @@ def compliance_optimization():
     reg_solver = RegularizationSolver(
         S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
     )
-    # Solver to ensure the level set is a distance function
-    reinit_solver = ReinitSolverDG(n_steps=10, dt=1e-3)
-    hmin = 0.0001
     # Hamilton-Jacobi equation to advect the level set
     dt = 0.001
     tol = 1e-5
 
     # Optimization problem
     vol_constraint = Constraint(Vhat, Vval, VolControl)
-    problem = InfDimProblem(
-        Jhat, reg_solver, reinit_solver, ineqconstraints=vol_constraint
-    )
+    problem = InfDimProblem(Jhat, reg_solver, ineqconstraints=vol_constraint)
 
     parameters = {
         "ksp_type": "preonly",
@@ -161,7 +160,7 @@ def compliance_optimization():
     }
 
     params = {
-        "alphaC": 1.0,
+        "alphaC": 3.0,
         "K": 0.1,
         "debug": 5,
         "alphaJ": 1.0,

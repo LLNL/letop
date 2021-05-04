@@ -2,6 +2,7 @@ import firedrake as fd
 import firedrake_adjoint as fda
 from firedrake import (
     inner,
+    derivative,
     grad,
     div,
     dx,
@@ -17,8 +18,8 @@ from firedrake import (
 )
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import HJLocalDG, ReinitSolverDG
-from nullspace_optimizer.lestofire import nlspace_solve_shape, Constraint, InfDimProblem
+from lestofire.optimization import InfDimProblem, Constraint
+from nullspace_optimizer.lestofire import nlspace_solve_shape
 from parameters import (
     INMOUTH2,
     INMOUTH1,
@@ -59,6 +60,8 @@ def heat_exchanger_optimization():
 
     # Perturb the mesh coordinates. Necessary to calculate shape derivatives
     mesh = fd.Mesh("./2D_mesh.msh")
+    # mh = fd.MeshHierarchy(mesh, 1)
+    # mesh = mh[-1]
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
     s = fd.Function(S, name="deform")
     mesh.coordinates.assign(mesh.coordinates + s)
@@ -154,14 +157,14 @@ def heat_exchanger_optimization():
         stokes(-phi, INMOUTH2, OUTMOUTH2), L, U1, bcs=bcs1
     )
     solver_stokes1 = fd.LinearVariationalSolver(
-        problem, solver_parameters=stokes_parameters
+        problem, solver_parameters=stokes_parameters, options_prefix="stokes_1"
     )
     solver_stokes1.solve()
     problem = fd.LinearVariationalProblem(
         stokes(phi, INMOUTH1, OUTMOUTH1), L, U2, bcs=bcs2
     )
     solver_stokes2 = fd.LinearVariationalSolver(
-        problem, solver_parameters=stokes_parameters
+        problem, solver_parameters=stokes_parameters, options_prefix="stokes_2"
     )
     solver_stokes2.solve()
 
@@ -223,13 +226,13 @@ def heat_exchanger_optimization():
         - tin1 * ks * dot(grad(w), n) * ds(INLET1)
         - tin2 * ks * dot(grad(w), n) * ds(INLET2)
     )
-    eT = aT - LT_bnd
 
-    problem = fd.NonlinearVariationalProblem(eT, t)
-    solver_temp = fd.NonlinearVariationalSolver(
-        problem, solver_parameters=temperature_parameters
+    problem = fd.LinearVariationalProblem(derivative(aT, t), LT_bnd, t)
+    solver_temp = fd.LinearVariationalSolver(
+        problem, solver_parameters=temperature_parameters, options_prefix="temperature"
     )
     solver_temp.solve()
+    # fd.solve(eT == 0, t, solver_parameters=temperature_parameters)
 
     # Cost function: Flux at the cold outlet
     scale_factor = 4e-4
@@ -268,11 +271,6 @@ def heat_exchanger_optimization():
         S, mesh, beta=beta_param, gamma=1e5, dx=dx, design_domain=0
     )
 
-    # Solver to ensure the level set is a distance function
-    reinit_solver = ReinitSolverDG(n_steps=20, dt=1e-3)
-    hmin = 0.001
-    # Hamilton-Jacobi equation to advect the level set
-    hj_solver = HJLocalDG(hmin=hmin)
     tol = 1e-5
     dt = 0.02
     params = {
@@ -293,13 +291,11 @@ def heat_exchanger_optimization():
     problem = InfDimProblem(
         Jhat,
         reg_solver,
-        hj_solver,
-        reinit_solver,
         ineqconstraints=[
             Constraint(P1hat, 1.0, P1control),
             Constraint(P2hat, 1.0, P2control),
         ],
-        reinit_steps=5,
+        reinit_steps=10,
     )
     _ = nlspace_solve_shape(problem, params)
 

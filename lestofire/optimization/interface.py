@@ -15,27 +15,21 @@
 # A copy of the GNU General Public License is included below.
 # For further information, see <http://www.gnu.org/licenses/>.
 
-try:
-    from firedrake import Function, assemble, inner, dx
-    from pyadjoint import Control, no_annotations
-    from pyadjoint.enlisting import Enlist
-    from lestofire.levelset import (
-        LevelSetFunctional,
-        RegularizationSolver,
-    )
-    from lestofire.optimization import (
-        HamiltonJacobiProblem,
-        HamiltonJacobiSolver,
-        ReinitializationSolver,
-        HamiltonJacobiSolver,
-        HamiltonJacobiProblem,
-    )
-    from pyop2.profiling import timed_function
-    from ufl.algebra import Abs
-except ImportError as error:
-    raise ImportError(
-        "To use Null space lestofire interface, you must install firedrake and lestofire."
-    )
+import firedrake as fd
+from firedrake import inner, dx
+from pyadjoint import Control, no_annotations
+from pyadjoint.enlisting import Enlist
+from lestofire.levelset import (
+    LevelSetFunctional,
+    RegularizationSolver,
+)
+from lestofire.optimization import (
+    ReinitializationSolver,
+    HamiltonJacobiSolver,
+    HamiltonJacobiProblem,
+)
+from pyop2.profiling import timed_function
+from ufl.algebra import Abs
 
 
 class Constraint(object):
@@ -90,6 +84,7 @@ class InfDimProblem(object):
         eqconstraints=None,
         ineqconstraints=None,
         reinit_steps=10,
+        solver_parameters=None,
     ):
         self.reinit_steps = reinit_steps
         if not isinstance(reg_solver, RegularizationSolver):
@@ -99,10 +94,10 @@ class InfDimProblem(object):
         self.reg_solver = reg_solver
         assert len(cost_function.controls) < 2, "Only one control for now"
         self.phi = cost_function.level_set[0]
-        self.newphi = Function(self.phi.function_space())
+        self.newphi = fd.Function(self.phi.function_space())
         self.V = self.phi.function_space()
         self.Vvec = cost_function.controls[0].control.function_space()
-        self.delta_x = Function(self.Vvec)
+        self.delta_x = fd.Function(self.Vvec)
 
         def H(p):
             return inner(self.delta_x, p)
@@ -119,36 +114,52 @@ class InfDimProblem(object):
             tspan,
             reinit=True,
         )
-        self.solver_parameters = {
+        hj_solver_parameters = {
             "ts_type": "rk",
             "ts_rk_type": "5dp",
-            "ts_view": None,
             "ts_atol": 1e-7,
             "ts_rtol": 1e-7,
-            "ts_dt": 1e-4,
-            # "ts_monitor": None,
+            "ts_dt": 1e-5,
             "ts_exact_final_time": "matchstep",
             "ts_max_time": tspan[1],
+            "ts_max_steps": 1000,
             "ts_adapt_type": "dsp",
         }
+        if solver_parameters:
+            if solver_parameters.get("hj_solver"):
+                hj_solver_parameters.update(solver_parameters["hj_solver"])
 
         self.hj_solver = HamiltonJacobiSolver(
             problem,
-            solver_parameters=self.solver_parameters,
+            solver_parameters=hj_solver_parameters,
         )
 
-        solver_parameters = {
+        reinit_solver_parameters = {
             "ts_type": "rk",
             "ts_rk_type": "5dp",
-            "ts_atol": 1e-5,
-            "ts_rtol": 1e-5,
-            "ts_dt": 1e-3,
+            "ts_atol": 1e-7,
+            "ts_rtol": 1e-7,
+            "ts_dt": 1e-2,
             "ts_converged_reason": None,
             "ts_monitor": None,
             "ts_adapt_type": "dsp",
         }
+        if solver_parameters:
+            if solver_parameters.get("reinit_solver"):
+                reinit_solver_parameters.update(solver_parameters["reinit_solver"])
+                stopping_criteria = solver_parameters["reinit_solver"].get(
+                    "stopping_criteria"
+                )
+            else:
+                stopping_criteria = 0.1
+        else:
+            stopping_criteria = 0.1
+
         self.reinit_solver = ReinitializationSolver(
-            self.V, 5.0, stopping_criteria=0.1, solver_parameters=solver_parameters
+            self.V,
+            5.0,
+            stopping_criteria=stopping_criteria,
+            solver_parameters=reinit_solver_parameters,
         )
 
         if eqconstraints:
@@ -171,10 +182,10 @@ class InfDimProblem(object):
         else:
             self.ineqconstraints = []
 
-        self.gradJ = Function(self.Vvec)
+        self.gradJ = fd.Function(self.Vvec)
 
-        self.gradH = [Function(self.Vvec) for _ in self.ineqconstraints]
-        self.gradG = [Function(self.Vvec) for _ in self.eqconstraints]
+        self.gradH = [fd.Function(self.Vvec) for _ in self.ineqconstraints]
+        self.gradG = [fd.Function(self.Vvec) for _ in self.eqconstraints]
 
         self.cost_function = cost_function
 
@@ -219,7 +230,7 @@ class InfDimProblem(object):
     @no_annotations
     def reinit(self, x):
         if self.i % self.reinit_steps == 0:
-            x.assign(self.reinit_solver.solve(x))
+            x.assign(self.reinit_solver.solve(x, 0.5))
 
     @no_annotations
     def eval_gradients(self, x):
@@ -244,14 +255,21 @@ class InfDimProblem(object):
     @no_annotations
     def retract(self, phi_n, delta_x, scaling=1):
         self.hj_solver.ts.setMaxTime(scaling)
-        return self.hj_solver.solve(phi_n)
+        phi_n = self.hj_solver.solve(phi_n)
+        conv = self.hj_solver.ts.getConvergedReason()
+        if conv == 2:
+            fd.warning(
+                f"Maximum number of time steps (1000) reached. \
+                        Consider making the optimization time step 'dt' shorter"
+            )
+        return phi_n
 
     def restore(self):
         pass
 
     @no_annotations
     def inner_product(self, x, y):
-        return assemble(inner(x, y) * dx)
+        return fd.assemble(inner(x, y) * dx)
 
     def accept(self, results):
         """
