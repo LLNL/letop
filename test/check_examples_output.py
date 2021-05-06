@@ -37,7 +37,7 @@ def run_check(output_file, folder):
         assert_allclose(
             float("".join(last_iter[1::])),
             current_test.cost_func_value,
-            rtol=1e-4,
+            rtol=1e-1,
             err_msg="Cost function for {} is not matching".format(current_test.folder),
         )
 
