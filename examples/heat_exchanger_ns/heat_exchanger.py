@@ -128,12 +128,12 @@ def heat_exchanger_navier_stokes():
     problem1 = fd.NonlinearVariationalProblem(F1, w_sol1, bcs=bcs1)
     problem2 = fd.NonlinearVariationalProblem(F2, w_sol2, bcs=bcs2)
     solver1 = fd.NonlinearVariationalSolver(
-        problem1, solver_parameters=solver_parameters
+        problem1, solver_parameters=solver_parameters, options_prefix="stokes1"
     )
     solver1.solve()
     w_sol1_control = fda.Control(w_sol1)
     solver2 = fd.NonlinearVariationalSolver(
-        problem2, solver_parameters=solver_parameters
+        problem2, solver_parameters=solver_parameters, options_prefix="stokes2"
     )
     solver2.solve()
     w_sol2_control = fda.Control(w_sol2)
@@ -174,14 +174,14 @@ def heat_exchanger_navier_stokes():
     bcs = [bc1, bc2]
     problem_T = fd.NonlinearVariationalProblem(F_T, t, bcs=bcs)
     solver_parameters = {
-        "ksp_type": "fgmres",
-        "snes_atol": 1e-7,
-        "pc_type": "hypre",
-        "pc_hypre_type": "euclid",
-        "ksp_max_it": 300,
+        "mat_type": "aij",
+        "ksp_type": "preonly",
+        "ksp_converged_reason": None,
+        "pc_type": "lu",
+        "pc_factor_mat_solver_type": "mumps",
     }
     solver_T = fd.NonlinearVariationalSolver(
-        problem_T, solver_parameters=solver_parameters
+        problem_T, solver_parameters=solver_parameters, options_prefix="temperature"
     )
     solver_T.solve()
     t.rename("Temperature")
