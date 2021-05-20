@@ -180,6 +180,7 @@ class NavierStokesBrinkmannSolver(object):
         self.solver = fd.NonlinearVariationalSolver(
             problem,
             solver_parameters=solver_parameters_default,
+            **kwargs
         )
 
     def solve(self):
