@@ -7,8 +7,6 @@ from lestofire.optimization import Constraint, InfDimProblem
 from lestofire.physics import NavierStokesBrinkmannForm
 from nullspace_optimizer.lestofire import nlspace_solve_shape
 
-from functools import partial
-
 from params import (
     line_sep,
     dist_center,
