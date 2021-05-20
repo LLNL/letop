@@ -15,6 +15,7 @@
 # A copy of the GNU General Public License is included below.
 # For further information, see <http://www.gnu.org/licenses/>.
 
+from lestofire.physics.utils import max_mesh_dimension
 import firedrake as fd
 from firedrake import inner, dx
 from pyadjoint import Control, no_annotations
@@ -28,8 +29,10 @@ from lestofire.optimization import (
     HamiltonJacobiSolver,
     HamiltonJacobiProblem,
 )
+from lestofire.physics import calculate_max_vel
 from pyop2.profiling import timed_function
 from ufl.algebra import Abs
+from firedrake import PETSc
 
 
 class Constraint(object):
@@ -84,8 +87,31 @@ class InfDimProblem(object):
         eqconstraints=None,
         ineqconstraints=None,
         reinit_steps=10,
+        reinit_distance=0.05,
         solver_parameters=None,
     ):
+        """Problem interface for the null-space solver
+
+        Args:
+            cost_function ([type]): [description]
+            reg_solver ([type]): [description]
+            eqconstraints ([type], optional): [description]. Defaults to None.
+            ineqconstraints ([type], optional): [description]. Defaults to None.
+            reinit_steps (int, optional): [description]. Defaults to 10.
+            reinit_distance (int, optional): The reinitialization solver is activated
+                                                    after the level set is shifted reinit_distance * D,
+                                                    where D is the max dimensions of a mesh
+                                                    Defaults to 0.1
+            solver_parameters ([type], optional): [description]. Defaults to None.
+
+        Raises:
+            TypeError: [description]
+            TypeError: [description]
+            TypeError: [description]
+
+        Returns:
+            [type]: [description]
+        """
         self.reinit_steps = reinit_steps
         if not isinstance(reg_solver, RegularizationSolver):
             raise TypeError(
@@ -98,6 +124,8 @@ class InfDimProblem(object):
         self.V = self.phi.function_space()
         self.Vvec = cost_function.controls[0].control.function_space()
         self.delta_x = fd.Function(self.Vvec)
+        self.max_distance = reinit_distance * max_mesh_dimension(self.V.ufl_domain())
+        self.accum_distance = 0.0
 
         def H(p):
             return inner(self.delta_x, p)
@@ -117,11 +145,12 @@ class InfDimProblem(object):
         hj_solver_parameters = {
             "ts_type": "rk",
             "ts_rk_type": "5dp",
-            "ts_atol": 1e-7,
-            "ts_rtol": 1e-7,
+            "ts_atol": 1e-8,
+            "ts_rtol": 1e-8,
             "ts_dt": 1e-5,
             "ts_exact_final_time": "matchstep",
             "ts_max_time": tspan[1],
+            "ts_event_monitor": None,
             "ts_max_steps": 1000,
             "ts_adapt_type": "dsp",
         }
@@ -134,12 +163,31 @@ class InfDimProblem(object):
             solver_parameters=hj_solver_parameters,
         )
 
+        def event(ts, t, X, fvalue):
+            max_vel = calculate_max_vel(self.delta_x)
+            fvalue[0] = (self.accum_distance + max_vel * t) - self.max_distance
+
+        def postevent(ts, events, t, X, forward):
+            with self.phi.dat.vec_wo as v:
+                X.copy(v)
+            self.phi.assign(self.reinit_solver.solve(self.phi, 0.5))
+            with self.phi.dat.vec_wo as v:
+                v.copy(X)
+            self.max_distance += self.max_distance
+
+
+        direction = [1]
+        terminate = [False]
+
+        self.hj_solver.ts.setEventHandler(direction, terminate, event, postevent)
+        self.hj_solver.ts.setEventTolerances(1e-4, vtol=[1e-4])
+
         reinit_solver_parameters = {
             "ts_type": "rk",
             "ts_rk_type": "5dp",
             "ts_atol": 1e-7,
             "ts_rtol": 1e-7,
-            "ts_dt": 1e-2,
+            "ts_dt": 1e-5,
             "ts_converged_reason": None,
             "ts_monitor": None,
             "ts_adapt_type": "dsp",
@@ -147,18 +195,9 @@ class InfDimProblem(object):
         if solver_parameters:
             if solver_parameters.get("reinit_solver"):
                 reinit_solver_parameters.update(solver_parameters["reinit_solver"])
-                stopping_criteria = solver_parameters["reinit_solver"].get(
-                    "stopping_criteria"
-                )
-            else:
-                stopping_criteria = 0.1
-        else:
-            stopping_criteria = 0.1
 
         self.reinit_solver = ReinitializationSolver(
             self.V,
-            5.0,
-            stopping_criteria=stopping_criteria,
             solver_parameters=reinit_solver_parameters,
         )
 
@@ -229,8 +268,7 @@ class InfDimProblem(object):
 
     @no_annotations
     def reinit(self, x):
-        if self.i % self.reinit_steps == 0:
-            x.assign(self.reinit_solver.solve(x, 0.5))
+        pass
 
     @no_annotations
     def eval_gradients(self, x):
@@ -256,8 +294,10 @@ class InfDimProblem(object):
     def retract(self, phi_n, delta_x, scaling=1):
         self.hj_solver.ts.setMaxTime(scaling)
         phi_n = self.hj_solver.solve(phi_n)
-        n_steps = self.hj_solver.ts.getStepNumber()
-        print(f"HJ Solver finished in {n_steps} steps")
+
+        max_vel = calculate_max_vel(delta_x)
+        self.accum_distance += max_vel * scaling
+
         conv = self.hj_solver.ts.getConvergedReason()
         if conv == 2:
             fd.warning(

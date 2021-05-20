@@ -1,6 +1,7 @@
 import firedrake as fd
 from firedrake import sqrt
 from lestofire.optimization import ReinitializationSolver
+from lestofire.physics import max_mesh_dimension
 import pytest
 
 
@@ -43,12 +44,12 @@ def test_cone(test_mesh, x_shift, error, p):
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
         "ts_exact_final_time": "matchstep",
+        "h_factor" : 5,
+        "stopping_criteria": 5.0
     }
     solver = ReinitializationSolver(
         DGp,
-        5.0,
         monitor_callback=monitor,
-        stopping_criteria=0.0,
         poststep=False,
         solver_parameters=solver_parameters,
     )
@@ -98,10 +99,10 @@ def test_monitor(test_mesh, x_shift, error, p):
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
         "ts_exact_final_time": "matchstep",
+        "h_factor" : 5
     }
     solver = ReinitializationSolver(
         DGp,
-        5.0,
         monitor_callback=monitor,
         solver_parameters=solver_parameters,
         poststep=False,
@@ -118,3 +119,17 @@ def test_monitor(test_mesh, x_shift, error, p):
     )
     error_numeri = fd.errornorm(phin, phi_solution)
     assert pytest.approx(error, 1e-4) == error_numeri
+
+
+def test_max_dim():
+    mesh = fd.UnitSquareMesh(100, 100)
+
+    assert pytest.approx(max_mesh_dimension(mesh), 1.0)
+
+    mesh = fd.RectangleMesh(10, 20, 5.0, 3.0)
+
+    assert pytest.approx(max_mesh_dimension(mesh), 5.0)
+
+    mesh = fd.CubeMesh(10, 10, 10, 8.0)
+
+    assert pytest.approx(max_mesh_dimension(mesh), 8.0)

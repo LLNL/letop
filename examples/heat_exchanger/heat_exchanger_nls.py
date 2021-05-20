@@ -287,6 +287,11 @@ def heat_exchanger_optimization():
         "tol": tol,
     }
 
+    solver_parameters = {
+        "reinit_solver" : {
+            "h_factor" : 2.0,
+        }
+    }
     # Optimization problem
     problem = InfDimProblem(
         Jhat,
@@ -296,6 +301,7 @@ def heat_exchanger_optimization():
             Constraint(P2hat, 1.0, P2control),
         ],
         reinit_steps=10,
+        solver_parameters=solver_parameters
     )
     _ = nlspace_solve_shape(problem, params)
 
