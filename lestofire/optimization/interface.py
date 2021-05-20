@@ -269,8 +269,6 @@ class InfDimProblem(object):
     @no_annotations
     def reinit(self, x):
         pass
-        if self.i % self.reinit_steps == 0:
-            x.assign(self.reinit_solver.solve(x, 0.5))
 
     @no_annotations
     def eval_gradients(self, x):
