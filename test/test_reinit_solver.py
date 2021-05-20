@@ -44,12 +44,12 @@ def test_cone(test_mesh, x_shift, error, p):
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
         "ts_exact_final_time": "matchstep",
+        "h_factor" : 5,
+        "stopping_criteria": 5.0
     }
     solver = ReinitializationSolver(
         DGp,
-        5.0,
         monitor_callback=monitor,
-        stopping_criteria=0.0,
         poststep=False,
         solver_parameters=solver_parameters,
     )
@@ -99,10 +99,10 @@ def test_monitor(test_mesh, x_shift, error, p):
         "ts_monitor": None,
         "ts_adapt_type": "dsp",
         "ts_exact_final_time": "matchstep",
+        "h_factor" : 5
     }
     solver = ReinitializationSolver(
         DGp,
-        5.0,
         monitor_callback=monitor,
         solver_parameters=solver_parameters,
         poststep=False,

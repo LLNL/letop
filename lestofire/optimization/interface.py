@@ -195,23 +195,9 @@ class InfDimProblem(object):
         if solver_parameters:
             if solver_parameters.get("reinit_solver"):
                 reinit_solver_parameters.update(solver_parameters["reinit_solver"])
-                stopping_criteria = solver_parameters["reinit_solver"].get(
-                    "stopping_criteria"
-                )
-                h_factor = solver_parameters["reinit_solver"].get(
-                    "h_factor"
-                )
-            else:
-                stopping_criteria = 0.1
-                h_factor = 2.0
-        else:
-            stopping_criteria = 0.1
-            h_factor = 2.0
 
         self.reinit_solver = ReinitializationSolver(
             self.V,
-            2.0,
-            stopping_criteria=stopping_criteria,
             solver_parameters=reinit_solver_parameters,
         )
 
@@ -282,6 +268,7 @@ class InfDimProblem(object):
 
     @no_annotations
     def reinit(self, x):
+        pass
         if self.i % self.reinit_steps == 0:
             x.assign(self.reinit_solver.solve(x, 0.5))
 
