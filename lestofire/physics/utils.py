@@ -3,6 +3,7 @@ from functools import lru_cache
 import numpy as np
 import ufl
 import math
+from mpi4py import MPI
 
 
 @lru_cache(1)
@@ -20,7 +21,8 @@ def min_mesh_size(mesh):
         fd.CellDiameter(mesh) / fd.CellVolume(mesh) * fd.TestFunction(DG0) * fd.dx
     ).dat.data_ro
     local_min_size = np.max(h_sizes)
-    return local_min_size
+    min_size = mesh.comm.allreduce(local_min_size, op=MPI.MAX)
+    return min_size
 
 
 def hs(
