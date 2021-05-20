@@ -17,9 +17,7 @@ class ReinitializationSolver(object):
     def __init__(
         self,
         V,
-        h_factor: float,
         monitor_callback=None,
-        stopping_criteria: float = 0.1,
         poststep: bool = True,
         solver_parameters: dict = None,
     ) -> None:
@@ -33,6 +31,13 @@ class ReinitializationSolver(object):
             poststep (bool, optional): Choose to add the postep (to check the stopping criteria). Defaults to True
             solver_parameters (dict, optional): [description]. Defaults to None.
         """
+        if solver_parameters:
+            stopping_criteria = solver_parameters.get(
+                "stopping_criteria", 0.1
+            )
+            h_factor = solver_parameters.get(
+                "h_factor", 2.0
+            )
         self.h_factor = h_factor
         self.monitor_callback = Enlist(monitor_callback)
         self.error_prev = 1.0
