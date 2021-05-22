@@ -27,6 +27,7 @@ setup(
         "scipy>=0.19.1",
         "cvxopt>=1.2.1",
         "pygmsh==6.1.0",
+        "pre-commit==2.12.1",
         "nullspace-optimizer @ git+https://gitlab.com/salazardetroya/null-space-optimizer@lestofire",
     ],
     description="A little bit of foobar in your life",
