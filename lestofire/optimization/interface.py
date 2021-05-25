@@ -125,6 +125,7 @@ class InfDimProblem(object):
         self.Vvec = cost_function.controls[0].control.function_space()
         self.delta_x = fd.Function(self.Vvec)
         self.max_distance = reinit_distance * max_mesh_dimension(self.V.ufl_domain())
+        self.current_max_distance = self.max_distance
         self.accum_distance = 0.0
 
         def H(p):
@@ -165,7 +166,7 @@ class InfDimProblem(object):
 
         def event(ts, t, X, fvalue):
             max_vel = calculate_max_vel(self.delta_x)
-            fvalue[0] = (self.accum_distance + max_vel * t) - self.max_distance
+            fvalue[0] = (self.accum_distance + max_vel * t) - self.current_max_distance
 
         def postevent(ts, events, t, X, forward):
             with self.phi.dat.vec_wo as v:
@@ -173,8 +174,7 @@ class InfDimProblem(object):
             self.phi.assign(self.reinit_solver.solve(self.phi, 0.5))
             with self.phi.dat.vec_wo as v:
                 v.copy(X)
-            self.max_distance += self.max_distance
-
+            self.current_max_distance += self.max_distance
 
         direction = [1]
         terminate = [False]
