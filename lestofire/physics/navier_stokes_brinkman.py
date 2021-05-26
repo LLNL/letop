@@ -18,12 +18,17 @@ from typing import List
 
 def mark_no_flow_regions(mesh: fd.Mesh, regions: List, regions_marker: List):
     dm = mesh.topology_dm
+    dm.createLabel(FACE_SETS_LABEL)
+    dm.markBoundaryFaces("boundary_faces")
     for region, marker in zip(regions, regions_marker):
         cells = dm.getStratumIS(CELL_SETS_LABEL, region)
         for cell in cells.array:
             faces = dm.getCone(cell)
             for face in faces:
+                if dm.getLabelValue("boundary_faces", face) == 1:
+                    continue
                 dm.setLabelValue(FACE_SETS_LABEL, face, marker)
+    dm.removeLabel("boundary_faces")
     return fd.Mesh(dm)
 
 
