@@ -29,7 +29,7 @@ def mark_no_flow_regions(mesh: fd.Mesh, regions: List, regions_marker: List):
                     continue
                 dm.setLabelValue(FACE_SETS_LABEL, face, marker)
     dm.removeLabel("boundary_faces")
-    return fd.Mesh(dm)
+    return mesh
 
 
 class InteriorBC(fd.DirichletBC):
