@@ -11,7 +11,7 @@ import pytest
 
 
 def test_solver_no_flow_region():
-    mesh = fd.Mesh("../2D_mesh.msh")
+    mesh = fd.Mesh("./2D_mesh.msh")
     no_flow = [2]
     no_flow_markers = [1]
     mesh = mark_no_flow_regions(mesh, no_flow, no_flow_markers)
@@ -48,10 +48,8 @@ def test_solver_no_flow_region():
     )
     solver1.solve()
     u_sol, _ = w_sol1.split()
-    fd.File("test_u_sol.pvd").write(u_sol)
     u_mms_func = fd.interpolate(u_mms, W.sub(0))
     error = fd.errornorm(u_sol, u_mms_func)
-    print(f"Error: {error}")
     assert error < 0.07
 
 
