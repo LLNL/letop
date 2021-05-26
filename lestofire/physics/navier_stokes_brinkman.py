@@ -58,6 +58,7 @@ def NavierStokesBrinkmannForm(
     brinkmann_min=0.0,
     design_domain=None,
     hs: Callable = hs,
+    beta_gls=0.9,
 ) -> ufl.form:
     """Returns the Galerkin Least Squares formulation for the Navier-Stokes problem with a Brinkmann term
 
@@ -111,7 +112,7 @@ def NavierStokesBrinkmannForm(
 
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
-    beta_gls = 0.9
+    beta_gls = fd.Constant(beta_gls)
     h = fd.CellSize(mesh)
     tau_gls = beta_gls * (
         (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
@@ -150,21 +151,24 @@ class NavierStokesBrinkmannSolver(object):
             solver_parameters ([type], optional): [description]. Defaults to None.
         """
         solver_parameters_default = {
+            # "snes_type": "ksponly",
+            # "snes_no_convergence_test" : None,
+            # "snes_max_it": 1,
             "snes_type": "newtonls",
             "snes_linesearch_type": "l2",
             "snes_linesearch_maxstep": 1.0,
             # "snes_monitor": None,
             # "snes_linesearch_monitor": None,
-            "snes_rtol": 1.0e-5,
-            "snes_atol": 1.0e-8,
+            "snes_rtol": 1.0e-4,
+            "snes_atol": 1.0e-4,
             "snes_stol": 0.0,
             "snes_max_linear_solve_fail": 10,
             "snes_converged_reason": None,
             "ksp_type": "fgmres",
             "mat_type": "aij",
             # "default_sub_matrix_type": "aij",
-            "ksp_rtol": 1.0e-5,
-            "ksp_atol": 1.0e-8,
+            "ksp_rtol": 1.0e-4,
+            "ksp_atol": 1.0e-4,
             "ksp_max_it": 2000,
             # "ksp_monitor": None,
             "ksp_converged_reason": None,
@@ -175,19 +179,19 @@ class NavierStokesBrinkmannSolver(object):
             "fieldsplit_0": {
                 "ksp_type": "richardson",
                 "ksp_richardson_self_scale": False,
-                # "ksp_converged_reason": None,
                 "ksp_max_it": 1,
-                "ksp_monitor": None,
                 "pc_type": "ml",
                 "ksp_atol": 1e-2,
                 "pc_mg_cycle_type": "v",
                 "pc_mg_type": "full",
+                # "ksp_converged_reason": None,
+                # "ksp_monitor": None,
             },
             "fieldsplit_1": {
-                "ksp_monitor": None,
-                # "ksp_converged_reason": None,
                 "ksp_type": "preonly",
                 "pc_type": "ml",
+                # "ksp_monitor": None,
+                # "ksp_converged_reason": None,
             },
             "fieldsplit_1_upper_ksp_type": "preonly",
             "fieldsplit_1_upper_pc_type": "jacobi",
