@@ -8,18 +8,57 @@ from .utils import hs
 from typing import Callable, Union
 from ufl.algebra import Product
 from functools import partial
+from firedrake.cython.dmcommon import FACE_SETS_LABEL, CELL_SETS_LABEL
+from pyop2.utils import as_tuple
+from firedrake.utils import cached_property
+from pyop2.datatypes import IntType
+import numpy as np
+from typing import List
+
+
+def mark_no_flow_regions(mesh: fd.Mesh, regions: List, regions_marker: List):
+    dm = mesh.topology_dm
+    for region, marker in zip(regions, regions_marker):
+        cells = dm.getStratumIS(CELL_SETS_LABEL, region)
+        for cell in cells.array:
+            faces = dm.getCone(cell)
+            for face in faces:
+                dm.setLabelValue(FACE_SETS_LABEL, face, marker)
+    return fd.Mesh(dm)
+
+
+class InteriorBC(fd.DirichletBC):
+    @cached_property
+    def nodes(self):
+        dm = self.function_space().mesh().topology_dm
+        section = self.function_space().dm.getDefaultSection()
+        nodes = []
+        for sd in as_tuple(self.sub_domain):
+            nfaces = dm.getStratumSize(FACE_SETS_LABEL, sd)
+            faces = dm.getStratumIS(FACE_SETS_LABEL, sd)
+            if nfaces == 0:
+                continue
+            for face in faces.indices:
+                # if dm.getLabelValue("interior_facets", face) < 0:
+                #    continue
+                closure, _ = dm.getTransitiveClosure(face)
+                for p in closure:
+                    dof = section.getDof(p)
+                    offset = section.getOffset(p)
+                    nodes.extend((offset + d) for d in range(dof))
+        return np.unique(np.asarray(nodes, dtype=IntType))
 
 
 def NavierStokesBrinkmannForm(
     W: fd.FunctionSpace,
     w: fd.Function,
-    phi: Union[fd.Function, Product],
     nu,
+    phi: Union[fd.Function, Product] = None,
     brinkmann_penalty=None,
     brinkmann_min=0.0,
     design_domain=None,
-    no_flow_domain=None,
     hs: Callable = hs,
+    beta_gls=0.9,
 ) -> ufl.form:
     """Returns the Galerkin Least Squares formulation for the Navier-Stokes problem with a Brinkmann term
 
@@ -30,12 +69,11 @@ def NavierStokesBrinkmannForm(
         nu ([type]): [description]
         brinkmann_penalty ([type], optional): [description]. Defaults to None.
         design_domain ([type], optional): Region where the level set is defined. Defaults to None.
-        no_flow_domain ([type], optional): Region where there is no flow and the Brinkmann term is imposed. Defaults to None.
 
     Returns:
         ufl.form: Nonlinear form
     """
-    mesh = phi.ufl_domain()
+    mesh = w.ufl_domain()
 
     W_elem = W.ufl_element()
     assert isinstance(W_elem, fd.MixedElement)
@@ -64,7 +102,7 @@ def NavierStokesBrinkmannForm(
     def alpha(phi):
         return Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min)
 
-    if brinkmann_penalty:
+    if brinkmann_penalty and phi is not None:
         if design_domain is not None:
             dx_brinkmann = add_measures(Enlist(design_domain))
         else:
@@ -72,13 +110,9 @@ def NavierStokesBrinkmannForm(
 
         F = F + alpha(phi) * inner(u, v) * dx_brinkmann
 
-    if no_flow_domain:
-        dx_no_flow = partial(add_measures, Enlist(no_flow_domain))
-        F = F + Constant(brinkmann_penalty) * inner(u, v) * dx_no_flow()
-
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
-    beta_gls = 0.9
+    beta_gls = fd.Constant(beta_gls)
     h = fd.CellSize(mesh)
     tau_gls = beta_gls * (
         (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
@@ -88,7 +122,7 @@ def NavierStokesBrinkmannForm(
     theta_U = dot(u, grad(v)) - nu * div(grad(v)) + grad(q)
     F = F + tau_gls * inner(R_U, theta_U) * dx(degree=degree)
 
-    if brinkmann_penalty:
+    if brinkmann_penalty and phi is not None:
         tau_gls_alpha = beta_gls * (
             (4.0 * dot(u, u) / h ** 2)
             + 9.0 * (4.0 * nu / h ** 2) ** 2
@@ -105,20 +139,6 @@ def NavierStokesBrinkmannForm(
         ):  # Substract this domain from the original integral
             F = F - tau_gls * inner(R_U, theta_U) * dx_brinkmann(degree=degree)
 
-    if no_flow_domain:
-        tau_gls_alpha = beta_gls * (
-            (4.0 * dot(u, u) / h ** 2)
-            + 9.0 * (4.0 * nu / h ** 2) ** 2
-            + (Constant(brinkmann_penalty) / 1.0) ** 2
-        ) ** (-0.5)
-        R_U_alpha = R_U + Constant(brinkmann_penalty) * u
-        theta_alpha = theta_U + Constant(brinkmann_penalty) * v
-
-        F = F + tau_gls_alpha * inner(R_U_alpha, theta_alpha) * dx_no_flow(
-            degree=degree
-        )
-        # Substract this domain from the original integral
-        F = F - tau_gls * inner(R_U, theta_U) * dx_no_flow(degree=degree)
     return F
 
 
@@ -131,23 +151,26 @@ class NavierStokesBrinkmannSolver(object):
             solver_parameters ([type], optional): [description]. Defaults to None.
         """
         solver_parameters_default = {
+            # "snes_type": "ksponly",
+            # "snes_no_convergence_test" : None,
+            # "snes_max_it": 1,
             "snes_type": "newtonls",
             "snes_linesearch_type": "l2",
             "snes_linesearch_maxstep": 1.0,
             # "snes_monitor": None,
             # "snes_linesearch_monitor": None,
-            "snes_rtol": 1.0e-5,
-            "snes_atol": 1.0e-8,
+            "snes_rtol": 1.0e-4,
+            "snes_atol": 1.0e-4,
             "snes_stol": 0.0,
             "snes_max_linear_solve_fail": 10,
             "snes_converged_reason": None,
             "ksp_type": "fgmres",
             "mat_type": "aij",
             # "default_sub_matrix_type": "aij",
-            "ksp_rtol": 1.0e-5,
-            "ksp_atol": 1.0e-8,
+            "ksp_rtol": 1.0e-4,
+            "ksp_atol": 1.0e-4,
             "ksp_max_it": 2000,
-            #"ksp_monitor": None,
+            # "ksp_monitor": None,
             "ksp_converged_reason": None,
             "pc_type": "fieldsplit",
             "pc_fieldsplit_type": "schur",
@@ -156,19 +179,19 @@ class NavierStokesBrinkmannSolver(object):
             "fieldsplit_0": {
                 "ksp_type": "richardson",
                 "ksp_richardson_self_scale": False,
-                # "ksp_converged_reason": None,
                 "ksp_max_it": 1,
-                "ksp_monitor": None,
                 "pc_type": "ml",
                 "ksp_atol": 1e-2,
                 "pc_mg_cycle_type": "v",
                 "pc_mg_type": "full",
+                # "ksp_converged_reason": None,
+                # "ksp_monitor": None,
             },
             "fieldsplit_1": {
-                "ksp_monitor": None,
-                # "ksp_converged_reason": None,
                 "ksp_type": "preonly",
                 "pc_type": "ml",
+                # "ksp_monitor": None,
+                # "ksp_converged_reason": None,
             },
             "fieldsplit_1_upper_ksp_type": "preonly",
             "fieldsplit_1_upper_pc_type": "jacobi",
@@ -178,9 +201,7 @@ class NavierStokesBrinkmannSolver(object):
             solver_parameters_default.update(solver_parameters)
 
         self.solver = fd.NonlinearVariationalSolver(
-            problem,
-            solver_parameters=solver_parameters_default,
-            **kwargs
+            problem, solver_parameters=solver_parameters_default, **kwargs
         )
 
     def solve(self):

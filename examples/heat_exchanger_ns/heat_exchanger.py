@@ -4,7 +4,11 @@ from firedrake import inner, grad, ds, dx, sin, cos, pi, dot, div
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.optimization import Constraint, InfDimProblem
-from lestofire.physics import NavierStokesBrinkmannForm
+from lestofire.physics import (
+    NavierStokesBrinkmannForm,
+    mark_no_flow_regions,
+    InteriorBC,
+)
 from nullspace_optimizer.lestofire import nlspace_solve_shape
 
 from params import (
@@ -41,6 +45,15 @@ def heat_exchanger_navier_stokes():
     output_dir = "2D/"
 
     mesh = fd.Mesh("./2D_mesh.msh")
+    no_flow_domain_1 = [3, 5]
+    no_flow_domain_1_markers = [7, 8]
+    no_flow_domain_2 = [2, 4]
+    no_flow_domain_2_markers = [9, 10]
+    no_flow = no_flow_domain_1.copy()
+    no_flow.extend(no_flow_domain_2)
+    no_flow_markers = no_flow_domain_1_markers.copy()
+    no_flow_markers.extend(no_flow_domain_2_markers)
+    mesh = mark_no_flow_regions(mesh, no_flow, no_flow_markers)
 
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
     s = fd.Function(S, name="deform")
@@ -61,6 +74,10 @@ def heat_exchanger_navier_stokes():
         "ksp_converged_reason": None,
         "pc_type": "lu",
         "pc_factor_mat_solver_type": "mumps",
+        # "snes_monitor" : None,
+        # "snes_type" : "ksponly",
+        # "snes_no_convergence_test" : None,
+        # "snes_max_it": 1,
     }
     u_inflow = 1.0
     nu = fd.Constant(opts.nu)
@@ -76,11 +93,10 @@ def heat_exchanger_navier_stokes():
     F1 = NavierStokesBrinkmannForm(
         W,
         w_sol1,
-        -phi,
         nu,
+        phi=-phi,
         brinkmann_penalty=brinkmann_penalty,
         design_domain=0,
-        no_flow_domain=[3, 5],
     )
 
     # Dirichelt boundary conditions
@@ -99,18 +115,19 @@ def heat_exchanger_navier_stokes():
     bcs1_3 = fd.DirichletBC(W.sub(1), fd.Constant(0.0), OUTLET1)
     bcs1_4 = fd.DirichletBC(W.sub(0), noslip, INLET2)
     bcs1_5 = fd.DirichletBC(W.sub(0), noslip, OUTLET2)
-    bcs1 = [bcs1_1, bcs1_2, bcs1_3, bcs1_4, bcs1_5]
+    bc_no_flow_1 = InteriorBC(W.sub(0), noslip, no_flow_domain_1_markers)
+    bcs1 = [bcs1_1, bcs1_2, bcs1_3, bcs1_4, bcs1_5, bc_no_flow_1]
+    # bcs1 = [bcs1_1, bcs1_2, bcs1_3, bcs1_4, bcs1_5]
 
     # Stokes 2
     w_sol2 = fd.Function(W)
     F2 = NavierStokesBrinkmannForm(
         W,
         w_sol2,
-        phi,
         nu,
+        phi=phi,
         brinkmann_penalty=brinkmann_penalty,
         design_domain=0,
-        no_flow_domain=[2, 4],
     )
     inflow2 = fd.as_vector(
         [u_inflow * sin(((y - (line_sep + dist_center)) * pi) / inlet_width), 0.0]
@@ -120,7 +137,8 @@ def heat_exchanger_navier_stokes():
     bcs2_3 = fd.DirichletBC(W.sub(1), fd.Constant(0.0), OUTLET2)
     bcs2_4 = fd.DirichletBC(W.sub(0), noslip, INLET1)
     bcs2_5 = fd.DirichletBC(W.sub(0), noslip, OUTLET1)
-    bcs2 = [bcs2_1, bcs2_2, bcs2_3, bcs2_4, bcs2_5]
+    bc_no_flow_2 = InteriorBC(W.sub(0), noslip, no_flow_domain_2_markers)
+    bcs2 = [bcs2_1, bcs2_2, bcs2_3, bcs2_4, bcs2_5, bc_no_flow_2]
 
     # Forward problems
     problem1 = fd.NonlinearVariationalProblem(F1, w_sol1, bcs=bcs1)
@@ -257,6 +275,7 @@ def heat_exchanger_navier_stokes():
             Constraint(P2hat, 1.0, P2control),
         ],
         reinit_steps=1,
+        reinit_distance=0.005,
     )
     _ = nlspace_solve_shape(problem, params)
 
