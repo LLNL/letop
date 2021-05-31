@@ -146,7 +146,7 @@ class HamiltonJacobiProblem(object):
         phi_n: fd.Function,
         H: Callable[[fd.Function], fd.Form],
         dHdp: Callable[[fd.Function], fd.Form],
-        tspan: Tuple,
+        tspan: Union[Tuple[float], List[float]],
         bcs: Union[DirichletBC, List[DirichletBC]] = None,
         form_compiler_parameters: dict = None,
         reinit: bool = False,
