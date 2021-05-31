@@ -72,7 +72,7 @@ class ReinitializationSolver(object):
                 x.copy(v)
             self.error_prev = fd.errornorm(phi_prev, phi_current)
             time_deriv = self.error_prev / ts.getTimeStep()
-            print(f"Residual: {time_deriv}")
+            # print(f"Residual: {time_deriv}")
 
             current_t = ts.getTime()
             current_dt = ts.getTimeStep()
@@ -123,5 +123,13 @@ class ReinitializationSolver(object):
         if self.poststep:
             solver.ts.setPostStep(poststep)
         solver.solve()
+
+        n_steps = solver.ts.getStepNumber()
+        if n_steps < 5:
+            fd.warning(
+                "Reinitialization completed with less than 5 steps.\n Decrease stopping_criteria if problems appear."
+            )
+        else:
+            print(f"Reinit solver finished in {solver.ts.getStepNumber()}")
 
         return phi0
