@@ -85,7 +85,6 @@ class InfDimProblem(object):
         reg_solver,
         eqconstraints=None,
         ineqconstraints=None,
-        reinit_steps=10,
         reinit_distance=0.05,
         solver_parameters=None,
     ):
@@ -96,7 +95,6 @@ class InfDimProblem(object):
             reg_solver ([type]): [description]
             eqconstraints ([type], optional): [description]. Defaults to None.
             ineqconstraints ([type], optional): [description]. Defaults to None.
-            reinit_steps (int, optional): [description]. Defaults to 10.
             reinit_distance (int, optional): The reinitialization solver is activated
                                             after the level set is shifted reinit_distance * D,
                                             where D is the max dimensions of a mesh
@@ -111,7 +109,6 @@ class InfDimProblem(object):
         Returns:
             [type]: [description]
         """
-        self.reinit_steps = reinit_steps
         if not isinstance(reg_solver, RegularizationSolver):
             raise TypeError(
                 f"Provided regularization solver '{type(reg_solver).__name__}',\
@@ -127,6 +124,7 @@ class InfDimProblem(object):
         self.max_distance = reinit_distance * max_mesh_dimension(self.V.ufl_domain())
         self.current_max_distance = self.max_distance
         self.accum_distance = 0.0
+        self.last_distance = 0.0
 
         def H(p):
             return inner(self.delta_x, p)
@@ -273,6 +271,7 @@ class InfDimProblem(object):
     @no_annotations
     def eval_gradients(self, x):
         """Returns the triplet (gradJ(x), gradG(x), gradH(x))"""
+        self.accum_distance += self.last_distance
         self.i += 1
         self.phi.assign(x)
 
@@ -296,7 +295,7 @@ class InfDimProblem(object):
         phi_n = self.hj_solver.solve(phi_n)
 
         max_vel = calculate_max_vel(delta_x)
-        self.accum_distance += max_vel * scaling
+        self.last_distance = max_vel * scaling
 
         conv = self.hj_solver.ts.getConvergedReason()
         if conv == 2:
@@ -314,20 +313,4 @@ class InfDimProblem(object):
         return fd.assemble(inner(x, y) * dx)
 
     def accept(self, results):
-        """
-        This function is called by nlspace_solve:
-            - at the initialization
-            - every time a new guess x is accepted on the optimization
-              trajectory
-        This allows to perform some post processing operations along the
-        optimization trajectory. The function does not return any output but
-        may update the dictionary `results` which may affect the optimization.
-        Notably, the current point is stored in
-            results['x'][-1]
-        and an update of its value will be taken into account by nlspace_solve.
-
-        Inputs:
-            `results` : the current dictionary of results (see the function
-                nlspace_solve)
-        """
         pass

@@ -288,8 +288,8 @@ def heat_exchanger_optimization():
     }
 
     solver_parameters = {
-        "reinit_solver" : {
-            "h_factor" : 2.0,
+        "reinit_solver": {
+            "h_factor": 2.0,
         }
     }
     # Optimization problem
@@ -300,8 +300,7 @@ def heat_exchanger_optimization():
             Constraint(P1hat, 1.0, P1control),
             Constraint(P2hat, 1.0, P2control),
         ],
-        reinit_steps=10,
-        solver_parameters=solver_parameters
+        solver_parameters=solver_parameters,
     )
     _ = nlspace_solve_shape(problem, params)
 
