@@ -8,6 +8,69 @@ import pytest
 N = 50
 
 
+def test_cone_3D():
+    mesh = fd.UnitCubeMesh(20, 20, 20)
+    DGp = fd.FunctionSpace(mesh, "DG", 1)
+    phi_pvd = fd.File("reinit.pvd", target_continuity=fd.H1)
+    phi_sol = fd.Function(DGp, name="solution")
+
+    from itertools import count
+
+    global_counter = count()
+
+    def monitor(ts, i, t, x):
+        iter = next(global_counter)
+        if iter % 5 == 0:
+            with phi_sol.dat.vec as v:
+                x.copy(v)
+            phi_pvd.write(phi_sol)
+
+    solver_parameters = {
+        "ts_type": "rk",
+        "ts_rk_type": "5dp",
+        "ts_atol": 1e-5,
+        "ts_rtol": 1e-5,
+        "ts_dt": 1e-3,
+        "ts_converged_reason": None,
+        "ts_monitor": None,
+        "ts_adapt_type": "dsp",
+        "ts_exact_final_time": "matchstep",
+        "h_factor": 5,
+        "stopping_criteria": 1.0,
+    }
+    solver = ReinitializationSolver(
+        DGp,
+        monitor_callback=monitor,
+        poststep=False,
+        solver_parameters=solver_parameters,
+    )
+
+    radius = 0.2
+    x, y, z = fd.SpatialCoordinate(mesh)
+    x_shift = 0.5
+    phi_init = (
+        (x - x_shift) * (x - x_shift)
+        + (y - 0.5) * (y - 0.5)
+        + (z - 0.5) * (z - 0.5)
+        - radius * radius
+    )
+    phi0 = fd.Function(DGp).interpolate(phi_init)
+
+    phin = solver.solve(phi0, total_t=0.4)
+    phi_solution = fd.interpolate(
+        sqrt(
+            (x - x_shift) * (x - x_shift)
+            + (y - 0.5) * (y - 0.5)
+            + (z - 0.5) * (z - 0.5)
+        )
+        - radius,
+        DGp,
+    )
+    error_numeri = fd.errornorm(phin, phi_solution)
+    print(f"error: {error_numeri}")
+    assert pytest.approx(0.06605266582620326, 1e-4) == error_numeri
+
+
 @pytest.mark.parametrize(
     "test_mesh,x_shift,error, p",
     [
