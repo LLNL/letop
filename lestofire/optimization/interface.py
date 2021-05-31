@@ -32,7 +32,6 @@ from lestofire.optimization import (
 from lestofire.physics import calculate_max_vel
 from pyop2.profiling import timed_function
 from ufl.algebra import Abs
-from firedrake import PETSc
 
 
 class Constraint(object):
@@ -99,9 +98,9 @@ class InfDimProblem(object):
             ineqconstraints ([type], optional): [description]. Defaults to None.
             reinit_steps (int, optional): [description]. Defaults to 10.
             reinit_distance (int, optional): The reinitialization solver is activated
-                                                    after the level set is shifted reinit_distance * D,
-                                                    where D is the max dimensions of a mesh
-                                                    Defaults to 0.1
+                                            after the level set is shifted reinit_distance * D,
+                                            where D is the max dimensions of a mesh
+                                            Defaults to 0.1
             solver_parameters ([type], optional): [description]. Defaults to None.
 
         Raises:
@@ -115,7 +114,8 @@ class InfDimProblem(object):
         self.reinit_steps = reinit_steps
         if not isinstance(reg_solver, RegularizationSolver):
             raise TypeError(
-                f"Provided regularization solver '{type(reg_solver).__name__}', is not a RegularizationSolver"
+                f"Provided regularization solver '{type(reg_solver).__name__}',\
+                  is not a RegularizationSolver"
             )
         self.reg_solver = reg_solver
         assert len(cost_function.controls) < 2, "Only one control for now"
@@ -189,7 +189,6 @@ class InfDimProblem(object):
             "ts_rtol": 1e-7,
             "ts_dt": 1e-5,
             "ts_converged_reason": None,
-            "ts_monitor": None,
             "ts_adapt_type": "dsp",
         }
         if solver_parameters:
@@ -216,7 +215,8 @@ class InfDimProblem(object):
             for ineqconstr in self.ineqconstraints:
                 if not isinstance(ineqconstr, Constraint):
                     raise TypeError(
-                        f"Provided inequality constraint '{type(ineqconstr).__name__}', not a Constraint"
+                        f"Provided inequality constraint '{type(ineqconstr).__name__}',\
+                          not a Constraint"
                     )
         else:
             self.ineqconstraints = []
@@ -301,7 +301,7 @@ class InfDimProblem(object):
         conv = self.hj_solver.ts.getConvergedReason()
         if conv == 2:
             fd.warning(
-                f"Maximum number of time steps (1000) reached. \
+                "Maximum number of time steps (1000) reached. \
                         Consider making the optimization time step 'dt' shorter"
             )
         return phi_n

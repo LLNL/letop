@@ -13,6 +13,10 @@ from pyadjoint.enlisting import Enlist
 from firedrake import PETSc
 
 
+def print(x):
+    return PETSc.Sys.Print(x)
+
+
 class ReinitializationSolver(object):
     def __init__(
         self,
@@ -28,16 +32,13 @@ class ReinitializationSolver(object):
             h_factor (float): Used to approximate the signed distance function
             monitor_callback ([type], optional): [description]. Defaults to None.
             stopping_criteria (float, optional): Min value for the time derivative. Defaults to 0.1.
-            poststep (bool, optional): Choose to add the postep (to check the stopping criteria). Defaults to True
+            poststep (bool, optional): Choose to add the postep (to check the stopping criteria).
+                                        Defaults to True
             solver_parameters (dict, optional): [description]. Defaults to None.
         """
         if solver_parameters:
-            stopping_criteria = solver_parameters.get(
-                "stopping_criteria", 0.1
-            )
-            h_factor = solver_parameters.get(
-                "h_factor", 2.0
-            )
+            stopping_criteria = solver_parameters.get("stopping_criteria", 0.1)
+            h_factor = solver_parameters.get("h_factor", 2.0)
         self.h_factor = h_factor
         self.monitor_callback = Enlist(monitor_callback)
         self.error_prev = 1.0
