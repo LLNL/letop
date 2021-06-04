@@ -45,7 +45,7 @@ def compliance_optimization():
 
     # Initial level set function
     x, y = fd.SpatialCoordinate(mesh)
-    PHI = fd.FunctionSpace(mesh, "DG", 1)
+    PHI = fd.FunctionSpace(mesh, "CG", 1)
     lx = 2.0
     ly = 1.0
     phi_expr = (
@@ -144,7 +144,7 @@ def compliance_optimization():
         S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
     )
     # Hamilton-Jacobi equation to advect the level set
-    dt = 0.001
+    dt = 0.002
     tol = 1e-5
 
     # Optimization problem

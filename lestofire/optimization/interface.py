@@ -28,6 +28,8 @@ from lestofire.optimization import (
     ReinitializationSolver,
     HamiltonJacobiSolver,
     HamiltonJacobiProblem,
+    HamiltonJacobiCGSolver,
+    ReinitSolverCG,
 )
 from lestofire.physics import calculate_max_vel
 from pyop2.profiling import timed_function
@@ -117,7 +119,6 @@ class InfDimProblem(object):
         self.reg_solver = reg_solver
         assert len(cost_function.controls) < 2, "Only one control for now"
         self.phi = cost_function.level_set[0]
-        self.newphi = fd.Function(self.phi.function_space())
         self.V = self.phi.function_space()
         self.Vvec = cost_function.controls[0].control.function_space()
         self.delta_x = fd.Function(self.Vvec)
@@ -125,6 +126,79 @@ class InfDimProblem(object):
         self.current_max_distance = self.max_distance
         self.accum_distance = 0.0
         self.last_distance = 0.0
+
+        if self.V.ufl_element().family() in ["DQ", "Discontinuous Lagrange"]:
+            self.build_dg_solvers(solver_parameters)
+        elif self.V.ufl_element().family() in ["Lagrange"]:
+            self.build_cg_solvers(solver_parameters)
+        else:
+            raise RuntimeError(
+                f"Level set function element {self.V.ufl_element()} not supported."
+            )
+
+        def event(ts, t, X, fvalue):
+            max_vel = calculate_max_vel(self.delta_x)
+            fvalue[0] = (self.accum_distance + max_vel * t) - self.current_max_distance
+
+        def postevent(ts, events, t, X, forward):
+            with self.phi.dat.vec_wo as v:
+                X.copy(v)
+            self.phi.assign(self.reinit_solver.solve(self.phi))
+            with self.phi.dat.vec_wo as v:
+                v.copy(X)
+            self.current_max_distance += self.max_distance
+
+        direction = [1]
+        terminate = [False]
+
+        self.hj_solver.ts.setEventHandler(direction, terminate, event, postevent)
+        self.hj_solver.ts.setEventTolerances(1e-4, vtol=[1e-4])
+
+        if eqconstraints:
+            self.eqconstraints = Enlist(eqconstraints)
+            for constr in self.eqconstraints:
+                if not isinstance(constr, Constraint):
+                    raise TypeError(
+                        f"Provided equality constraint '{type(constr).__name__}', not a Constraint"
+                    )
+        else:
+            self.eqconstraints = []
+
+        if ineqconstraints:
+            self.ineqconstraints = Enlist(ineqconstraints)
+            for ineqconstr in self.ineqconstraints:
+                if not isinstance(ineqconstr, Constraint):
+                    raise TypeError(
+                        f"Provided inequality constraint '{type(ineqconstr).__name__}',\
+                          not a Constraint"
+                    )
+        else:
+            self.ineqconstraints = []
+
+        self.gradJ = fd.Function(self.Vvec)
+
+        self.gradH = [fd.Function(self.Vvec) for _ in self.ineqconstraints]
+        self.gradG = [fd.Function(self.Vvec) for _ in self.eqconstraints]
+
+        self.cost_function = cost_function
+
+        self.i = 0  # iteration count
+
+        self.beta_param = reg_solver.beta_param.values()[0]
+
+    def build_cg_solvers(self, solver_parameters=None):
+        V = self.V
+
+        self.hj_solver = HamiltonJacobiCGSolver(V, self.delta_x, self.phi)
+        self.reinit_solver = ReinitSolverCG(V)
+
+    def build_dg_solvers(self, solver_parameters=None):
+        """Build the Hamilton-Jacobi and the reinitialization solvers with
+            the Discontinuous Galerkin formulation.
+
+        Args:
+            solver_parameters ([type], optional): [description]. Defaults to None.
+        """
 
         def H(p):
             return inner(self.delta_x, p)
@@ -162,24 +236,6 @@ class InfDimProblem(object):
             solver_parameters=hj_solver_parameters,
         )
 
-        def event(ts, t, X, fvalue):
-            max_vel = calculate_max_vel(self.delta_x)
-            fvalue[0] = (self.accum_distance + max_vel * t) - self.current_max_distance
-
-        def postevent(ts, events, t, X, forward):
-            with self.phi.dat.vec_wo as v:
-                X.copy(v)
-            self.phi.assign(self.reinit_solver.solve(self.phi, 0.5))
-            with self.phi.dat.vec_wo as v:
-                v.copy(X)
-            self.current_max_distance += self.max_distance
-
-        direction = [1]
-        terminate = [False]
-
-        self.hj_solver.ts.setEventHandler(direction, terminate, event, postevent)
-        self.hj_solver.ts.setEventTolerances(1e-4, vtol=[1e-4])
-
         reinit_solver_parameters = {
             "ts_type": "rk",
             "ts_rk_type": "5dp",
@@ -197,38 +253,6 @@ class InfDimProblem(object):
             self.V,
             solver_parameters=reinit_solver_parameters,
         )
-
-        if eqconstraints:
-            self.eqconstraints = Enlist(eqconstraints)
-            for constr in self.eqconstraints:
-                if not isinstance(constr, Constraint):
-                    raise TypeError(
-                        f"Provided equality constraint '{type(constr).__name__}', not a Constraint"
-                    )
-        else:
-            self.eqconstraints = []
-
-        if ineqconstraints:
-            self.ineqconstraints = Enlist(ineqconstraints)
-            for ineqconstr in self.ineqconstraints:
-                if not isinstance(ineqconstr, Constraint):
-                    raise TypeError(
-                        f"Provided inequality constraint '{type(ineqconstr).__name__}',\
-                          not a Constraint"
-                    )
-        else:
-            self.ineqconstraints = []
-
-        self.gradJ = fd.Function(self.Vvec)
-
-        self.gradH = [fd.Function(self.Vvec) for _ in self.ineqconstraints]
-        self.gradG = [fd.Function(self.Vvec) for _ in self.eqconstraints]
-
-        self.cost_function = cost_function
-
-        self.i = 0  # iteration count
-
-        self.beta_param = reg_solver.beta_param.values()[0]
 
     def fespace(self):
         return self.Vvec
@@ -290,9 +314,9 @@ class InfDimProblem(object):
         return (self.gradJ, self.gradG, self.gradH)
 
     @no_annotations
-    def retract(self, phi_n, delta_x, scaling=1):
+    def retract(self, input_phi, delta_x, scaling=1):
         self.hj_solver.ts.setMaxTime(scaling)
-        phi_n = self.hj_solver.solve(phi_n)
+        output_phi = self.hj_solver.solve(input_phi)
 
         max_vel = calculate_max_vel(delta_x)
         self.last_distance = max_vel * scaling
@@ -303,7 +327,7 @@ class InfDimProblem(object):
                 "Maximum number of time steps (1000) reached. \
                         Consider making the optimization time step 'dt' shorter"
             )
-        return phi_n
+        return output_phi
 
     def restore(self):
         pass

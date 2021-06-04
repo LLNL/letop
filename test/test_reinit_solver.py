@@ -1,6 +1,6 @@
 import firedrake as fd
 from firedrake import sqrt
-from lestofire.optimization import ReinitializationSolver
+from lestofire.optimization import ReinitializationSolver, ReinitSolverCG
 from lestofire.physics import max_mesh_dimension
 import pytest
 
@@ -196,3 +196,25 @@ def test_max_dim():
     mesh = fd.CubeMesh(10, 10, 10, 8.0)
 
     assert pytest.approx(max_mesh_dimension(mesh), 8.0)
+
+
+def test_cone_cg_2D():
+    mesh = fd.UnitSquareMesh(100, 100)
+    V = fd.FunctionSpace(mesh, "CG", 1)
+
+    radius = 0.2
+    x, y = fd.SpatialCoordinate(mesh)
+    x_shift = 0.5
+    phi_init = (x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5) - radius * radius
+    phi0 = fd.Function(V).interpolate(phi_init)
+
+    reinit_solver = ReinitSolverCG(V)
+    phin = reinit_solver.solve(phi0)
+
+    phi_solution = fd.interpolate(
+        sqrt((x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5)) - radius,
+        V,
+    )
+    error_numeri = fd.errornorm(phin, phi_solution)
+    print(f"error: {error_numeri}")
+    assert error_numeri < 1e-4

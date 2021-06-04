@@ -7,109 +7,145 @@ from ufl.algebra import Abs
 
 import pytest
 
-from lestofire.optimization import HamiltonJacobiProblem, HamiltonJacobiSolver
+from lestofire.optimization import (
+    HamiltonJacobiProblem,
+    HamiltonJacobiSolver,
+    HamiltonJacobiCGSolver,
+)
 
 mesh = fd.UnitSquareMesh(50, 50, quadrilateral=True)
-V = fd.FunctionSpace(mesh, "DG", 1)
 x, y = fd.SpatialCoordinate(mesh)
 final_t = 0.2
 
 # First case
 phi_init_1 = -(x - 1.0) * y + 50.0
-phi_exact_1 = interpolate(
-    (-(x + final_t - 1.0) * (y - final_t)) * (x < 1.0 - final_t) * (y > final_t) + 50.0,
-    V,
-)
+phi_exact_1 = (-(x + final_t - 1.0) * (y - final_t)) * (x < 1.0 - final_t) * (
+    y > final_t
+) + 50.0
 # Second case
 phi_init_2 = x * y + 100.0
-phi_exact_2 = interpolate(
-    ((x - final_t) * y) * (x > final_t) + 100.0,
-    V,
-)
+phi_exact_2 = ((x - final_t) * y) * (x > final_t) + 100.0
+
 # Third case
 phi_init_3 = -(x - 1.0) * y
-phi_exact_3 = interpolate(
-    (-(x + final_t - 1.0) * y) * (x < 1.0 - final_t),
-    V,
-)
+phi_exact_3 = (-(x + final_t - 1.0) * y) * (x < 1.0 - final_t)
+
 # Fourth case
 phi_init_4 = -(x) * (y - 1) + 50.0
-phi_exact_4 = interpolate(
-    (-(x - final_t) * (y + final_t - 1.0)) * (x > final_t) * (y < 1.0 - final_t) + 50.0,
-    V,
-)
+phi_exact_4 = (-(x - final_t) * (y + final_t - 1.0)) * (x > final_t) * (
+    y < 1.0 - final_t
+) + 50.0
 
 
 @pytest.mark.parametrize(
-    "phi_init, phi_exact, bc, velocity",
+    "phi_init, phi_exact, bc_tuple, velocity",
     [
         (
             phi_init_1,
             phi_exact_1,
-            DirichletBC(V, fd.Constant(50.0), (2, 3)),
+            (fd.Constant(50.0), (2, 3)),
             fd.Constant((-1.0, 1.0)),
         ),
         (
             phi_init_2,
             phi_exact_2,
-            DirichletBC(V, fd.Constant(100.0), (1)),
+            (fd.Constant(100.0), (1)),
             fd.Constant((1.0, 0.0)),
         ),
         (
             phi_init_3,
             phi_exact_3,
-            DirichletBC(V, fd.Constant(0.0), (2)),
+            (fd.Constant(0.0), (2)),
             fd.Constant((-1.0, 0.0)),
         ),
         (
             phi_init_4,
             phi_exact_4,
-            DirichletBC(V, fd.Constant(50.0), (1, 4)),
+            (fd.Constant(50.0), (1, 4)),
             fd.Constant((1.0, -1.0)),
         ),
     ],
 )
-def test_solve_hj(phi_init, phi_exact, bc, velocity):
-    tspan = [0, final_t]
+class TestHJSolvers:
+    def test_solve_hj(self, phi_init, phi_exact, bc_tuple, velocity):
+        V = fd.FunctionSpace(mesh, "DG", 1)
+        bc = fd.DirichletBC(V, *bc_tuple)
+        tspan = [0, final_t]
 
-    phi_pvd = fd.File("solution.pvd")
-    phi_sol = fd.Function(V, name="solution")
+        phi_pvd = fd.File("solution.pvd")
+        phi_sol = fd.Function(V, name="solution")
 
-    def monitor(ts, i, t, x):
-        with phi_sol.dat.vec as v:
-            x.copy(v)
-        phi_pvd.write(phi_sol)
+        def monitor(ts, i, t, x):
+            with phi_sol.dat.vec as v:
+                x.copy(v)
+            phi_pvd.write(phi_sol)
 
-    phi0 = interpolate(phi_init, V)
+        phi0 = interpolate(phi_init, V)
 
-    def H(p):
-        return inner(velocity, p)
+        def H(p):
+            return inner(velocity, p)
 
-    def dHdp(p):
-        return Abs(velocity)
+        def dHdp(p):
+            return Abs(velocity)
 
-    problem = HamiltonJacobiProblem(V, phi0, H, dHdp, tspan, bcs=[bc])
-    solver_parameters = {
-        "ts_type": "rk",
-        "ts_rk_type": "5dp",
-        "ts_view": None,
-        "ts_atol": 1e-6,
-        "ts_rtol": 1e-6,
-        "ts_dt": 1e-4,
-        "ts_monitor": None,
-        "ts_exact_final_time": "matchstep",
-        "ts_adapt_type": "dsp",
-    }
-    solver = HamiltonJacobiSolver(
-        problem, monitor_callback=monitor, solver_parameters=solver_parameters
-    )
-    solver.solve()
-    error = fd.errornorm(phi_exact, phi0)
-    assert error < 1e-3
-    print(f"Error: {error}")
+        problem = HamiltonJacobiProblem(V, phi0, H, dHdp, tspan, bcs=[bc])
+        solver_parameters = {
+            "ts_type": "rk",
+            "ts_rk_type": "5dp",
+            "ts_view": None,
+            "ts_atol": 1e-6,
+            "ts_rtol": 1e-6,
+            "ts_dt": 1e-4,
+            "ts_monitor": None,
+            "ts_exact_final_time": "matchstep",
+            "ts_adapt_type": "dsp",
+        }
+        solver = HamiltonJacobiSolver(
+            problem, monitor_callback=monitor, solver_parameters=solver_parameters
+        )
+        solver.solve()
+        error = fd.errornorm(interpolate(phi_exact, V), phi0)
+        assert error < 1e-3
+        print(f"Error: {error}")
+
+    def test_cg_hj_solver(self, phi_init, phi_exact, bc_tuple, velocity):
+        V = fd.FunctionSpace(mesh, "CG", 1)
+        bc = fd.DirichletBC(V, *bc_tuple)
+
+        phi_pvd = fd.File("solution.pvd")
+        phi_sol = fd.Function(V, name="solution")
+
+        def monitor(ts, i, t, x):
+            with phi_sol.dat.vec as v:
+                x.copy(v)
+            phi_pvd.write(phi_sol)
+
+        phi0 = interpolate(phi_init, V)
+        solver_parameters = {
+            "ts_atol": 1e-6,
+            "ts_rtol": 1e-6,
+            "ts_dt": 1e-4,
+            "ts_exact_final_time": "matchstep",
+        }
+
+        solver = HamiltonJacobiCGSolver(
+            V,
+            velocity,
+            phi0,
+            t_end=final_t,
+            bcs=bc,
+            monitor=monitor,
+            solver_parameters=solver_parameters,
+        )
+
+        solver.solve(phi0)
+        error = fd.errornorm(interpolate(phi_exact, V), phi0)
+        assert error < 1e-3
+        print(f"Error: {error}")
 
 
 def test_solve_hj_restart():
+    V = fd.FunctionSpace(mesh, "DG", 1)
     phi_init = -(x - 1.0) * y + 50.0
     bc = DirichletBC(V, fd.Constant(50.0), (2, 3))
     velocity = fd.Constant((-1.0, 1.0))
@@ -166,6 +202,7 @@ def test_hj_no_bc():
 
     tspan = [0, 1]
 
+    V = fd.FunctionSpace(mesh, "DG", 1)
     VelSpace = fd.VectorFunctionSpace(mesh, "CG", 1)
     u, v = fd.TrialFunction(VelSpace), fd.TestFunction(VelSpace)
     gamma = fd.Constant(2.0)
@@ -228,12 +265,3 @@ def test_hj_no_bc():
     import numpy as np
 
     np.isclose(fd.norm(phi0), 0.33306171841130205)
-
-
-if __name__ == "__main__":
-    test_solve_hj(
-        phi_init_1,
-        phi_exact_1,
-        DirichletBC(V, fd.Constant(50.0), (2, 3)),
-        fd.Constant((-1.0, 1.0)),
-    )
