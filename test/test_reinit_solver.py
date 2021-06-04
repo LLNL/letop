@@ -208,8 +208,11 @@ def test_cone_cg_2D():
     phi_init = (x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5) - radius * radius
     phi0 = fd.Function(V).interpolate(phi_init)
 
+    phi_pvd = fd.File("phi_reinit.pvd")
+
     reinit_solver = ReinitSolverCG(V)
-    phin = reinit_solver.solve(phi0)
+    phin = reinit_solver.solve(phi0, iters=10)
+    phi_pvd.write(phin)
 
     phi_solution = fd.interpolate(
         sqrt((x - x_shift) * (x - x_shift) + (y - 0.5) * (y - 0.5)) - radius,
