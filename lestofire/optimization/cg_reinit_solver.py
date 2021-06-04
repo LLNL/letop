@@ -21,7 +21,7 @@ class BCInt(fd.DirichletBC):
 
 
 class ReinitSolverCG:
-    def __init__(self, V: fd.FunctionSpace) -> None:
+    def __init__(self, V: fd.FunctionSpace, solver_parameters=None) -> None:
         """Reinitialization solver. Returns the level set
         to a signed distance function
 
@@ -37,6 +37,15 @@ class ReinitSolverCG:
         a = rho * sigma * dx
         self.phi_int = fd.Function(V)
         self.A_proj = fd.assemble(a)
+
+        self.solver_parameters = {
+            "ksp_type": "preonly",
+            "pc_type": "lu",
+            "pc_factor_mat_solver_type": "mumps",
+            "ksp_monitor": None,
+        }
+        if solver_parameters:
+            self.solver_parameters.update(solver_parameters)
 
     def solve(self, phi: fd.Function, iters: int = 30) -> fd.Function:
 
@@ -82,14 +91,8 @@ class ReinitSolverCG:
         bc_proj = BCOut(V, fd.Constant(0.0), marking_bc_nodes)
         self.A_proj = fd.assemble(a, tensor=self.A_proj, bcs=bc_proj)
         b_proj = fd.assemble(L_proj, bcs=bc_proj)
-        parameters = {
-            "ksp_type": "preonly",
-            "pc_type": "lu",
-            "pc_factor_mat_solver_type": "mumps",
-            "ksp_monitor": None,
-        }
         solver_proj = fd.LinearSolver(
-            self.A_proj, solver_parameters=parameters
+            self.A_proj, solver_parameters=self.solver_parameters
         )
         solver_proj.solve(self.phi_int, b_proj)
 
@@ -124,7 +127,7 @@ class ReinitSolverCG:
         phi_sol = fd.Function(V)
         A = fd.assemble(a, bcs=bc)
         b = fd.assemble(L, bcs=bc)
-        solver = fd.LinearSolver(A, solver_parameters=parameters)
+        solver = fd.LinearSolver(A, solver_parameters=self.solver_parameters)
 
         # Solve the Signed distance equation with Picard iteration
         bc.apply(phi_sol)
