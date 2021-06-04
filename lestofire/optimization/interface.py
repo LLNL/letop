@@ -122,7 +122,9 @@ class InfDimProblem(object):
         self.V = self.phi.function_space()
         self.Vvec = cost_function.controls[0].control.function_space()
         self.delta_x = fd.Function(self.Vvec)
-        self.max_distance = reinit_distance * max_mesh_dimension(self.V.ufl_domain())
+        self.max_distance = reinit_distance * max_mesh_dimension(
+            self.V.ufl_domain()
+        )
         self.current_max_distance = self.max_distance
         self.accum_distance = 0.0
         self.last_distance = 0.0
@@ -138,7 +140,9 @@ class InfDimProblem(object):
 
         def event(ts, t, X, fvalue):
             max_vel = calculate_max_vel(self.delta_x)
-            fvalue[0] = (self.accum_distance + max_vel * t) - self.current_max_distance
+            fvalue[0] = (
+                self.accum_distance + max_vel * t
+            ) - self.current_max_distance
 
         def postevent(ts, events, t, X, forward):
             with self.phi.dat.vec_wo as v:
@@ -151,7 +155,9 @@ class InfDimProblem(object):
         direction = [1]
         terminate = [False]
 
-        self.hj_solver.ts.setEventHandler(direction, terminate, event, postevent)
+        self.hj_solver.ts.setEventHandler(
+            direction, terminate, event, postevent
+        )
         self.hj_solver.ts.setEventTolerances(1e-4, vtol=[1e-4])
 
         if eqconstraints:
@@ -189,8 +195,20 @@ class InfDimProblem(object):
     def build_cg_solvers(self, solver_parameters=None):
         V = self.V
 
-        self.hj_solver = HamiltonJacobiCGSolver(V, self.delta_x, self.phi)
-        self.reinit_solver = ReinitSolverCG(V)
+        hj_solver_parameters = None
+        reinit_solver_parameters = None
+        if solver_parameters:
+            if solver_parameters.get("hj_solver"):
+                hj_solver_parameters = solver_parameters["hj_solver"]
+            if solver_parameters.get("reinit_solver"):
+                reinit_solver_parameters = solver_parameters["reinit_solver"]
+
+        self.hj_solver = HamiltonJacobiCGSolver(
+            V, self.delta_x, self.phi, solver_parameters=hj_solver_parameters
+        )
+        self.reinit_solver = ReinitSolverCG(
+            V, solver_parameters=reinit_solver_parameters
+        )
 
     def build_dg_solvers(self, solver_parameters=None):
         """Build the Hamilton-Jacobi and the reinitialization solvers with
@@ -247,7 +265,9 @@ class InfDimProblem(object):
         }
         if solver_parameters:
             if solver_parameters.get("reinit_solver"):
-                reinit_solver_parameters.update(solver_parameters["reinit_solver"])
+                reinit_solver_parameters.update(
+                    solver_parameters["reinit_solver"]
+                )
 
         self.reinit_solver = ReinitializationSolver(
             self.V,

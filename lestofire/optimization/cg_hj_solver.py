@@ -43,8 +43,6 @@ def HamiltonJacobiCGSolver(
         "ts_exact_final_time": "matchstep",
         "ts_atol": 1e-7,
         "ts_rtol": 1e-7,
-        # "snes_monitor" : None,
-        # "ksp_monitor" : None,
         "ksp_type": "preonly",
         "pc_type": "lu",
         "pc_factor_mat_solver_type": "mumps",
