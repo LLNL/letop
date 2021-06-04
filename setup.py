@@ -29,7 +29,7 @@ setup(
         "pygmsh==6.1.0",
         "pre-commit==2.12.1",
         "nullspace-optimizer @ git+https://gitlab.com/salazardetroya/null-space-optimizer@lestofire",
-        "firedrake-ts @ git@github.com:IvanYashchuk/firedrake-ts.git@cost-adjoint",
+        "firedrake-ts @ git+https://github.com/IvanYashchuk/firedrake-ts.git@cost-adjoint",
     ],
     description="A little bit of foobar in your life",
     long_description=read("README.md"),
