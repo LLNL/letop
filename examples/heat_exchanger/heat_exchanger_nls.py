@@ -68,7 +68,7 @@ def heat_exchanger_optimization():
 
     # Initial level set function
     x, y = fd.SpatialCoordinate(mesh)
-    PHI = fd.FunctionSpace(mesh, "DG", 1)
+    PHI = fd.FunctionSpace(mesh, "CG", 1)
     phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - fd.Constant(0.8)
     # Avoid recording the operation interpolate into the tape.
     # Otherwise, the shape derivatives will not be correct
