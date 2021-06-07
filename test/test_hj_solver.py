@@ -68,7 +68,7 @@ phi_exact_4 = (-(x - final_t) * (y + final_t - 1.0)) * (x > final_t) * (
 )
 class TestHJSolvers:
     def test_solve_hj(self, phi_init, phi_exact, bc_tuple, velocity):
-        V = fd.FunctionSpace(mesh, "DG", 1)
+        V = fd.FunctionSpace(mesh, "DQ", 1)
         bc = fd.DirichletBC(V, *bc_tuple)
         tspan = [0, final_t]
 
@@ -101,7 +101,9 @@ class TestHJSolvers:
             "ts_adapt_type": "dsp",
         }
         solver = HamiltonJacobiSolver(
-            problem, monitor_callback=monitor, solver_parameters=solver_parameters
+            problem,
+            monitor_callback=monitor,
+            solver_parameters=solver_parameters,
         )
         solver.solve()
         error = fd.errornorm(interpolate(phi_exact, V), phi0)
@@ -145,7 +147,7 @@ class TestHJSolvers:
 
 
 def test_solve_hj_restart():
-    V = fd.FunctionSpace(mesh, "DG", 1)
+    V = fd.FunctionSpace(mesh, "DQ", 1)
     phi_init = -(x - 1.0) * y + 50.0
     bc = DirichletBC(V, fd.Constant(50.0), (2, 3))
     velocity = fd.Constant((-1.0, 1.0))
@@ -202,7 +204,7 @@ def test_hj_no_bc():
 
     tspan = [0, 1]
 
-    V = fd.FunctionSpace(mesh, "DG", 1)
+    V = fd.FunctionSpace(mesh, "DQ", 1)
     VelSpace = fd.VectorFunctionSpace(mesh, "CG", 1)
     u, v = fd.TrialFunction(VelSpace), fd.TestFunction(VelSpace)
     gamma = fd.Constant(2.0)
@@ -222,8 +224,10 @@ def test_hj_no_bc():
     }
 
     th_temp = fd.Function(VelSpace)
-    fd.solve(b == L, th_temp, bcs=[bc1, bc2], solver_parameters=direct_parameters)
-    Vvec = fd.VectorFunctionSpace(mesh, "DG", V.ufl_element().degree())
+    fd.solve(
+        b == L, th_temp, bcs=[bc1, bc2], solver_parameters=direct_parameters
+    )
+    Vvec = fd.VectorFunctionSpace(mesh, "DQ", V.ufl_element().degree())
     th = fd.Function(Vvec)
     th.interpolate(th_temp)
     fd.File("solenoidal.pvd").write(th)

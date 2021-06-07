@@ -42,12 +42,11 @@ class ReinitSolverCG:
             "ksp_type": "preonly",
             "pc_type": "lu",
             "pc_factor_mat_solver_type": "mumps",
-            "ksp_monitor": None,
         }
         if solver_parameters:
             self.solver_parameters.update(solver_parameters)
 
-    def solve(self, phi: fd.Function, iters: int = 30) -> fd.Function:
+    def solve(self, phi: fd.Function, iters: int = 10) -> fd.Function:
 
         marking = fd.Function(self.DG0)
         marking_bc_nodes = fd.Function(self.V)
@@ -134,7 +133,7 @@ class ReinitSolverCG:
         for _ in range(iters):
             solver.solve(phi_sol, b)
             self.phi.assign(phi_sol)
-            res = residual_phi(phi_sol)
-            print(f"Residual norm: {res}")
+            # res = residual_phi(phi_sol)
+            # print(f"Residual norm: {res}")
             b = fd.assemble(L, bcs=bc, tensor=b)
         return self.phi
