@@ -336,7 +336,7 @@ class InfDimProblem(object):
     @no_annotations
     def retract(self, input_phi, delta_x, scaling=1):
         self.hj_solver.ts.setMaxTime(scaling)
-        self.hj_solver.solve(input_phi)
+        output_phi = self.hj_solver.solve(input_phi)
 
         max_vel = calculate_max_vel(delta_x)
         self.last_distance = max_vel * scaling
@@ -347,7 +347,7 @@ class InfDimProblem(object):
                 "Maximum number of time steps (1000) reached. \
                         Consider making the optimization time step 'dt' shorter"
             )
-        return self.phi
+        return output_phi
 
     def restore(self):
         pass
