@@ -126,6 +126,7 @@ class InfDimProblem(object):
             self.V.ufl_domain()
         )
         self.current_max_distance = self.max_distance
+        self.current_max_distance_at_t0 = self.current_max_distance
         self.accum_distance = 0.0
         self.last_distance = 0.0
 
@@ -333,9 +334,17 @@ class InfDimProblem(object):
 
         return (self.gradJ, self.gradG, self.gradH)
 
+    def reset_distance(self):
+        """Necessary in cases where we have performed a reinitialization
+        but the new level set was scraped by the line search
+        """
+        self.current_max_distance = self.current_max_distance_at_t0
+
     @no_annotations
     def retract(self, input_phi, delta_x, scaling=1):
+        self.current_max_distance_at_t0 = self.current_max_distance
         self.hj_solver.ts.setMaxTime(scaling)
+        # input_phi is not modified, output_phi refers to problem.phi
         output_phi = self.hj_solver.solve(input_phi)
 
         max_vel = calculate_max_vel(delta_x)
