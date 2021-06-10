@@ -21,6 +21,6 @@ def AdvectionSUPG(
     # Strong form esidual
     r = phi_t + dot(theta, grad(phi))
     # Add SUPG stabilisation terms
-    vnorm = sqrt(dot(theta, theta)) + 1e-3
+    vnorm = sqrt(dot(theta, theta)) + 1e-2
     F += (h / (2.0 * vnorm)) * dot(theta, grad(rho)) * r * dx
     return F
