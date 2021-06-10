@@ -2,7 +2,7 @@ import firedrake as fd
 import firedrake_ts as fdts
 from firedrake import inner, dot, grad, div, dx, ds, dS, jump, avg
 from lestofire.physics import AdvectionSUPG
-from typing import Union, List, Callable, Tuple
+from typing import Union, List, Callable
 
 
 def HamiltonJacobiCGSolver(
