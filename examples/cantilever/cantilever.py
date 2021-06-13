@@ -67,9 +67,9 @@ def compliance_optimization():
     beta = fd.Constant(200.0)
 
     def hs(phi, beta):
-        return fd.Constant(1.0) / (fd.Constant(1.0) + exp(-beta * phi)) + fd.Constant(
-            rho_min
-        )
+        return fd.Constant(1.0) / (
+            fd.Constant(1.0) + exp(-beta * phi)
+        ) + fd.Constant(rho_min)
 
     H1_elem = fd.VectorElement("CG", mesh.ufl_cell(), 1)
     W = fd.FunctionSpace(mesh, H1_elem)
@@ -104,7 +104,9 @@ def compliance_optimization():
     u_sol = fd.Function(W)
     F = fd.action(a, u_sol) - L
     problem = fd.NonlinearVariationalProblem(F, u_sol, bcs=bc)
-    solver = fd.NonlinearVariationalSolver(problem, solver_parameters=parameters)
+    solver = fd.NonlinearVariationalSolver(
+        problem, solver_parameters=parameters
+    )
     solver.solve()
     # fd.solve(
     #    a == L, u_sol, bcs=[bc], solver_parameters=parameters
@@ -114,7 +116,9 @@ def compliance_optimization():
 
     # Cost function: Compliance
     J = fd.assemble(
-        fd.Constant(1e-2) * inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol)) * dx
+        fd.Constant(1e-2)
+        * inner(hs(-phi, beta) * sigma(u_sol), epsilon(u_sol))
+        * dx
     )
 
     # Constraint: Volume
@@ -141,10 +145,16 @@ def compliance_optimization():
     bcs_vel = fd.DirichletBC(S, fd.Constant((0.0, 0.0)), (1, 2))
     # Regularize the shape derivatives
     reg_solver = RegularizationSolver(
-        S, mesh, beta=beta_param, gamma=1.0e5, dx=dx, bcs=bcs_vel, output_dir=None
+        S,
+        mesh,
+        beta=beta_param,
+        gamma=1.0e5,
+        dx=dx,
+        bcs=bcs_vel,
+        output_dir=None,
     )
     # Hamilton-Jacobi equation to advect the level set
-    dt = 0.002
+    dt = 0.05
     tol = 1e-5
 
     # Optimization problem

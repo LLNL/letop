@@ -133,11 +133,14 @@ class ReinitSolverCG:
         # Solve the Signed distance equation with Picard iteration
         bc.apply(phi_sol)
         init_res = residual_phi(phi_sol)
-        for _ in range(iters):
+        res = 1e10
+        it = 0
+        while res > init_res or it < iters:
             solver.solve(phi_sol, b)
             self.phi.assign(phi_sol)
             b = fd.assemble(L, bcs=bc, tensor=b)
-        res = residual_phi(phi_sol)
+            it += 1
+            res = residual_phi(phi_sol)
         if res > init_res:
             fd.warning(
                 f"Residual in signed distance function increased: {res}, before: {init_res}"

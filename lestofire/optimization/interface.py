@@ -340,6 +340,9 @@ class InfDimProblem(object):
         """
         self.current_max_distance = self.current_max_distance_at_t0
 
+    def velocity_scale(self, delta_x):
+        return calculate_max_vel(delta_x)
+
     @no_annotations
     def retract(self, input_phi, delta_x, scaling=1):
         self.current_max_distance_at_t0 = self.current_max_distance
