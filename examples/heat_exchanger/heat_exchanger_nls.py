@@ -43,7 +43,12 @@ def heat_exchanger_optimization():
 
     parser = argparse.ArgumentParser(description="Level set method parameters")
     parser.add_argument(
-        "--mu", action="store", dest="mu", type=float, help="Viscosity", default=0.03
+        "--mu",
+        action="store",
+        dest="mu",
+        type=float,
+        help="Viscosity",
+        default=0.03,
     )
     parser.add_argument(
         "--n_iters",
@@ -117,19 +122,28 @@ def heat_exchanger_optimization():
         return (
             a_fluid * dx
             + hs(phi, epsilon) * darcy_term * dx(0)
-            + alphamax * darcy_term * (dx(BLOCK_INLET_MOUTH) + dx(BLOCK_OUTLET_MOUTH))
+            + alphamax
+            * darcy_term
+            * (dx(BLOCK_INLET_MOUTH) + dx(BLOCK_OUTLET_MOUTH))
         )
 
     # Dirichlet boundary conditions
     inflow1 = fd.as_vector(
         [
             u_inflow
-            * sin(((y - (line_sep - (dist_center + inlet_width))) * pi) / inlet_width),
+            * sin(
+                ((y - (line_sep - (dist_center + inlet_width))) * pi)
+                / inlet_width
+            ),
             0.0,
         ]
     )
     inflow2 = fd.as_vector(
-        [u_inflow * sin(((y - (line_sep + dist_center)) * pi) / inlet_width), 0.0]
+        [
+            u_inflow
+            * sin(((y - (line_sep + dist_center)) * pi) / inlet_width),
+            0.0,
+        ]
     )
 
     noslip = fd.Constant((0.0, 0.0))
@@ -202,7 +216,8 @@ def heat_exchanger_optimization():
     a_vel = (
         dot(
             jump(w),
-            cp * (u1n("+") + u2n("+")) * t("+") - cp * (u1n("-") + u2n("-")) * t("-"),
+            cp * (u1n("+") + u2n("+")) * t("+")
+            - cp * (u1n("-") + u2n("-")) * t("-"),
         )
         * dS
         + dot(w, cp * (u1n + u2n) * t) * ds
@@ -229,7 +244,9 @@ def heat_exchanger_optimization():
 
     problem = fd.LinearVariationalProblem(derivative(aT, t), LT_bnd, t)
     solver_temp = fd.LinearVariationalSolver(
-        problem, solver_parameters=temperature_parameters, options_prefix="temperature"
+        problem,
+        solver_parameters=temperature_parameters,
+        options_prefix="temperature",
     )
     solver_temp.solve()
     # fd.solve(eT == 0, t, solver_parameters=temperature_parameters)
@@ -272,7 +289,7 @@ def heat_exchanger_optimization():
     )
 
     tol = 1e-5
-    dt = 0.02
+    dt = 0.05
     params = {
         "alphaC": 1.0,
         "debug": 5,
