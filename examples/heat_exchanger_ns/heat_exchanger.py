@@ -20,6 +20,10 @@ from params import (
     INLET2,
     OUTLET1,
     OUTLET2,
+    INMOUTH1,
+    INMOUTH2,
+    OUTMOUTH1,
+    OUTMOUTH2,
 )
 
 from pyadjoint import stop_annotating
@@ -30,7 +34,12 @@ def heat_exchanger_navier_stokes():
 
     parser = argparse.ArgumentParser(description="Level set method parameters")
     parser.add_argument(
-        "--nu", action="store", dest="nu", type=float, help="Viscosity", default=0.5
+        "--nu",
+        action="store",
+        dest="nu",
+        type=float,
+        help="Viscosity",
+        default=0.5,
     )
     parser.add_argument(
         "--n_iters",
@@ -60,7 +69,7 @@ def heat_exchanger_navier_stokes():
     mesh.coordinates.assign(mesh.coordinates + s)
 
     x, y = fd.SpatialCoordinate(mesh)
-    PHI = fd.FunctionSpace(mesh, "DG", 1)
+    PHI = fd.FunctionSpace(mesh, "CG", 1)
     phi_expr = sin(y * pi / 0.2) * cos(x * pi / 0.2) - fd.Constant(0.8)
     with stop_annotating():
         phi = fd.interpolate(phi_expr, PHI)
@@ -103,7 +112,10 @@ def heat_exchanger_navier_stokes():
     inflow1 = fd.as_vector(
         [
             u_inflow
-            * sin(((y - (line_sep - (dist_center + inlet_width))) * pi) / inlet_width),
+            * sin(
+                ((y - (line_sep - (dist_center + inlet_width))) * pi)
+                / inlet_width
+            ),
             0.0,
         ]
     )
@@ -130,7 +142,11 @@ def heat_exchanger_navier_stokes():
         design_domain=0,
     )
     inflow2 = fd.as_vector(
-        [u_inflow * sin(((y - (line_sep + dist_center)) * pi) / inlet_width), 0.0]
+        [
+            u_inflow
+            * sin(((y - (line_sep + dist_center)) * pi) / inlet_width),
+            0.0,
+        ]
     )
     bcs2_1 = fd.DirichletBC(W.sub(0), noslip, WALLS)
     bcs2_2 = fd.DirichletBC(W.sub(0), inflow2, INLET2)
@@ -170,9 +186,9 @@ def heat_exchanger_navier_stokes():
     t, rho = fd.Function(T), fd.TestFunction(T)
     n = fd.FacetNormal(mesh)
     beta = u1 + u2
-    F = (inner(beta, grad(t)) * rho + k * inner(grad(t), grad(rho))) * dx - inner(
-        k * grad(t), n
-    ) * rho * (ds(OUTLET1) + ds(OUTLET2))
+    F = (
+        inner(beta, grad(t)) * rho + k * inner(grad(t), grad(rho))
+    ) * dx - inner(k * grad(t), n) * rho * (ds(OUTLET1) + ds(OUTLET2))
 
     R_U = dot(beta, grad(t)) - k * div(grad(t))
     beta_gls = 0.9
@@ -197,7 +213,9 @@ def heat_exchanger_navier_stokes():
         "pc_factor_mat_solver_type": "mumps",
     }
     solver_T = fd.NonlinearVariationalSolver(
-        problem_T, solver_parameters=solver_parameters, options_prefix="temperature"
+        problem_T,
+        solver_parameters=solver_parameters,
+        options_prefix="temperature",
     )
     solver_T.solve()
     t.rename("Temperature")
@@ -251,7 +269,7 @@ def heat_exchanger_navier_stokes():
     )
 
     tol = 1e-5
-    dt = 0.005
+    dt = 0.1
     params = {
         "alphaC": 1.0,
         "debug": 5,
@@ -274,8 +292,8 @@ def heat_exchanger_navier_stokes():
             Constraint(P1hat, 1.0, P1control),
             Constraint(P2hat, 1.0, P2control),
         ],
-        reinit_steps=1,
-        reinit_distance=0.005,
+        reinit_distance=0.05,
+        zero_velocities_subdomain=[INMOUTH1, INMOUTH2, OUTMOUTH1, OUTMOUTH1],
     )
     _ = nlspace_solve_shape(problem, params)
 

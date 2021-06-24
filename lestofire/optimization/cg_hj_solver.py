@@ -1,7 +1,7 @@
 import firedrake as fd
 import firedrake_ts as fdts
 from firedrake import inner, dot, grad, div, dx, ds, dS, jump, avg
-from lestofire.physics import AdvectionSUPG
+from lestofire.physics import AdvectionSUPG, InteriorBC
 from typing import Union, List, Callable
 
 
@@ -13,6 +13,10 @@ def HamiltonJacobiCGSolver(
     bcs: Union[fd.DirichletBC, List[fd.DirichletBC]] = None,
     monitor: Callable = None,
     solver_parameters=None,
+    pre_jacobian_callback=None,
+    post_jacobian_callback=None,
+    pre_function_callback=None,
+    post_function_callback=None,
 ) -> fdts.DAESolver:
     """Builds the solver for the advection-diffusion equation (Hamilton-Jacobi in the context of
     topology optimization) which is used to advect the level set)
@@ -25,10 +29,22 @@ def HamiltonJacobiCGSolver(
         bcs (Union[fd.DirichletBC, List[fd.DirichletBC]], optional): BC for the equation. Defaults to None.
         monitor (Callable, optional): Monitor function called each time step. Defaults to None.
         solver_parameters ([type], optional): Solver options. Defaults to None.
+        :kwarg pre_jacobian_callback: A user-defined function that will
+               be called immediately before Jacobian assembly. This can
+               be used, for example, to update a coefficient function
+               that has a complicated dependence on the unknown solution.
+        :kwarg pre_function_callback: As above, but called immediately
+               before residual assembly.
+        :kwarg post_jacobian_callback: As above, but called after the
+               Jacobian has been assembled.
+        :kwarg post_function_callback: As above, but called immediately
+               after residual assembly.
+
 
     Returns:
         fdts.DAESolver: DAESolver configured to solve the advection-diffusion equation
     """
+
     phi_t = fd.Function(V)
     # Galerkin residual
     F = AdvectionSUPG(V, theta, phi, phi_t)
@@ -49,5 +65,11 @@ def HamiltonJacobiCGSolver(
         parameters.update(solver_parameters)
 
     return fdts.DAESolver(
-        problem, solver_parameters=parameters, monitor_callback=monitor
+        problem,
+        solver_parameters=parameters,
+        monitor_callback=monitor,
+        pre_function_callback=pre_function_callback,
+        post_function_callback=post_function_callback,
+        pre_jacobian_callback=pre_jacobian_callback,
+        post_jacobian_callback=post_jacobian_callback,
     )
