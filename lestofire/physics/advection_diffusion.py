@@ -16,11 +16,23 @@ def AdvectionSUPG(
         h = fd.CellDiameter(V.ufl_domain())
     else:
         raise RuntimeError(f"Element {cell_type} not supported")
-    F = phi_t * rho * dx + (inner(theta, grad(phi)) * rho) * dx
 
-    # Strong form esidual
-    r = phi_t + dot(theta, grad(phi))
-    # Add SUPG stabilisation terms
-    vnorm = sqrt(dot(theta, theta)) + 1e-4
-    F += (h / (2.0 * vnorm)) * dot(theta, grad(rho)) * r * dx
+    PeInv = fd.Constant(1e-6)
+    F = (
+        phi_t * rho * dx
+        + (inner(theta, grad(phi)) * rho + PeInv * inner(grad(phi), grad(rho)))
+        * dx
+    )
+
+    R_U = dot(theta, grad(phi)) - PeInv * div(grad(phi))
+    beta_gls = 0.9
+    h = fd.CellSize(V.ufl_domain())
+    tau_gls = beta_gls * (
+        (4.0 * dot(theta, theta) / h ** 2) + 9.0 * (4.0 * PeInv / h ** 2) ** 2
+    ) ** (-0.5)
+    degree = 4
+
+    theta_U = dot(theta, grad(rho)) - PeInv * div(grad(rho))
+    F += tau_gls * inner(R_U, theta_U) * dx(degree=degree)
+
     return F
