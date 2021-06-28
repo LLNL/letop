@@ -90,7 +90,6 @@ class InfDimProblem(object):
         ineqconstraints=None,
         reinit_distance=0.05,
         solver_parameters=None,
-        zero_velocities_subdomain=None,
     ):
         """Problem interface for the null-space solver
 
@@ -122,7 +121,6 @@ class InfDimProblem(object):
         assert len(cost_function.controls) < 2, "Only one control for now"
         self.phi = cost_function.level_set[0]
         self.V = self.phi.function_space()
-        self.phi_bc = fd.Function(self.V)
         self.Vvec = cost_function.controls[0].control.function_space()
         self.delta_x = fd.Function(self.Vvec)
         self.max_distance = reinit_distance * max_mesh_dimension(
@@ -138,7 +136,6 @@ class InfDimProblem(object):
         elif self.V.ufl_element().family() in ["Lagrange"]:
             self.build_cg_solvers(
                 solver_parameters,
-                zero_velocities_subdomain=zero_velocities_subdomain,
             )
         else:
             raise RuntimeError(
@@ -199,9 +196,7 @@ class InfDimProblem(object):
 
         self.beta_param = reg_solver.beta_param.values()[0]
 
-    def build_cg_solvers(
-        self, solver_parameters=None, zero_velocities_subdomain=None
-    ):
+    def build_cg_solvers(self, solver_parameters=None):
         V = self.V
 
         hj_solver_parameters = None
@@ -212,24 +207,11 @@ class InfDimProblem(object):
             if solver_parameters.get("reinit_solver"):
                 reinit_solver_parameters = solver_parameters["reinit_solver"]
 
-        if zero_velocities_subdomain:
-            bc = InteriorBC(self.V, self.phi_bc, zero_velocities_subdomain)
-
-        def apply_bcs(X, Xdot, time):
-            if zero_velocities_subdomain:
-                with self.phi.dat.vec as phi_vec:
-                    X.copy(phi_vec)
-                bc.apply(self.phi)
-                with self.phi.dat.vec as phi_vec:
-                    phi_vec.copy(X)
-
         self.hj_solver = HamiltonJacobiCGSolver(
             V,
             self.delta_x,
             self.phi,
             solver_parameters=hj_solver_parameters,
-            pre_function_callback=apply_bcs,
-            pre_jacobian_callback=apply_bcs,
         )
         self.reinit_solver = ReinitSolverCG(
             V, solver_parameters=reinit_solver_parameters
@@ -369,7 +351,6 @@ class InfDimProblem(object):
 
     @no_annotations
     def retract(self, input_phi, delta_x, scaling=1):
-        self.phi_bc.assign(input_phi)
         self.current_max_distance_at_t0 = self.current_max_distance
         self.hj_solver.ts.setMaxTime(scaling)
         # input_phi is not modified, output_phi refers to problem.phi
