@@ -1,7 +1,7 @@
 import firedrake as fd
 import firedrake_ts as fdts
 from firedrake import inner, dot, grad, div, dx, ds, dS, jump, avg
-from lestofire.physics import AdvectionSUPG, InteriorBC
+from lestofire.physics import AdvectionDiffusionGLS, InteriorBC
 from typing import Union, List, Callable
 
 
@@ -47,7 +47,7 @@ def HamiltonJacobiCGSolver(
 
     phi_t = fd.Function(V)
     # Galerkin residual
-    F = AdvectionSUPG(V, theta, phi, phi_t)
+    F = AdvectionDiffusionGLS(V, theta, phi, phi_t)
 
     problem = fdts.DAEProblem(F, phi, phi_t, (0.0, t_end), bcs=bcs)
     parameters = {

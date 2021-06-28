@@ -2,11 +2,12 @@ import firedrake as fd
 from firedrake import inner, dot, grad, div, dx, sqrt
 
 
-def AdvectionSUPG(
+def AdvectionDiffusionGLS(
     V: fd.FunctionSpace,
     theta: fd.Function,
     phi: fd.Function,
     phi_t: fd.Function,
+    PeInv: fd.Constant = fd.Constant(1e-6),
 ):
     rho = fd.TestFunction(V)
     cell_type = V.ufl_domain().ufl_coordinate_element().cell().cellname()
@@ -17,7 +18,6 @@ def AdvectionSUPG(
     else:
         raise RuntimeError(f"Element {cell_type} not supported")
 
-    PeInv = fd.Constant(1e-6)
     F = (
         phi_t * rho * dx
         + (inner(theta, grad(phi)) * rho + PeInv * inner(grad(phi), grad(rho)))
