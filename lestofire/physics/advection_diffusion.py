@@ -7,7 +7,7 @@ def AdvectionDiffusionGLS(
     theta: fd.Function,
     phi: fd.Function,
     phi_t: fd.Function,
-    PeInv: fd.Constant = fd.Constant(1e-6),
+    PeInv: fd.Constant = fd.Constant(1e-5),
 ):
     rho = fd.TestFunction(V)
     mesh = V.ufl_domain()
