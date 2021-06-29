@@ -1,5 +1,5 @@
 import firedrake as fd
-from firedrake import inner, dot, grad, div, dx, sqrt
+from firedrake import inner, dot, grad, div, dx, sqrt, ds
 
 
 def AdvectionDiffusionGLS(
@@ -10,7 +10,8 @@ def AdvectionDiffusionGLS(
     PeInv: fd.Constant = fd.Constant(1e-6),
 ):
     rho = fd.TestFunction(V)
-    cell_type = V.ufl_domain().ufl_coordinate_element().cell().cellname()
+    mesh = V.ufl_domain()
+    cell_type = mesh.ufl_coordinate_element().cell().cellname()
     if cell_type in ["triangle", "tetrahedron"]:
         h = fd.CellSize(V.ufl_domain())
     elif cell_type == "quadrilateral":
@@ -24,9 +25,9 @@ def AdvectionDiffusionGLS(
         * dx
     )
 
-    R_U = dot(theta, grad(phi)) - PeInv * div(grad(phi))
+    R_U = phi_t + dot(theta, grad(phi)) - PeInv * div(grad(phi))
     beta_gls = 0.9
-    h = fd.CellSize(V.ufl_domain())
+    h = fd.CellDiameter(mesh)
     tau_gls = beta_gls * (
         (4.0 * dot(theta, theta) / h ** 2) + 9.0 * (4.0 * PeInv / h ** 2) ** 2
     ) ** (-0.5)
