@@ -18,7 +18,10 @@ def min_mesh_size(mesh):
     """
     DG0 = fd.FunctionSpace(mesh, "DG", 0)
     h_sizes = fd.assemble(
-        fd.CellDiameter(mesh) / fd.CellVolume(mesh) * fd.TestFunction(DG0) * fd.dx
+        fd.CellDiameter(mesh)
+        / fd.CellVolume(mesh)
+        * fd.TestFunction(DG0)
+        * fd.dx
     ).dat.data_ro
     local_min_size = np.max(h_sizes)
     min_size = mesh.comm.allreduce(local_min_size, op=MPI.MAX)
@@ -30,6 +33,7 @@ def hs(
     epsilon: fd.Constant = fd.Constant(10000.0),
     width_h: float = None,
     shift: float = 0.0,
+    min_value: fd.Function = fd.Constant(0.0),
 ):
     """Heaviside approximation
 
@@ -52,10 +56,14 @@ def hs(
             )
         mesh = phi.ufl_domain()
         hmin = min_mesh_size(mesh)
-        epsilon = fd.Constant(math.log(0.99 ** 2 / 0.01 ** 2) / (width_h * hmin))
+        epsilon = fd.Constant(
+            math.log(0.99 ** 2 / 0.01 ** 2) / (width_h * hmin)
+        )
 
-    return fd.Constant(1.0) / (
-        fd.Constant(1.0) + ufl.exp(-epsilon * (phi - fd.Constant(shift)))
+    return (
+        fd.Constant(1.0)
+        / (fd.Constant(1.0) + ufl.exp(-epsilon * (phi - fd.Constant(shift))))
+        + min_value
     )
 
 
@@ -80,7 +88,9 @@ def dirac_delta(phi: fd.Function, epsilon=fd.Constant(10000.0), width_h=None):
             )
         mesh = phi.ufl_domain()
         hmin = min_mesh_size(mesh)
-        epsilon = fd.Constant(math.log(0.95 ** 2 / 0.05 ** 2) / (width_h * hmin))
+        epsilon = fd.Constant(
+            math.log(0.95 ** 2 / 0.05 ** 2) / (width_h * hmin)
+        )
 
     return (
         fd.Constant(epsilon)

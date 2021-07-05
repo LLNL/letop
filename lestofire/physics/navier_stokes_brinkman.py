@@ -1,6 +1,18 @@
 from cmath import tau
 import firedrake as fd
-from firedrake import inner, dot, grad, div, dx, ds, dot, dS, jump, avg, Constant, exp
+from firedrake import (
+    inner,
+    dot,
+    grad,
+    div,
+    dx,
+    ds,
+    dS,
+    jump,
+    avg,
+    Constant,
+    exp,
+)
 from firedrake.function import Function
 from pyadjoint.enlisting import Enlist
 import ufl
@@ -148,7 +160,9 @@ def NavierStokesBrinkmannForm(
 
 
 class NavierStokesBrinkmannSolver(object):
-    def __init__(self, problem: fd.NonlinearVariationalProblem, **kwargs) -> None:
+    def __init__(
+        self, problem: fd.NonlinearVariationalProblem, **kwargs
+    ) -> None:
         """Same than NonlinearVariationalSolver, but with just the SIMPLE preconditioner by default
         Args:
             problem ([type]): [description]

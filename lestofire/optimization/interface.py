@@ -90,6 +90,7 @@ class InfDimProblem(object):
         ineqconstraints=None,
         reinit_distance=0.05,
         solver_parameters=None,
+        output_dir=None,
     ):
         """Problem interface for the null-space solver
 
@@ -130,6 +131,7 @@ class InfDimProblem(object):
         self.current_max_distance_at_t0 = self.current_max_distance
         self.accum_distance = 0.0
         self.last_distance = 0.0
+        self.output_dir = output_dir
 
         if self.V.ufl_element().family() in ["DQ", "Discontinuous Lagrange"]:
             self.build_dg_solvers(solver_parameters)
@@ -354,7 +356,13 @@ class InfDimProblem(object):
         self.current_max_distance_at_t0 = self.current_max_distance
         self.hj_solver.ts.setMaxTime(scaling)
         # input_phi is not modified, output_phi refers to problem.phi
-        output_phi = self.hj_solver.solve(input_phi)
+        try:
+            output_phi = self.hj_solver.solve(input_phi)
+        except Exception:
+            print("Time stepping of Hamilton Jacobi failed")
+            if self.output_dir:
+                print(f"Printing last solution to {self.output_dir}")
+                fd.File(f"{self.output_dir}/failed_hj.pvd").write(input_phi)
 
         max_vel = calculate_max_vel(delta_x)
         self.last_distance = max_vel * scaling
