@@ -94,7 +94,8 @@ def NavierStokesBrinkmannForm(
 
     W_elem = W.ufl_element()
     assert isinstance(W_elem, fd.MixedElement)
-    assert isinstance(brinkmann_penalty, fd.Constant)
+    if brinkmann_penalty:
+        assert isinstance(brinkmann_penalty, fd.Constant)
     assert W_elem.num_sub_elements() == 2
 
     for W_sub_elem in W_elem.sub_elements():
