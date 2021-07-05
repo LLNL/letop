@@ -1,6 +1,18 @@
 from cmath import tau
 import firedrake as fd
-from firedrake import inner, dot, grad, div, dx, ds, dot, dS, jump, avg, Constant, exp
+from firedrake import (
+    inner,
+    grad,
+    div,
+    dx,
+    ds,
+    dot,
+    dS,
+    jump,
+    avg,
+    Constant,
+    exp,
+)
 from firedrake.function import Function
 from pyadjoint.enlisting import Enlist
 import ufl
@@ -59,7 +71,7 @@ def NavierStokesBrinkmannForm(
     w: fd.Function,
     nu,
     phi: Union[fd.Function, Product] = None,
-    brinkmann_penalty=None,
+    brinkmann_penalty: fd.Constant = None,
     brinkmann_min=0.0,
     design_domain=None,
     hs: Callable = hs,
@@ -82,6 +94,7 @@ def NavierStokesBrinkmannForm(
 
     W_elem = W.ufl_element()
     assert isinstance(W_elem, fd.MixedElement)
+    assert isinstance(brinkmann_penalty, fd.Constant)
     assert W_elem.num_sub_elements() == 2
 
     for W_sub_elem in W_elem.sub_elements():
@@ -105,7 +118,7 @@ def NavierStokesBrinkmannForm(
         return sum([dx(dd, kwargs) for dd in list_dd[1::]], dx(list_dd[0]))
 
     def alpha(phi):
-        return Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min)
+        return brinkmann_penalty * hs(phi) + Constant(brinkmann_min)
 
     if brinkmann_penalty and phi is not None:
         if design_domain is not None:
@@ -148,7 +161,9 @@ def NavierStokesBrinkmannForm(
 
 
 class NavierStokesBrinkmannSolver(object):
-    def __init__(self, problem: fd.NonlinearVariationalProblem, **kwargs) -> None:
+    def __init__(
+        self, problem: fd.NonlinearVariationalProblem, **kwargs
+    ) -> None:
         """Same than NonlinearVariationalSolver, but with just the SIMPLE preconditioner by default
         Args:
             problem ([type]): [description]
