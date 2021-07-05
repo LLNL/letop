@@ -91,6 +91,7 @@ class InfDimProblem(object):
         reinit_distance=0.05,
         solver_parameters=None,
         output_dir=None,
+        termination_event=None,
     ):
         """Problem interface for the null-space solver
 
@@ -104,6 +105,7 @@ class InfDimProblem(object):
                                             where D is the max dimensions of a mesh
                                             Defaults to 0.1
             solver_parameters ([type], optional): [description]. Defaults to None.
+            termination_event (Callable): Check for a certain event to trigger a function
 
         Raises:
             TypeError: [description]
@@ -132,10 +134,23 @@ class InfDimProblem(object):
         self.accum_distance = 0.0
         self.last_distance = 0.0
         self.output_dir = output_dir
+        self.accept_iteration = False
 
-        if self.V.ufl_element().family() in ["DQ", "Discontinuous Lagrange"]:
+        if termination_event:
+            if not isinstance(termination_event(), float):
+                raise TypeError(f"termination_event must return a float")
+
+        self.termination_event = termination_event
+
+        V_elem = self.V.ufl_element()
+        if V_elem.family() in ["DQ", "Discontinuous Lagrange"]:
             self.build_dg_solvers(solver_parameters)
-        elif self.V.ufl_element().family() in ["Lagrange"]:
+        elif V_elem.family() in ["TensorProductElement", "Lagrange"]:
+            if V_elem.family() == "TensorProductElement":
+                assert (
+                    V_elem.sub_elements()[0].family() == "Q"
+                    and V_elem.sub_elements()[1].family() == "Lagrange"
+                ), "Only Lagrange basis"
             self.build_cg_solvers(
                 solver_parameters,
             )
@@ -328,6 +343,11 @@ class InfDimProblem(object):
         self.i += 1
         self.phi.assign(x)
 
+        if self.termination_event:
+            event_value = self.termination_event()
+            if event_value < 1e-2:
+                self.accept_iteration = True
+
         dJ = self.dJ(x)
         dG = self.dG(x)
         dH = self.dH(x)
@@ -382,5 +402,5 @@ class InfDimProblem(object):
     def inner_product(self, x, y):
         return fd.assemble(inner(x, y) * dx)
 
-    def accept(self, results):
-        pass
+    def accept(self):
+        return self.accept_iteration

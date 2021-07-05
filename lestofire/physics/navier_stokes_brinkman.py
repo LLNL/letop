@@ -71,7 +71,7 @@ def NavierStokesBrinkmannForm(
     w: fd.Function,
     nu,
     phi: Union[fd.Function, Product] = None,
-    brinkmann_penalty=None,
+    brinkmann_penalty: fd.Constant = None,
     brinkmann_min=0.0,
     design_domain=None,
     hs: Callable = hs,
@@ -94,6 +94,8 @@ def NavierStokesBrinkmannForm(
 
     W_elem = W.ufl_element()
     assert isinstance(W_elem, fd.MixedElement)
+    if brinkmann_penalty:
+        assert isinstance(brinkmann_penalty, fd.Constant)
     assert W_elem.num_sub_elements() == 2
 
     for W_sub_elem in W_elem.sub_elements():
@@ -117,7 +119,7 @@ def NavierStokesBrinkmannForm(
         return sum([dx(dd, kwargs) for dd in list_dd[1::]], dx(list_dd[0]))
 
     def alpha(phi):
-        return Constant(brinkmann_penalty) * hs(phi) + Constant(brinkmann_min)
+        return brinkmann_penalty * hs(phi) + Constant(brinkmann_min)
 
     if brinkmann_penalty and phi is not None:
         if design_domain is not None:
