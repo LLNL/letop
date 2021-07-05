@@ -6,6 +6,8 @@
 .cache
 .vim
 __pycache__
+build/
+dist/
 old_scripts/
 gallery/
 .vscode/
@@ -15,3 +17,7 @@ examples/heat_exchanger/2D_mesh.geo
 
 # TS history data
 **/TS*
+
+.eggs/
+
+*.txt
