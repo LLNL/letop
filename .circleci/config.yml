@@ -19,8 +19,9 @@ jobs:
           command: |
             source /home/firedrake/firedrake/bin/activate
             pip3 install roltrilinos ROL
-            pip3 install protobuf==3.8.0 
+            pip3 install protobuf==3.8.0
             pip3 install --upgrade numpy
+            pip3 install pytest-cov
 
       # run tests!
       - run:
@@ -33,7 +34,8 @@ jobs:
             gmsh -3 3D_mesh.geo
             gmsh -2 -option unstructured_rectangle.geo.opt unstructured_rectangle.geo
             ./run_examples.sh ${VIRTUAL_ENV}
-            pytest .
+            pytest --cov=.
+            bash <(curl -s https://codecov.io/bash)
 workflows:
   version: 2
   all:
