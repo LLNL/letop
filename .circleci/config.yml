@@ -33,7 +33,7 @@ jobs:
             gmsh -2 2D_mesh.geo
             gmsh -3 3D_mesh.geo
             gmsh -2 -option unstructured_rectangle.geo.opt unstructured_rectangle.geo
-            ./run_examples.sh ${VIRTUAL_ENV}
+            ./build_example_meshes.sh ${VIRTUAL_ENV}
             pytest --cov=../lestofire/ .
             bash <(curl -s https://codecov.io/bash)
 workflows:

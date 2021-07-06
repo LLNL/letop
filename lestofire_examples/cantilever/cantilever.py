@@ -18,25 +18,17 @@ from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.optimization import InfDimProblem, Constraint
 from nullspace_optimizer.lestofire import nlspace_solve_shape
 
-import argparse
+import os
 
 
-def compliance_optimization():
-    parser = argparse.ArgumentParser(description="Heat exchanger")
-    parser.add_argument(
-        "--n_iters",
-        dest="n_iters",
-        type=int,
-        action="store",
-        default=200,
-        help="Number of optimization iterations",
-    )
-    opts = parser.parse_args()
+def compliance_optimization(n_iters=200):
 
     output_dir = "cantilever/"
 
-    m = fd.Mesh("./mesh_cantilever.msh")
-    mesh = fd.MeshHierarchy(m, 1)[-1]
+    path = os.path.abspath(__file__)
+    dir_path = os.path.dirname(path)
+    m = fd.Mesh(f"{dir_path}/mesh_cantilever.msh")
+    mesh = fd.MeshHierarchy(m, 0)[-1]
 
     # Perturb the mesh coordinates. Necessary to calculate shape derivatives
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
@@ -176,11 +168,13 @@ def compliance_optimization():
         "alphaJ": 1.0,
         "dt": dt,
         "maxtrials": 10,
-        "maxit": opts.n_iters,
+        "maxit": n_iters,
         "itnormalisation": 50,
         "tol": tol,
     }
-    _ = nlspace_solve_shape(problem, params)
+    results = nlspace_solve_shape(problem, params)
+
+    return results
 
 
 if __name__ == "__main__":

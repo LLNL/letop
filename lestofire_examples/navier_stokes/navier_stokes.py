@@ -2,7 +2,11 @@ import firedrake as fd
 from firedrake import cos, pi, dx, inner, grad
 import firedrake_adjoint as fda
 from pyadjoint import stop_annotating
-from lestofire.physics import NavierStokesBrinkmannForm, NavierStokesBrinkmannSolver, hs
+from lestofire.physics import (
+    NavierStokesBrinkmannForm,
+    NavierStokesBrinkmannSolver,
+    hs,
+)
 from lestofire.levelset import LevelSetFunctional
 from lestofire.levelset import RegularizationSolver
 from lestofire.optimization import InfDimProblem, Constraint
@@ -84,7 +88,9 @@ def main():
     #    "snes_atol": 1e-3,
     #    "snes_rtol": 1e-3,
     # }
-    solver = NavierStokesBrinkmannSolver(problem, solver_parameters=solver_parameters)
+    solver = NavierStokesBrinkmannSolver(
+        problem, solver_parameters=solver_parameters
+    )
     solver.solve()
     pvd_file = fd.File("ns_solution.pvd")
     u, p = w_sol.split()

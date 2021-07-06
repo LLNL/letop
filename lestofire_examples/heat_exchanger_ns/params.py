@@ -1,10 +1,11 @@
-height = 1.5;
-shift_center = 0.52;
-dist_center = 0.03;
-inlet_width = 0.2;
-inlet_depth = 0.2;
-width = 1.2;
-line_sep = height/2.0 - shift_center; # Line separating both inlets
+height = 1.5
+shift_center = 0.52
+dist_center = 0.03
+inlet_width = 0.2
+inlet_depth = 0.2
+width = 1.2
+line_sep = height / 2.0 - shift_center
+# Line separating both inlets
 DOMAIN = 0
 INMOUTH1 = 2
 INMOUTH2 = 3
