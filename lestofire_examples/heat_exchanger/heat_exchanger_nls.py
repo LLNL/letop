@@ -20,53 +20,37 @@ from firedrake import (
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.optimization import InfDimProblem, Constraint
 from nullspace_optimizer.lestofire import nlspace_solve_shape
-from parameters import (
-    INMOUTH2,
-    INMOUTH1,
-    line_sep,
-    dist_center,
-    inlet_width,
-    WALLS,
-    INLET1,
-    INLET2,
-    OUTLET1,
-    OUTLET2,
-    OUTMOUTH1,
-    OUTMOUTH2,
-)
 
 from pyadjoint import stop_annotating
-import argparse
+import os
+
+# Parameters
+height = 1.5
+shift_center = 0.52
+dist_center = 0.03
+inlet_width = 0.2
+inlet_depth = 0.2
+width = 1.2
+line_sep = height / 2.0 - shift_center
+# Line separating both inlets
+DOMAIN = 0
+INMOUTH1 = 2
+INMOUTH2 = 3
+OUTMOUTH1 = 4
+OUTMOUTH2 = 5
+INLET1, OUTLET1, INLET2, OUTLET2, WALLS, DESIGNBC = 1, 2, 3, 4, 5, 6
+ymin1 = line_sep - (dist_center + inlet_width)
+ymin2 = line_sep + dist_center
 
 
-def heat_exchanger_optimization():
-
-    parser = argparse.ArgumentParser(description="Level set method parameters")
-    parser.add_argument(
-        "--mu",
-        action="store",
-        dest="mu",
-        type=float,
-        help="Viscosity",
-        default=0.03,
-    )
-    parser.add_argument(
-        "--n_iters",
-        dest="n_iters",
-        type=int,
-        action="store",
-        default=1000,
-        help="Number of optimization iterations",
-    )
-
-    opts = parser.parse_args()
+def heat_exchanger_optimization(mu=0.03, n_iters=1000):
 
     output_dir = "2D/"
 
+    path = os.path.abspath(__file__)
+    dir_path = os.path.dirname(path)
+    mesh = fd.Mesh(f"{dir_path}/2D_mesh.msh")
     # Perturb the mesh coordinates. Necessary to calculate shape derivatives
-    mesh = fd.Mesh("./2D_mesh.msh")
-    # mh = fd.MeshHierarchy(mesh, 1)
-    # mesh = mh[-1]
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
     s = fd.Function(S, name="deform")
     mesh.coordinates.assign(mesh.coordinates + s)
@@ -83,7 +67,7 @@ def heat_exchanger_optimization():
         fd.File(output_dir + "phi_initial.pvd").write(phi)
 
     # Physics
-    mu = fd.Constant(opts.mu)  # viscosity
+    mu = fd.Constant(mu)  # viscosity
     alphamin = 1e-12
     alphamax = 2.5 / (2e-4)
     parameters = {
@@ -296,7 +280,7 @@ def heat_exchanger_optimization():
         "alphaJ": 1.0,
         "dt": dt,
         "K": 1e-3,
-        "maxit": opts.n_iters,
+        "maxit": n_iters,
         "maxtrials": 5,
         "itnormalisation": 10,
         "tol_merit": 5e-3,  # new merit can be within 0.5% of the previous merit
@@ -319,7 +303,9 @@ def heat_exchanger_optimization():
         ],
         solver_parameters=solver_parameters,
     )
-    _ = nlspace_solve_shape(problem, params)
+    results = nlspace_solve_shape(problem, params)
+
+    return results
 
 
 if __name__ == "__main__":
