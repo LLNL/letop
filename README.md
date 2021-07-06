@@ -1,10 +1,6 @@
 ![CircleCI](https://img.shields.io/circleci/build/gh/LLNL/lestofire)
 [![codecov](https://codecov.io/gh/LLNL/lestofire/branch/main/graph/badge.svg)](https://codecov.io/gh/LLNL/lestofire)
 
-
-https://img.shields.io/circleci/build/gh/LLNL/lestofire
-
-
 # Lestofire
 
 Install with
