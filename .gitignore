@@ -21,3 +21,5 @@ examples/heat_exchanger/2D_mesh.geo
 .eggs/
 
 *.txt
+
+**/.coverage

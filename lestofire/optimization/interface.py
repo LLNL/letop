@@ -373,13 +373,23 @@ class InfDimProblem(object):
 
     @no_annotations
     def retract(self, input_phi, delta_x, scaling=1):
+        """input_phi is not modified,
+            output_phi refers to problem.phi
+        Args:
+            input_phi ([type]): [description]
+            delta_x ([type]): [description]
+            scaling (int, optional): [description]. Defaults to 1.
+
+        Returns:
+            [type]: [description]
+        """
         self.current_max_distance_at_t0 = self.current_max_distance
         self.hj_solver.ts.setMaxTime(scaling)
-        # input_phi is not modified, output_phi refers to problem.phi
         try:
             output_phi = self.hj_solver.solve(input_phi)
         except Exception:
-            print("Time stepping of Hamilton Jacobi failed")
+            reason = self.hj_solver.ts.getConvergedReason()
+            print(f"Time stepping of Hamilton Jacobi failed. Reason: {reason}")
             if self.output_dir:
                 print(f"Printing last solution to {self.output_dir}")
                 fd.File(f"{self.output_dir}/failed_hj.pvd").write(input_phi)
@@ -389,10 +399,22 @@ class InfDimProblem(object):
 
         conv = self.hj_solver.ts.getConvergedReason()
         if conv == 2:
-            fd.warning(
-                "Maximum number of time steps (1000) reached. \
-                        Consider making the optimization time step 'dt' shorter"
+            warning = (
+                f"Maximum number of time steps {self.hj_solver.ts.getStepNumber()} reached."
+                "Consider making the optimization time step dt shorter."
+                "Decreasing the tolerance and restarting this step"
             )
+            fd.warning(warning)
+            rtol, atol = self.hj_solver.ts.getTolerances()
+            self.hj_solver.ts.setTolerances(rtol=rtol / 10.0, atol=atol / 10.0)
+            output_phi.assign(input_phi)
+        elif conv == 1:
+            rtol, atol = (
+                self.hj_solver.parameters["ts_rtol"],
+                self.hj_solver.parameters["ts_atol"],
+            )
+            self.hj_solver.ts.setTolerances(rtol=rtol, atol=atol)
+
         return output_phi
 
     def restore(self):
