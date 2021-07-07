@@ -398,21 +398,34 @@ class InfDimProblem(object):
         self.last_distance = max_vel * scaling
 
         conv = self.hj_solver.ts.getConvergedReason()
+        rtol, atol = (
+            self.hj_solver.parameters["ts_rtol"],
+            self.hj_solver.parameters["ts_atol"],
+        )
+        max_steps = self.hj_solver.parameters.get("ts_max_steps", 800)
         if conv == 2:
             warning = (
                 f"Maximum number of time steps {self.hj_solver.ts.getStepNumber()} reached."
+                f"Current time: {self.hj_solver.ts.getTime()}, final time: {self.hj_solver.ts.getMaxTime()}"
                 "Consider making the optimization time step dt shorter."
                 "Decreasing the tolerance and restarting this step"
             )
             fd.warning(warning)
-            rtol, atol = self.hj_solver.ts.getTolerances()
-            self.hj_solver.ts.setTolerances(rtol=rtol / 10.0, atol=atol / 10.0)
+
+            # Tighten tolerances
+            current_rtol, current_atol = self.hj_solver.ts.getTolerances()
+            new_rtol, new_atol = max(rtol / 200, current_rtol / 10), max(
+                atol / 200, current_atol / 10
+            )
+            self.hj_solver.ts.setTolerances(rtol=new_rtol, atol=new_atol)
+
+            # Relax max time steps
+            current_max_steps = self.hj_solver.ts.getMaxSteps()
+            new_max_steps = min(current_max_steps * 1.5, max_steps * 3)
+            self.hj_solver.ts.setMaxSteps(new_max_steps)
+
             output_phi.assign(input_phi)
         elif conv == 1:
-            rtol, atol = (
-                self.hj_solver.parameters["ts_rtol"],
-                self.hj_solver.parameters["ts_atol"],
-            )
             self.hj_solver.ts.setTolerances(rtol=rtol, atol=atol)
 
         return output_phi
