@@ -403,21 +403,24 @@ class InfDimProblem(object):
             self.hj_solver.parameters["ts_atol"],
         )
         max_steps = self.hj_solver.parameters.get("ts_max_steps", 800)
+        current_time = self.hj_solver.ts.getTime()
+        total_time = self.hj_solver.ts.getMaxTime()
         if conv == 2:
             warning = (
                 f"Maximum number of time steps {self.hj_solver.ts.getStepNumber()} reached."
-                f"Current time: {self.hj_solver.ts.getTime()}, final time: {self.hj_solver.ts.getMaxTime()}"
+                f"Current time is only: {current_time} for total time: {total_time}."
                 "Consider making the optimization time step dt shorter."
-                "Decreasing the tolerance and restarting this step"
+                "Restarting this step with more time steps and tighter tolerances if applicable."
             )
             fd.warning(warning)
 
-            # Tighten tolerances
-            current_rtol, current_atol = self.hj_solver.ts.getTolerances()
-            new_rtol, new_atol = max(rtol / 200, current_rtol / 10), max(
-                atol / 200, current_atol / 10
-            )
-            self.hj_solver.ts.setTolerances(rtol=new_rtol, atol=new_atol)
+            # Tighten tolerances if we are really far
+            if current_time / total_time < 0.2:
+                current_rtol, current_atol = self.hj_solver.ts.getTolerances()
+                new_rtol, new_atol = max(rtol / 200, current_rtol / 10), max(
+                    atol / 200, current_atol / 10
+                )
+                self.hj_solver.ts.setTolerances(rtol=new_rtol, atol=new_atol)
 
             # Relax max time steps
             current_max_steps = self.hj_solver.ts.getMaxSteps()
