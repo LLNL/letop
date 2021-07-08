@@ -45,9 +45,15 @@ def HamiltonJacobiCGSolver(
         fdts.DAESolver: DAESolver configured to solve the advection-diffusion equation
     """
 
+    default_peclet_inv = 1e-4
+    if solver_parameters:
+        PeInv = solver_parameters.get("peclet_number", default_peclet_inv)
+    else:
+        PeInv = default_peclet_inv
+
     phi_t = fd.Function(V)
     # Galerkin residual
-    F = AdvectionDiffusionGLS(V, theta, phi, phi_t)
+    F = AdvectionDiffusionGLS(V, theta, phi, phi_t, PeInv=PeInv)
 
     problem = fdts.DAEProblem(F, phi, phi_t, (0.0, t_end), bcs=bcs)
     parameters = {
