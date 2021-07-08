@@ -387,7 +387,7 @@ class InfDimProblem(object):
         self.hj_solver.ts.setMaxTime(scaling)
         try:
             output_phi = self.hj_solver.solve(input_phi)
-        except Exception:
+        except:
             reason = self.hj_solver.ts.getConvergedReason()
             print(f"Time stepping of Hamilton Jacobi failed. Reason: {reason}")
             if self.output_dir:
