@@ -136,12 +136,6 @@ class InfDimProblem(object):
         self.output_dir = output_dir
         self.accept_iteration = False
 
-        if termination_event:
-            if not isinstance(termination_event(), float):
-                raise TypeError(f"termination_event must return a float")
-
-        self.termination_event = termination_event
-
         V_elem = self.V.ufl_element()
         if V_elem.family() in ["DQ", "Discontinuous Lagrange"]:
             self.build_dg_solvers(solver_parameters)
@@ -212,6 +206,15 @@ class InfDimProblem(object):
         self.i = 0  # iteration count
 
         self.beta_param = reg_solver.beta_param.values()[0]
+
+    def set_termination_event(self, termination_event, termination_tolerance=1e-2):
+
+        if termination_event:
+            if not isinstance(termination_event(), float):
+                raise TypeError(f"termination_event must return a float")
+
+        self.termination_event = termination_event
+        self.termination_tolerance = termination_tolerance
 
     def build_cg_solvers(self, solver_parameters=None):
         V = self.V
@@ -345,7 +348,7 @@ class InfDimProblem(object):
 
         if self.termination_event:
             event_value = self.termination_event()
-            if event_value < 1e-2:
+            if event_value < self.termination_tolerance:
                 self.accept_iteration = True
 
         dJ = self.dJ(x)
