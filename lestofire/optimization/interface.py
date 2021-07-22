@@ -91,7 +91,6 @@ class InfDimProblem(object):
         reinit_distance=0.05,
         solver_parameters=None,
         output_dir=None,
-        termination_event=None,
     ):
         """Problem interface for the null-space solver
 
@@ -105,7 +104,6 @@ class InfDimProblem(object):
                                             where D is the max dimensions of a mesh
                                             Defaults to 0.1
             solver_parameters ([type], optional): [description]. Defaults to None.
-            termination_event (Callable): Check for a certain event to trigger a function
 
         Raises:
             TypeError: [description]
@@ -135,6 +133,7 @@ class InfDimProblem(object):
         self.last_distance = 0.0
         self.output_dir = output_dir
         self.accept_iteration = False
+        self.termination_event = None
 
         V_elem = self.V.ufl_element()
         if V_elem.family() in ["DQ", "Discontinuous Lagrange"]:
@@ -207,7 +206,9 @@ class InfDimProblem(object):
 
         self.beta_param = reg_solver.beta_param.values()[0]
 
-    def set_termination_event(self, termination_event, termination_tolerance=1e-2):
+    def set_termination_event(
+        self, termination_event, termination_tolerance=1e-2
+    ):
 
         if termination_event:
             if not isinstance(termination_event(), float):
