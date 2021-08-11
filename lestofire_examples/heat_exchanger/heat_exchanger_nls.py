@@ -19,7 +19,7 @@ from firedrake import (
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.optimization import InfDimProblem, Constraint
-from nullspace_optimizer.lestofire import nlspace_solve_shape
+from lestofire.optimization import nlspace_solve
 
 from pyadjoint import stop_annotating
 import os
@@ -303,7 +303,7 @@ def heat_exchanger_optimization(mu=0.03, n_iters=1000):
         ],
         solver_parameters=solver_parameters,
     )
-    results = nlspace_solve_shape(problem, params)
+    results = nlspace_solve(problem, params)
 
     return results
 
