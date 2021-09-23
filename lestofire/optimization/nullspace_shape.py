@@ -20,11 +20,11 @@ class MPITimer:
         self.comm = comm
 
     def __enter__(self):
-        self.start = time.clock()
+        self.start = time.process_time()
         return self
 
     def __exit__(self, *args):
-        self.end = time.clock()
+        self.end = time.process_time()
         total_time = self.end - self.start
         self.min_time = self.comm.allreduce(total_time, op=MPI.MIN)
         self.max_time = self.comm.allreduce(total_time, op=MPI.MAX)
@@ -97,7 +97,7 @@ def getTilde(C, p, eps=0):
     return tildeEps
 
 
-def getEps(C, dC, p, dt, K, norm_type=np.inf):
+def getEps(dC, p, dt, K, norm_type=np.inf):
     if len(dC) == 0:
         return (0, [])
     if norm_type == np.inf:
@@ -109,8 +109,7 @@ def getEps(C, dC, p, dt, K, norm_type=np.inf):
         eps = np.array(eps) * dt * K
     elif norm_type == 2:
         eps = np.array([fd.norm(dCi) * dt * K for dCi in dC[p:]])
-    tildeEps = getTilde(C, p, eps)
-    return (eps, tildeEps)
+    return eps
 
 
 def p_matrix_eval(dC, tildeEps):
@@ -155,7 +154,6 @@ def invert_dCdCT(dCdCT, debug):
 
 def line_search(
     problem,
-    phi,
     orig_phi,
     new_phi,
     muls,
@@ -170,10 +168,9 @@ def line_search(
     debug=1.0,
 ):
 
-    orig_phi.assign(phi)
-
     vel_scale = problem.velocity_scale(problem.delta_x)
     problem.delta_x /= vel_scale
+    success = 0
     for k in range(maxtrials):
         new_phi.assign(
             problem.retract(orig_phi, problem.delta_x, scaling=(dt * 0.5 ** k))
@@ -280,7 +277,6 @@ def dCdJ_eval(dJ, dC, hat):
     ii = 0
     for i, hati in enumerate(hat):
         if hati:
-            # dCdJ[ii] = assemble(inner(dC[i], dJ)*dx)
             dCdJ[ii] = inner_product(dC[i], dJ)
             ii += 1
     return dCdJ
@@ -485,14 +481,14 @@ def nlspace_solve(
 
             # Obtain the tolerances for the inequality constraints and the indices
             # for the violated constraints
-            (eps, tildeEps) = getEps(
-                C,
+            eps = getEps(
                 dC,
                 problem.n_eqconstraints,
                 params["dt"],
                 params["K"],
                 norm_type=params["normalisation_norm"],
             )
+            tildeEps = getTilde(C, problem.n_eqconstraints, eps=eps)
             print(f"eps: {eps}")
             # Obtain the violated contraints
             tilde = getTilde(C, problem.n_eqconstraints)
@@ -518,7 +514,8 @@ def nlspace_solve(
                 hat[problem.n_eqconstraints :] = (
                     muls[problem.n_eqconstraints :] > 30 * params["tol_qp"]
                 )
-                hat = tildeEps
+                if params.get('disable_dual', False):
+                    hat = tildeEps
 
                 dCdCT = dCdCT_eval(dC, hat)
                 dCdCTinv = invert_dCdCT(dCdCT, params["debug"])
@@ -542,10 +539,10 @@ def nlspace_solve(
             display(
                 f"Lagrange multipliers: {muls[:10]}", params["debug"], level=5
             )
-            # This is a sum of the functions in Firedrake
-
             xiJ = xiJ_eval(dJ, dC, muls, hat)
-            indicesEps = np.logical_or(tilde, tildeEps)
+
+            # Set of constraints union of active and new violated constraints.
+            indicesEps = np.logical_or(tilde, hat)
             dCdCT = dCdCT_eval(dC, indicesEps)
             dCtdCtTinv = invert_dCdCT(dCdCT, params["debug"])
 
@@ -569,9 +566,9 @@ def nlspace_solve(
             if descent_output_dir:
                 descent_pvd.write(problem.delta_x)
 
+            orig_phi.assign(phi)
             new_phi, newJ, newG, newH = line_search(
                 problem,
-                phi,
                 orig_phi,
                 new_phi,
                 muls,
