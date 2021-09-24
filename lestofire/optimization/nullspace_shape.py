@@ -556,7 +556,7 @@ def nlspace_solve(
             problem.delta_x.assign(Constant(-AJ) * xiJ - Constant(AC) * xiC)
             normdx = fd.norm(problem.delta_x)
 
-            merit_eval_new = partial(merit_eval, muls, indicesEps, dCdCTinv)
+            merit_eval_new = partial(merit_eval, muls, indicesEps, dCtdCtTinv)
             merit = merit_eval_new(AJ, J, AC, C)
             results["merit"].append(merit)
             if len(results["merit"]) > 3:
