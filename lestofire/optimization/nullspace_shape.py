@@ -5,10 +5,12 @@ from mpi4py import MPI
 
 import firedrake as fd
 from firedrake import inner, Function, dx, Constant, File
+from numpy.core.numeric import indices
 from sympy import solve
 from lestofire.optimization import InfDimProblem
 from pyadjoint import no_annotations
 from firedrake import PETSc
+from functools import partial
 
 
 def print(x):
@@ -156,9 +158,7 @@ def line_search(
     problem,
     orig_phi,
     new_phi,
-    muls,
-    indicesEps,
-    dCtdCtTinv,
+    merit_eval_new,
     merit,
     AJ,
     AC,
@@ -177,8 +177,8 @@ def line_search(
         )
         (newJ, newG, newH) = problem.eval(new_phi)
         newC = np.concatenate((newG, newH))
-        new_merit = merit_eval(
-            AJ, newJ, AC, newC, muls, indicesEps, dCtdCtTinv
+        new_merit = merit_eval_new(
+            AJ, newJ, AC, newC,
         )
         print(f"newJ={newJ}, newC={newC}")
         print(f"merit={merit}, new_merit={new_merit}")
@@ -315,7 +315,7 @@ def xiC_eval(C, dC, dCtdCtTinv, alphas, indicesEps):
     return xiC
 
 
-def merit_eval(AJ, J, AC, C, muls, indicesEps, dCtdCtTinv):
+def merit_eval(muls, indicesEps, dCtdCtTinv, AJ, J, AC, C):
     return AJ * (J + muls.dot(C)) + 0.5 * AC * C[indicesEps].dot(
         dCtdCtTinv.dot(C[indicesEps])
     )
@@ -556,7 +556,8 @@ def nlspace_solve(
             problem.delta_x.assign(Constant(-AJ) * xiJ - Constant(AC) * xiC)
             normdx = fd.norm(problem.delta_x)
 
-            merit = merit_eval(AJ, J, AC, C, muls, indicesEps, dCtdCtTinv)
+            merit_eval_new = partial(merit_eval, muls, indicesEps, dCdCTinv)
+            merit = merit_eval_new(AJ, J, AC, C)
             results["merit"].append(merit)
             if len(results["merit"]) > 3:
                 print(
@@ -571,9 +572,7 @@ def nlspace_solve(
                 problem,
                 orig_phi,
                 new_phi,
-                muls,
-                indicesEps,
-                dCtdCtTinv,
+                merit_eval_new,
                 merit,
                 AJ,
                 AC,
