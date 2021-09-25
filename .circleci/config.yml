@@ -26,6 +26,7 @@ jobs:
       # run tests!
       - run:
           name: Run tests
+          no_output_timeout: 30m
           working_directory: test/
           command: |
             source /home/firedrake/firedrake/bin/activate

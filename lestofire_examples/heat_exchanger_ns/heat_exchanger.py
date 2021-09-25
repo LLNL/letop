@@ -3,15 +3,13 @@ import firedrake_adjoint as fda
 from firedrake import inner, grad, ds, dx, sin, cos, pi, dot, div
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import Constraint, InfDimProblem
+from lestofire.optimization import Constraint, InfDimProblem, nullspace_shape
 from lestofire.physics import (
     NavierStokesBrinkmannForm,
     mark_no_flow_regions,
     InteriorBC,
     hs,
 )
-from nullspace_optimizer.lestofire import nlspace_solve_shape
-from itertools import count
 from pyadjoint import get_working_tape
 
 from params import (
@@ -307,7 +305,7 @@ def heat_exchanger_navier_stokes():
             reinit_distance=0.1,
             termination_event=termination_event,
         )
-        _ = nlspace_solve_shape(problem, params)
+        _ = nullspace_shape(problem, params)
         get_working_tape().clear_tape()
 
 

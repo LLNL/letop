@@ -9,8 +9,7 @@ from lestofire.physics import (
 )
 from lestofire.levelset import LevelSetFunctional
 from lestofire.levelset import RegularizationSolver
-from lestofire.optimization import InfDimProblem, Constraint
-from nullspace_optimizer.lestofire import nlspace_solve_shape
+from lestofire.optimization import InfDimProblem, Constraint, nullspace_shape
 
 
 def main():
@@ -147,7 +146,7 @@ def main():
         reg_solver,
         ineqconstraints=[Constraint(Vhat, Vval, VControl)],
     )
-    _ = nlspace_solve_shape(problem, params)
+    _ = nullspace_shape(problem, params)
 
 
 if __name__ == "__main__":
