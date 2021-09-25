@@ -10,7 +10,7 @@ def test_heat_exchanger():
     cost_func = results["J"][-1]
     assert_allclose(
         cost_func,
-        -1.031983,
+        -1.316,
         rtol=1e-2,
     )
 
