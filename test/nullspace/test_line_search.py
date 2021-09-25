@@ -13,7 +13,7 @@ def merit_eval_new(AJ, J, AC, C):
     return J
 
 def test_line_search():
-    mesh = fd.UnitSquareMesh(100, 100)
+    mesh = fd.UnitSquareMesh(50, 50)
 
     # Shape derivative
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
