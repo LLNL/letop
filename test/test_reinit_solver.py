@@ -75,13 +75,13 @@ def test_cone_3D():
     "test_mesh,x_shift,error, p",
     [
         (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.051679991911252984, 0),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05467660491552649, 0),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.04984438551022098, 0),
         (fd.UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.022107216282791796, 0),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.019569327325334684, 0),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.01562508369256908, 0),
         (fd.UnitSquareMesh(N, N, diagonal="right"), 0.0, 0.056456035431546446, 1),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05434256956234183, 1),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.0, 0.05355056431829251, 1),
         (fd.UnitSquareMesh(N, N, diagonal="right"), 0.5, 0.02372197275119883, 1),
-        (fd.Mesh("./unstructured_rectangle.msh"), 0.5, 0.01832726713117936, 1),
+        (fd.Mesh("./unstructured_rectangle.msh"), 0.5,0.016471420244960566, 1),
         (fd.UnitSquareMesh(12, 12, quadrilateral=True), 0.5, 0.05845317085436576, 2),
     ],
 )
