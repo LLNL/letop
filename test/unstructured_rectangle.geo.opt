@@ -130,7 +130,6 @@ General.GraphicsWidth = 2560;
 General.HighOrderToolsPositionX = 650;
 General.HighOrderToolsPositionY = 150;
 General.HighResolutionGraphics = 1;
-General.HighResolutionPointSizeFactor = 2;
 General.InitialModule = 0;
 General.InputScrolling = 1;
 General.Light0 = 1;

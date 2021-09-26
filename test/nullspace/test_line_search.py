@@ -1,9 +1,8 @@
 import firedrake as fd
 import firedrake_adjoint as fda
-from firedrake_ts.adjoint import solver
 import numpy as np
-from firedrake import dx, sqrt
-from lestofire.optimization.nullspace_shape import line_search, merit_eval
+from firedrake import dx
+from lestofire.optimization.nullspace_shape import line_search
 from lestofire.optimization import InfDimProblem
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.physics import hs

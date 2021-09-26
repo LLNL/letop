@@ -72,14 +72,6 @@ class TestHJSolvers:
         bc = fd.DirichletBC(V, *bc_tuple)
         tspan = [0, final_t]
 
-        phi_pvd = fd.File("solution.pvd")
-        phi_sol = fd.Function(V, name="solution")
-
-        def monitor(ts, i, t, x):
-            with phi_sol.dat.vec as v:
-                x.copy(v)
-            phi_pvd.write(phi_sol)
-
         phi0 = interpolate(phi_init, V)
 
         def H(p):
@@ -102,7 +94,6 @@ class TestHJSolvers:
         }
         solver = HamiltonJacobiSolver(
             problem,
-            monitor_callback=monitor,
             solver_parameters=solver_parameters,
         )
         solver.solve()
@@ -113,14 +104,6 @@ class TestHJSolvers:
     def test_cg_hj_solver(self, phi_init, phi_exact, bc_tuple, velocity):
         V = fd.FunctionSpace(mesh, "CG", 1)
         bc = fd.DirichletBC(V, *bc_tuple)
-
-        phi_pvd = fd.File("solution.pvd")
-        phi_sol = fd.Function(V, name="solution")
-
-        def monitor(ts, i, t, x):
-            with phi_sol.dat.vec as v:
-                x.copy(v)
-            phi_pvd.write(phi_sol)
 
         phi0 = interpolate(phi_init, V)
         solver_parameters = {
@@ -136,7 +119,6 @@ class TestHJSolvers:
             phi0,
             t_end=final_t,
             bcs=bc,
-            monitor=monitor,
             solver_parameters=solver_parameters,
         )
 
@@ -152,14 +134,6 @@ def test_solve_hj_restart():
     bc = DirichletBC(V, fd.Constant(50.0), (2, 3))
     velocity = fd.Constant((-1.0, 1.0))
     tspan = [0, final_t]
-
-    phi_pvd = fd.File("solution.pvd")
-    phi_sol = fd.Function(V, name="solution")
-
-    def monitor(ts, i, t, x):
-        with phi_sol.dat.vec as v:
-            x.copy(v)
-        phi_pvd.write(phi_sol)
 
     phi0 = interpolate(phi_init, V)
 
@@ -182,7 +156,7 @@ def test_solve_hj_restart():
         "ts_adapt_type": "dsp",
     }
     solver = HamiltonJacobiSolver(
-        problem, monitor_callback=monitor, solver_parameters=solver_parameters
+        problem, solver_parameters=solver_parameters
     )
     phi_new = solver.solve()
     solver.ts.setMaxTime(0.4)
@@ -232,14 +206,6 @@ def test_hj_no_bc():
     th.interpolate(th_temp)
     fd.File("solenoidal.pvd").write(th)
 
-    phi_pvd = fd.File("solution.pvd")
-    phi_sol = fd.Function(V, name="solution")
-
-    def monitor(ts, i, t, x):
-        with phi_sol.dat.vec as v:
-            x.copy(v)
-        phi_pvd.write(phi_sol)
-
     def H(p):
         return inner(th, p)
 
@@ -262,7 +228,7 @@ def test_hj_no_bc():
         "ts_adapt_type": "dsp",
     }
     solver = HamiltonJacobiSolver(
-        problem, monitor_callback=monitor, solver_parameters=solver_parameters
+        problem, solver_parameters=solver_parameters
     )
     solver.solve()
 
