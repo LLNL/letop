@@ -16,7 +16,7 @@ from firedrake import (
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
 from lestofire.optimization import InfDimProblem, Constraint
-from nullspace_optimizer.lestofire import nlspace_solve_shape
+from lestofire.optimization import nlspace_solve
 
 import os
 
@@ -172,7 +172,7 @@ def compliance_optimization(n_iters=200):
         "itnormalisation": 50,
         "tol": tol,
     }
-    results = nlspace_solve_shape(problem, params)
+    results = nlspace_solve(problem, params)
 
     return results
 

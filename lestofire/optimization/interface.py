@@ -1,21 +1,3 @@
-# Copyright 2018-2019 CNRS, Ecole Polytechnique and Safran.
-#
-# This file is part of nullspace_optimizer.
-#
-# nullspace_optimizer is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# nullspace_optimizer is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# A copy of the GNU General Public License is included below.
-# For further information, see <http://www.gnu.org/licenses/>.
-
-from ufl import zero
 from lestofire.physics.utils import max_mesh_dimension
 import firedrake as fd
 from firedrake import inner, dx
@@ -195,6 +177,9 @@ class InfDimProblem(object):
         else:
             self.ineqconstraints = []
 
+        self.n_eqconstraints = len(self.eqconstraints)
+        self.n_ineqconstraints = len(self.ineqconstraints)
+
         self.gradJ = fd.Function(self.Vvec)
 
         self.gradH = [fd.Function(self.Vvec) for _ in self.ineqconstraints]
@@ -210,9 +195,8 @@ class InfDimProblem(object):
         self, termination_event, termination_tolerance=1e-2
     ):
 
-        if termination_event:
-            if not isinstance(termination_event(), float):
-                raise TypeError(f"termination_event must return a float")
+        if termination_event and not isinstance(termination_event(), float):
+            raise TypeError(f"termination_event must return a float")
 
         self.termination_event = termination_event
         self.termination_tolerance = termination_tolerance
