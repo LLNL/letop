@@ -178,7 +178,10 @@ def line_search(
         (newJ, newG, newH) = problem.eval(new_phi)
         newC = np.concatenate((newG, newH))
         new_merit = merit_eval_new(
-            AJ, newJ, AC, newC,
+            AJ,
+            newJ,
+            AC,
+            newC,
         )
         print(f"newJ={newJ}, newC={newC}")
         print(f"merit={merit}, new_merit={new_merit}")
@@ -301,6 +304,8 @@ def xiJ_eval(dJ, dC, muls, hat):
 
 
 def xiC_eval(C, dC, dCtdCtTinv, alphas, indicesEps):
+    if len(C) == 0:
+        return None
     # Sum of functions over indicesEps
     xiC = Function(dC[0].function_space())
     if indicesEps.any():
@@ -514,7 +519,7 @@ def nlspace_solve(
                 hat[problem.n_eqconstraints :] = (
                     muls[problem.n_eqconstraints :] > 30 * params["tol_qp"]
                 )
-                if params.get('disable_dual', False):
+                if params.get("disable_dual", False):
                     hat = tildeEps
 
                 dCdCT = dCdCT_eval(dC, hat)
@@ -553,7 +558,12 @@ def nlspace_solve(
             AC = params["alphaC"]
 
             # Make updates with merit function
-            problem.delta_x.assign(Constant(-AJ) * xiJ - Constant(AC) * xiC)
+            if xiC:
+                problem.delta_x.assign(
+                    Constant(-AJ) * xiJ - Constant(AC) * xiC
+                )
+            else:
+                problem.delta_x.assign(Constant(-AJ) * xiJ)
             normdx = fd.norm(problem.delta_x)
 
             merit_eval_new = partial(merit_eval, muls, indicesEps, dCtdCtTinv)
