@@ -225,5 +225,5 @@ class NavierStokesBrinkmannSolver(object):
             problem, solver_parameters=solver_parameters_default, **kwargs
         )
 
-    def solve(self):
-        self.solver.solve()
+    def solve(self, **kwargs):
+        self.solver.solve(**kwargs)
