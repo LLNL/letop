@@ -1,6 +1,6 @@
 import firedrake as fd
 from firedrake import inner, sqrt, grad, dx, conditional, le
-from pyop2.base import READ, RW
+from pyop2 import READ, RW
 import numpy as np
 from pyadjoint import no_annotations
 

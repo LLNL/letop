@@ -1,6 +1,6 @@
 import firedrake as fd
 from firedrake import sqrt, inner, dx
-from lestofire.optimization import ReinitializationSolver
+from firedrake import sin, grad, pi, sym, div
 from lestofire.physics import (
     NavierStokesBrinkmannForm,
     NavierStokesBrinkmannSolver,
@@ -26,14 +26,14 @@ def test_solver_no_flow_region():
     nu = fd.Constant(0.05)
     F = NavierStokesBrinkmannForm(W, w_sol1, nu, beta_gls=2.0)
 
-    from firedrake import sin, grad, pi, sym, div, inner
-
     x, y = fd.SpatialCoordinate(mesh)
     u_mms = fd.as_vector(
         [sin(2.0 * pi * x) * sin(pi * y), sin(pi * x) * sin(2.0 * pi * y)]
     )
     p_mms = -0.5 * (u_mms[0] ** 2 + u_mms[1] ** 2)
-    f_mms_u = grad(u_mms) * u_mms + grad(p_mms) - 2.0 * nu * div(sym(grad(u_mms)))
+    f_mms_u = (
+        grad(u_mms) * u_mms + grad(p_mms) - 2.0 * nu * div(sym(grad(u_mms)))
+    )
     f_mms_p = div(u_mms)
     F += -inner(f_mms_u, v) * dx - f_mms_p * q * dx
     bc1 = fd.DirichletBC(W.sub(0), u_mms, "on_boundary")
@@ -42,9 +42,13 @@ def test_solver_no_flow_region():
 
     solver_parameters = {"ksp_max_it": 500, "ksp_monitor": None}
 
-    problem1 = fd.NonlinearVariationalProblem(F, w_sol1, bcs=[bc1, bc2, bc_no_flow])
+    problem1 = fd.NonlinearVariationalProblem(
+        F, w_sol1, bcs=[bc1, bc2, bc_no_flow]
+    )
     solver1 = NavierStokesBrinkmannSolver(
-        problem1, options_prefix="navier_stokes", solver_parameters=solver_parameters
+        problem1,
+        options_prefix="navier_stokes",
+        solver_parameters=solver_parameters,
     )
     solver1.solve()
     u_sol, _ = w_sol1.split()
@@ -73,7 +77,9 @@ def run_solver(r):
         [sin(2.0 * pi * x) * sin(pi * y), sin(pi * x) * sin(2.0 * pi * y)]
     )
     p_mms = -0.5 * (u_mms[0] ** 2 + u_mms[1] ** 2)
-    f_mms_u = grad(u_mms) * u_mms + grad(p_mms) - 2.0 * nu * div(sym(grad(u_mms)))
+    f_mms_u = (
+        grad(u_mms) * u_mms + grad(p_mms) - 2.0 * nu * div(sym(grad(u_mms)))
+    )
     f_mms_p = div(u_mms)
     F += -inner(f_mms_u, v) * dx - f_mms_p * q * dx
     bc1 = fd.DirichletBC(W.sub(0), u_mms, "on_boundary")
@@ -83,7 +89,9 @@ def run_solver(r):
 
     problem1 = fd.NonlinearVariationalProblem(F, w_sol1, bcs=[bc1, bc2])
     solver1 = NavierStokesBrinkmannSolver(
-        problem1, options_prefix="navier_stokes", solver_parameters=solver_parameters
+        problem1,
+        options_prefix="navier_stokes",
+        solver_parameters=solver_parameters,
     )
     solver1.solve()
     u_sol, _ = w_sol1.split()
