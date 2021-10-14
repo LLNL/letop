@@ -8,9 +8,6 @@ from lestofire.levelset import (
     RegularizationSolver,
 )
 from lestofire.optimization import (
-    ReinitializationSolver,
-    HamiltonJacobiSolver,
-    HamiltonJacobiProblem,
     HamiltonJacobiCGSolver,
     ReinitSolverCG,
 )
@@ -118,9 +115,7 @@ class InfDimProblem(object):
         self.termination_event = None
 
         V_elem = self.V.ufl_element()
-        if V_elem.family() in ["DQ", "Discontinuous Lagrange"]:
-            self.build_dg_solvers(solver_parameters)
-        elif V_elem.family() in ["TensorProductElement", "Lagrange"]:
+        if V_elem.family() in ["TensorProductElement", "Lagrange"]:
             if V_elem.family() == "TensorProductElement":
                 assert (
                     V_elem.sub_elements()[0].family() == "Q"
@@ -220,70 +215,6 @@ class InfDimProblem(object):
         )
         self.reinit_solver = ReinitSolverCG(
             V, solver_parameters=reinit_solver_parameters
-        )
-
-    def build_dg_solvers(self, solver_parameters=None):
-        """Build the Hamilton-Jacobi and the reinitialization solvers with
-            the Discontinuous Galerkin formulation.
-
-        Args:
-            solver_parameters ([type], optional): [description]. Defaults to None.
-        """
-
-        def H(p):
-            return inner(self.delta_x, p)
-
-        def dHdp(p):
-            return Abs(self.delta_x)
-
-        tspan = [0, 1.0]
-        problem = HamiltonJacobiProblem(
-            self.V,
-            self.phi,
-            H,
-            dHdp,
-            tspan,
-            reinit=True,
-        )
-        hj_solver_parameters = {
-            "ts_type": "rk",
-            "ts_rk_type": "5dp",
-            "ts_atol": 1e-8,
-            "ts_rtol": 1e-8,
-            "ts_dt": 1e-5,
-            "ts_exact_final_time": "matchstep",
-            "ts_max_time": tspan[1],
-            "ts_event_monitor": None,
-            "ts_max_steps": 1000,
-            "ts_adapt_type": "dsp",
-        }
-        if solver_parameters:
-            if solver_parameters.get("hj_solver"):
-                hj_solver_parameters.update(solver_parameters["hj_solver"])
-
-        self.hj_solver = HamiltonJacobiSolver(
-            problem,
-            solver_parameters=hj_solver_parameters,
-        )
-
-        reinit_solver_parameters = {
-            "ts_type": "rk",
-            "ts_rk_type": "5dp",
-            "ts_atol": 1e-7,
-            "ts_rtol": 1e-7,
-            "ts_dt": 1e-5,
-            "ts_converged_reason": None,
-            "ts_adapt_type": "dsp",
-        }
-        if solver_parameters:
-            if solver_parameters.get("reinit_solver"):
-                reinit_solver_parameters.update(
-                    solver_parameters["reinit_solver"]
-                )
-
-        self.reinit_solver = ReinitializationSolver(
-            self.V,
-            solver_parameters=reinit_solver_parameters,
         )
 
     def fespace(self):
