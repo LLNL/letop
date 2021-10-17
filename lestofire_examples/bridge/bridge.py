@@ -59,9 +59,9 @@ def create_function_marker(PHI, W, xlimits, ylimits):
         y_func.interpolate(y)
         z_func.interpolate(z)
 
-    domain = "{[i]: 0 <= i < f.dofs}"
+    domain = "{[i, j]: 0 <= i < f.dofs and 0<= j <= 3}"
     instruction = f"""
-    f[i, 0] = 1.0 if (x[i, 0] < {xlimits[1]} and x[i, 0] > {xlimits[0]}) and (y[i, 0] < {ylimits[0]} or y[i, 0] > {ylimits[1]}) and z[i, 0] < 1e-7 else 0.0
+    f[i, j] = 1.0 if (x[i, 0] < {xlimits[1]} and x[i, 0] > {xlimits[0]}) and (y[i, 0] < {ylimits[0]} or y[i, 0] > {ylimits[1]}) and z[i, 0] < 1e-7 else 0.0
     """
     I_BC = fd.Function(W)
     fd.par_loop(
@@ -108,9 +108,9 @@ def compliance_bridge():
         E * nu / ((1 + nu) * (1 - 2 * nu))
     )
 
-    mesh = fd.RectangleMesh(15, 30, 1.0, 2, quadrilateral=True)
+    mesh = fd.RectangleMesh(10, 20, 0.5, 1, quadrilateral=True)
     mh = fd.MeshHierarchy(mesh, 1)
-    m = fd.ExtrudedMeshHierarchy(mh, height=1, base_layer=15)
+    m = fd.ExtrudedMeshHierarchy(mh, height=1, base_layer=20)
     mesh = m[-1]
 
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
@@ -167,13 +167,15 @@ def compliance_bridge():
     ylimits = (0.2, 1.8)
     xlimits = (0.4, 0.6)
     I_BC = create_function_marker(PHI, W, xlimits, ylimits)
-    bc = MyBC(W, 0, I_BC)
+    bc1 = MyBC(W, 0, I_BC)
+    bc2 = fd.DirichletBC(W.sub(0), fd.Constant(0.0), 2)
+    bc3 = fd.DirichletBC(W.sub(1), fd.Constant(0.0), 4)
 
     u_sol = fd.Function(W)
     fd.solve(
         a == L,
         u_sol,
-        bcs=[bc],
+        bcs=[bc1, bc2, bc3],
         solver_parameters=gamg_parameters,
         near_nullspace=nullmodes,
     )
