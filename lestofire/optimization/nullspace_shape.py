@@ -9,7 +9,7 @@ from numpy.core.numeric import indices
 from sympy import solve
 from lestofire.optimization import InfDimProblem
 from pyadjoint import no_annotations
-from firedrake import PETSc
+from firedrake.petsc import PETSc
 from functools import partial
 
 
