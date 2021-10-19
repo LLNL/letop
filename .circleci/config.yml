@@ -1,16 +1,5 @@
 version: 2.1
 jobs:
-  build_env:
-    machine: true
-    steps:
-      - checkout
-      - run:
-          command: |
-            echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
-                  # build the application image
-            docker build -t salazardetroya/lestofire:env -f docker/Dockerfile .
-            docker push salazardetroya/lestofire:env
-          no_output_timeout: 2h
   build:
     docker:
       - image: salazardetroya/lestofire:env
