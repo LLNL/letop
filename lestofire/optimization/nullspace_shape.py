@@ -101,7 +101,7 @@ def getTilde(C, p, eps=0):
 
 def getEps(dC, p, dt, K, norm_type=np.inf):
     if len(dC) == 0:
-        return (0, [])
+        return np.array([])
     if norm_type == np.inf:
         eps = []
         for dCi in dC[p:]:
