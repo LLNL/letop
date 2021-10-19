@@ -108,9 +108,9 @@ def compliance_bridge():
         E * nu / ((1 + nu) * (1 - 2 * nu))
     )
 
-    mesh = fd.RectangleMesh(10, 20, 0.5, 1, quadrilateral=True)
+    mesh = fd.RectangleMesh(20, 40, 0.5, 1, quadrilateral=True)
     mh = fd.MeshHierarchy(mesh, 1)
-    m = fd.ExtrudedMeshHierarchy(mh, height=1, base_layer=20)
+    m = fd.ExtrudedMeshHierarchy(mh, height=1, base_layer=40)
     mesh = m[-1]
 
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
@@ -205,7 +205,7 @@ def compliance_bridge():
     Vhat = LevelSetFunctional(VolPen, c, phi)
 
     # Regularization solver. Zero on the BCs boundaries
-    beta_param = 0.01
+    beta_param = 0.005
     bcs_vel_1 = MyBC(S, 0, I_BC)
     bcs_vel_2 = fd.DirichletBC(S, fd.Constant((0.0, 0.0, 0.0)), "top")
     bcs_vel = [bcs_vel_1, bcs_vel_2]
@@ -219,12 +219,12 @@ def compliance_bridge():
         output_dir=None,
         solver_parameters=gamg_parameters,
     )
-    dt = 0.1
+    dt = 0.05
     tol = 1e-5
 
     params = {
         "alphaC": 1.0,
-        "K": 0.01,
+        "K": 0.0001,
         "debug": 5,
         "maxit": opts.n_iters,
         "alphaJ": 2.0,
