@@ -123,11 +123,11 @@ def NavierStokesBrinkmannForm(
 
     if brinkmann_penalty and phi is not None:
         if design_domain is not None:
-            dx_brinkmann = add_measures(Enlist(design_domain))
+            dx_brinkmann = partial(add_measures, Enlist(design_domain))
         else:
             dx_brinkmann = dx
 
-        F = F + alpha(phi) * inner(u, v) * dx_brinkmann
+        F = F + alpha(phi) * inner(u, v) * dx_brinkmann()
 
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
@@ -136,10 +136,9 @@ def NavierStokesBrinkmannForm(
     tau_gls = beta_gls * (
         (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2
     ) ** (-0.5)
-    degree = 8
 
     theta_U = dot(u, grad(v)) - nu * div(grad(v)) + grad(q)
-    F = F + tau_gls * inner(R_U, theta_U) * dx(degree=degree)
+    F = F + tau_gls * inner(R_U, theta_U) * dx()
 
     if brinkmann_penalty and phi is not None:
         tau_gls_alpha = beta_gls * (
@@ -150,13 +149,11 @@ def NavierStokesBrinkmannForm(
         R_U_alpha = R_U + alpha(phi) * u
         theta_alpha = theta_U + alpha(phi) * v
 
-        F = F + tau_gls_alpha * inner(R_U_alpha, theta_alpha) * dx_brinkmann(
-            degree=degree
-        )
+        F = F + tau_gls_alpha * inner(R_U_alpha, theta_alpha) * dx_brinkmann()
         if (
             design_domain is not None
         ):  # Substract this domain from the original integral
-            F = F - tau_gls * inner(R_U, theta_U) * dx_brinkmann(degree=degree)
+            F = F - tau_gls * inner(R_U, theta_U) * dx_brinkmann()
 
     return F
 
