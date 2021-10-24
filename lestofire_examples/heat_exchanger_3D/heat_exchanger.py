@@ -3,21 +3,32 @@ from firedrake import inner, dot, grad, div, dx, ds, sin, pi, as_vector, cos
 import firedrake_adjoint as fda
 
 from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import InfDimProblem, Constraint, nlspace_solve
+from lestofire.optimization import (
+    InfDimProblem,
+    Constraint,
+    nlspace_solve,
+    read_checkpoint,
+)
 from lestofire.physics import (
     NavierStokesBrinkmannForm,
     NavierStokesBrinkmannSolver,
     mark_no_flow_regions,
     InteriorBC,
 )
+from physics_solvers import temperature_solver
 import signal
-import glob
-import re
+from qois import pressure_drop, heat_flux
 from itertools import count
 import petsc4py
 from pyadjoint import stop_annotating
 import argparse
 from copy import copy
+from solver_parameters import (
+    reinit_solver_parameters,
+    hj_solver_parameters,
+    regularization_solver_parameters,
+    temperature_solver_parameters,
+)
 
 petsc4py.PETSc.Sys.popErrorHandler()
 
@@ -37,36 +48,12 @@ def heat_exchanger_3D():
         default=1.0,
     )
     parser.add_argument(
-        "--hj_time",
-        action="store",
-        dest="hj_time",
-        type=float,
-        help="Total time for the HJ step",
-        default=0.02,
-    )
-    parser.add_argument(
         "--brinkmann_penalty",
         action="store",
         dest="brinkmann_penalty",
         type=float,
         help="Brinkmann term",
         default=1e5,
-    )
-    parser.add_argument(
-        "--K",
-        action="store",
-        dest="K",
-        type=float,
-        help="Feeling distance parameter",
-        default=1e-3,
-    )
-    parser.add_argument(
-        "--beta_param",
-        action="store",
-        dest="beta_param",
-        type=float,
-        help="Regularization parameter",
-        default=0.1,
     )
     parser.add_argument(
         "--refinement",
@@ -77,27 +64,11 @@ def heat_exchanger_3D():
         default=0,
     )
     parser.add_argument(
-        "--alphaC",
+        "--pressure_drop_constraint",
         action="store",
-        dest="alphaC",
+        dest="pressure_drop_constraint",
         type=float,
-        help="Weight for the constraints",
-        default=0.1,
-    )
-    parser.add_argument(
-        "--scale_factor",
-        action="store",
-        dest="scale_factor",
-        type=float,
-        help="Scale heat exchange cost function",
-        default=5.0,
-    )
-    parser.add_argument(
-        "--pressure_drop",
-        action="store",
-        dest="pressure_drop",
-        type=float,
-        help="Power drop constraint",
+        help="Pressure drop constraint",
         default=10.0,
     )
     parser.add_argument(
@@ -128,6 +99,11 @@ def heat_exchanger_3D():
     print(f"Parameters used: {opts}")
 
     beta_gls = 0.9
+    beta_param = 0.4
+    u_inflow = 1.0
+    PeInv_val = 2e-4
+    t1 = fd.Constant(10.0)
+    t2 = fd.Constant(1.0)
     mesh = fd.Mesh("./box_heat_exch.msh")
 
     from parameters_box import (
@@ -180,21 +156,17 @@ def heat_exchanger_3D():
 
     # Parameters
     nu = fd.Constant(opts.nu)  # viscosity
-    u_inflow = 1.0
-    pressure_drop = opts.pressure_drop
-    pressure_drop_1 = pressure_drop
-    pressure_drop_2 = pressure_drop
+    pressure_drop_constraint = opts.pressure_drop_constraint
+    pressure_drop_1 = pressure_drop_constraint
+    pressure_drop_2 = pressure_drop_constraint
     ns_solver_tolerances = 1e-4
 
-    PeInv_val = 2e-4
     PeInv = fd.Constant(PeInv_val)
-    t1 = fd.Constant(10.0)
-    t2 = fd.Constant(1.0)
 
     S = fd.VectorFunctionSpace(mesh, "CG", 1)
 
     PHI = fd.FunctionSpace(mesh, "CG", 1)
-    phi = fd.Function(PHI)
+    phi = fd.Function(PHI, name="LevelSet")
     x, y, z = fd.SpatialCoordinate(mesh)
 
     ω = 0.25
@@ -202,45 +174,27 @@ def heat_exchanger_3D():
         z * pi / ω
     ) - fd.Constant(0.2)
 
-    with stop_annotating():
-        checkpoints = glob.glob(f"{opts.output_dir}/checkpoint*")
-        checkpoints_sorted = sorted(
-            checkpoints,
-            key=lambda L: list(map(int, re.findall(r"iter_(\d+)\.h5", L)))[0],
+    if read_checkpoint(opts.output_dir, phi):
+        with open(
+            f"{opts.output_dir}/brinkmann_penalty.txt", "r"
+        ) as txt_brinkmann:
+            brinkmann_penalty_initial = fd.Constant(txt_brinkmann.read())
+        print(
+            f"Current brinkmann term: {brinkmann_penalty_initial.values()[0]}"
         )
-
-        print(f"checkpoints: {checkpoints_sorted}")
-        if checkpoints_sorted:
-            last_file = checkpoints_sorted[-1]
-            current_iter = int(re.findall(r"iter_(\d+)\.h5", last_file)[0])
-            with fd.HDF5File(
-                f"{opts.output_dir}/checkpoint_iter_{current_iter}.h5", "r"
-            ) as checkpoint:
-                checkpoint.read(phi, "/checkpoint")
-            print(f"Restarting simulation at {current_iter}")
-            with open(
-                f"{opts.output_dir}/brinkmann_penalty.txt", "r"
-            ) as txt_brinkmann:
-                brinkmann_penalty_initial = fd.Constant(txt_brinkmann.read())
-            print(
-                f"Current brinkmann term: {brinkmann_penalty_initial.values()[0]}"
-            )
-        else:
-            phi.interpolate(phi_expr)
-            current_iter = 0
-            brinkmann_penalty_initial = fd.Constant(opts.brinkmann_penalty)
-        phi.rename("LevelSet")
-        fd.File(f"{opts.output_dir}/phi_initial.pvd").write(phi)
+    else:
+        phi.interpolate(phi_expr)
+        current_iter = 0
+        brinkmann_penalty_initial = fd.Constant(opts.brinkmann_penalty)
 
     P2 = fd.VectorElement("CG", mesh.ufl_cell(), 1)
     P1 = fd.FiniteElement("CG", mesh.ufl_cell(), 1)
     TH = P2 * P1
     W = fd.FunctionSpace(mesh, TH)
-    n = fd.FacetNormal(mesh)
     print(f"DOFS: {W.dim()}")
 
     T = fd.FunctionSpace(mesh, "CG", 1)
-    t, rho = fd.Function(T), fd.TestFunction(T)
+    t, _ = fd.Function(T), fd.TestFunction(T)
 
     global_counter = count(current_iter)
 
@@ -257,6 +211,43 @@ def heat_exchanger_3D():
             txt_brinkmann.write(str(brinkmann_penalty.values()[0]))
 
     signal.signal(signal.SIGHUP, receive_signal)
+
+    def flow_solver(
+        W, w_sol, nu, inflow, INLET, WALLS, no_flow, phi=None, beta_gls=0.9
+    ):
+        F = NavierStokesBrinkmannForm(
+            W,
+            w_sol,
+            nu,
+            phi=phi,
+            brinkmann_penalty=brinkmann_penalty,
+            design_domain=DESIGN_DOMAIN,
+            beta_gls=beta_gls,
+        )
+
+        noslip = fd.Constant((0.0, 0.0, 0.0))
+        bcs_1 = fd.DirichletBC(W.sub(0), noslip, WALLS)
+        bcs_2 = fd.DirichletBC(W.sub(0), inflow, INLET)
+        bcs_no_flow = InteriorBC(W.sub(0), noslip, no_flow)
+        bcs = [bcs_1, bcs_2, bcs_no_flow]
+
+        problem = fd.NonlinearVariationalProblem(F, w_sol, bcs=bcs)
+
+        solver_parameters = {
+            "ksp_converged_maxits": None,
+            "ksp_max_it": 1000,
+            "ksp_atol": ns_solver_tolerances,
+            "ksp_rtol": ns_solver_tolerances,
+            # "ksp_monitor": None,
+            "snes_atol": 1e-4,
+            "snes_rtol": 1e-4,
+            "snes_max_it": 10,
+            "snes_no_convergence_test": None,
+            "ksp_converged_reason": None,
+        }
+        return NavierStokesBrinkmannSolver(
+            problem, solver_parameters=solver_parameters
+        )
 
     def forward(brinkmann_penalty):
 
@@ -298,11 +289,23 @@ def heat_exchanger_3D():
             "snes_no_convergence_test": None,
             "ksp_converged_reason": None,
         }
-        solver = NavierStokesBrinkmannSolver(
-            problem, solver_parameters=solver_parameters
-        )
-        solver.solve()
+        # solver = NavierStokesBrinkmannSolver(
+        #    problem, solver_parameters=solver_parameters
+        # )
+        # solver.solve()
         u_sol1, p_sol1 = fd.split(w_sol1)
+        solver_supp = flow_solver(
+            W,
+            w_sol1,
+            nu,
+            inflow1,
+            INLET1,
+            (WALLS, INLET2, OUTLET2),
+            no_flow_domain_1,
+            phi=phi,
+            beta_gls=beta_gls,
+        )
+        solver_supp.solve()
 
         # Navier-Stokes 2
         w_sol2 = fd.Function(W)
@@ -334,72 +337,14 @@ def heat_exchanger_3D():
         solver2.solve()
         u_sol2, _ = fd.split(w_sol2)
 
-        # Temperature advection diffusion equation
         beta = u_sol1 + u_sol2
-        F = (
-            inner(beta, grad(t)) * rho + PeInv * inner(grad(t), grad(rho))
-        ) * dx - inner(PeInv * grad(t), n) * rho * (ds(OUTLET1) + ds(OUTLET2))
-
-        R_U = dot(beta, grad(t)) - PeInv * div(grad(t))
-        beta_gls_temp = 0.9
-        h = fd.CellSize(mesh)
-        tau_gls = beta_gls_temp * (
-            (4.0 * dot(beta, beta) / h ** 2)
-            + 9.0 * (4.0 * PeInv / h ** 2) ** 2
-        ) ** (-0.5)
-        degree = 4
-
-        theta_U = dot(beta, grad(rho)) - PeInv * div(grad(rho))
-        F_T = F + tau_gls * inner(R_U, theta_U) * dx(degree=degree)
-
-        bc1 = fd.DirichletBC(T, t1, INLET1)
-        bc2 = fd.DirichletBC(T, t2, INLET2)
-        bcs = [bc1, bc2]
-        problem_T = fd.NonlinearVariationalProblem(F_T, t, bcs=bcs)
-        temperature_solver_parameters = {
-            "ksp_type": "fgmres",
-            "snes_atol": 1e-6,
-            "pc_type": "python",
-            "pc_python_type": "firedrake.AssembledPC",
-            "assembled_mat_type": "aij",
-            "assembled_pc_type": "hypre",
-            "assembled_pc_hypre_boomeramg_P_max": 4,
-            "assembled_pc_hypre_boomeramg_agg_nl": 1,
-            "assembled_pc_hypre_boomeramg_agg_num_paths": 2,
-            "assembled_pc_hypre_boomeramg_coarsen_type": "HMIS",
-            "assembled_pc_hypre_boomeramg_interp_type": "ext+i",
-            "assembled_pc_hypre_boomeramg_no_CF": True,
-            "ksp_max_it": 300,
-        }
-        solver_T = fd.NonlinearVariationalSolver(
-            problem_T, solver_parameters=temperature_solver_parameters
+        solver_T = temperature_solver(
+            T, t, beta, PeInv, t1, INLET1, t2, INLET2
         )
         solver_T.solve()
         t.rename("Temperature")
 
         return w_sol1, w_sol2, t
-
-    def opti_problem(w_sol1, w_sol2, t):
-        u_sol1, p_sol1 = fd.split(w_sol1)
-        u_sol2, p_sol2 = fd.split(w_sol2)
-
-        Power1 = (
-            fd.assemble(p_sol1 * ds(INLET1) - p_sol1 * ds(OUTLET1))
-            / pressure_drop_1
-        )
-        Power2 = (
-            fd.assemble(p_sol2 * ds(INLET2) - p_sol2 * ds(OUTLET2))
-            / pressure_drop_2
-        )
-
-        scale_factor = opts.scale_factor
-        J = fd.assemble(
-            fd.Constant(-scale_factor) * inner(t * u_sol2, n) * ds(OUTLET2)
-        )
-        J_hot = fd.assemble(
-            fd.Constant(-scale_factor) * inner(t * u_sol1, n) * ds(OUTLET1)
-        )
-        return J, J_hot, Power1, Power2
 
     phi_pvd = fd.File(
         f"{opts.output_dir}/phi_evolution.pvd",
@@ -449,7 +394,12 @@ def heat_exchanger_3D():
         w_sol2_control = fda.Control(w_sol2)
         t_control = fda.Control(t)
 
-        J, J_hot, Power1, Power2 = opti_problem(w_sol1, w_sol2, t)
+        J = heat_flux(w_sol2, t, OUTLET2)
+        J_hot = heat_flux(w_sol1, t, OUTLET1)
+        Pdrop1 = pressure_drop(w_sol1, INLET1, OUTLET1, pressure_drop_1)
+        Pdrop2 = pressure_drop(w_sol2, INLET2, OUTLET2, pressure_drop_2)
+        print(f"Cold flux: {J}, hot flux: {J_hot}")
+
         c = fda.Control(s)
         J_hot_control = fda.Control(J_hot)
 
@@ -477,31 +427,14 @@ def heat_exchanger_3D():
 
         # Reduced Functionals
         Jhat = LevelSetFunctional(J, c, phi, derivative_cb_pre=deriv_cb)
-        P1hat = LevelSetFunctional(Power1, c, phi)
-        P1control = fda.Control(Power1)
+        P1hat = LevelSetFunctional(Pdrop1, c, phi)
+        P1control = fda.Control(Pdrop1)
 
-        P2hat = LevelSetFunctional(Power2, c, phi)
-        P2control = fda.Control(Power2)
-        print("Power drop 1 {:.5f}".format(Power1))
-        print("Power drop 2 {:.5f}".format(Power2))
+        P2hat = LevelSetFunctional(Pdrop2, c, phi)
+        P2control = fda.Control(Pdrop2)
+        print("Pressure drop 1 {:.5f}".format(Pdrop1))
+        print("Pressure drop 2 {:.5f}".format(Pdrop2))
 
-        beta_param = opts.beta_param
-        iterative_parameters = {
-            "mat_type": "aij",
-            "ksp_type": "cg",
-            "pc_type": "hypre",
-            "pc_hypre_type": "boomeramg",
-            "pc_hypre_boomeramg_max_iter": 200,
-            "pc_hypre_boomeramg_coarsen_type": "HMIS",
-            "pc_hypre_boomeramg_agg_nl": 1,
-            "pc_hypre_boomeramg_strong_threshold": 0.7,
-            "pc_hypre_boomeramg_interp_type": "ext+i",
-            "pc_hypre_boomeramg_P_max": 4,
-            "pc_hypre_boomeramg_relax_type_all": "sequential-Gauss-Seidel",
-            "pc_hypre_boomeramg_grid_sweeps_all": 1,
-            "pc_hypre_boomeramg_max_levels": 15,
-            "ksp_converged_reason": None,
-        }
         reg_solver = RegularizationSolver(
             S,
             mesh,
@@ -509,17 +442,17 @@ def heat_exchanger_3D():
             gamma=1e6,
             dx=dx,
             design_domain=DESIGN_DOMAIN,
-            solver_parameters=iterative_parameters,
+            solver_parameters=regularization_solver_parameters,
         )
 
         tol = 1e-7
-        dt = opts.hj_time
+        dt = 0.02
         params = {
             "alphaC": 0.1,
             "debug": 5,
             "alphaJ": 0.1,
             "dt": dt,
-            "K": opts.K,
+            "K": 1e-3,
             "maxit": opts.n_iters,
             "maxtrials": 10,
             "itnormalisation": 10,
@@ -528,51 +461,10 @@ def heat_exchanger_3D():
             "tol": tol,
         }
 
-        hj_solver_parameters = {
-            "peclet_number": 1e-3,
-            "ksp_type": "gmres",
-            "ksp_converged_maxits": None,
-            "snes_type": "ksponly",
-            "snes_no_convergence_test": None,
-            "snes_atol": 1e-5,
-            "ksp_atol": 1e-5,
-            "ksp_rtol": 1e-5,
-            "ts_type": "beuler",
-            "pc_type": "bjacobi",
-            "sub_pc_type": "ilu",
-            "sub_pc_factor_levels": 1,
-            "ksp_max_it": 5000,
-            "ksp_gmres_restart": 200,
-            "ts_atol": 1e-5,
-            "ts_rtol": 1e-5,
-            "ts_dt": dt / 50.0,
-            "ts_max_steps": 400,
-            # "ksp_monitor": None
-            # "snes_monitor": None,
-            # "ts_monitor": None,
-            # "ksp_converged_reason": None,
-        }
-
+        hj_solver_parameters["ts_dt"] = dt / 50.0
         solver_parameters = {
             "hj_solver": hj_solver_parameters,
-            "reinit_solver": {
-                "ksp_type": "cg",
-                "ksp_rtol": 1e-6,
-                "pc_type": "hypre",
-                "pc_hypre_type": "boomeramg",
-                "pc_hypre_boomeramg_max_iter": 5,
-                "pc_hypre_boomeramg_coarsen_type": "PMIS",
-                "pc_hypre_boomeramg_agg_nl": 2,
-                "pc_hypre_boomeramg_strong_threshold": 0.95,
-                "pc_hypre_boomeramg_interp_type": "ext+i",
-                "pc_hypre_boomeramg_P_max": 2,
-                "pc_hypre_boomeramg_relax_type_all": "sequential-Gauss-Seidel",
-                "pc_hypre_boomeramg_grid_sweeps_all": 1,
-                "pc_hypre_boomeramg_truncfactor": 0.3,
-                "pc_hypre_boomeramg_max_levels": 6,
-                "ksp_max_it": 200,
-                "ksp_converged_maxits": None,
-            },
+            "reinit_solver": reinit_solver_parameters,
         }
 
         problem = InfDimProblem(

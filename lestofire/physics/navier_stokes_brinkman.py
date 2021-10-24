@@ -116,7 +116,7 @@ def NavierStokesBrinkmannForm(
 
     # Brinkmann terms for design
     def add_measures(list_dd, **kwargs):
-        return sum([dx(dd, kwargs) for dd in list_dd[1::]], dx(list_dd[0]))
+        return sum((dx(dd, kwargs) for dd in list_dd[1::]), dx(list_dd[0]))
 
     def alpha(phi):
         return brinkmann_penalty * hs(phi) + Constant(brinkmann_min)
@@ -131,7 +131,8 @@ def NavierStokesBrinkmannForm(
 
     # GLS stabilization
     R_U = dot(u, grad(u)) - nu * div(grad(u)) + grad(p)
-    beta_gls = fd.Constant(beta_gls)
+    if isinstance(beta_gls, (float, int)):
+        beta_gls = fd.Constant(beta_gls)
     h = fd.CellSize(mesh)
     tau_gls = beta_gls * (
         (4.0 * dot(u, u) / h ** 2) + 9.0 * (4.0 * nu / h ** 2) ** 2

@@ -27,7 +27,8 @@ Physical Surface(4) = {42};
 Physical Surface(5) = {34, 35, 36, 28, 33, 30, 39, 41, 37, 25};
 //+
 Physical Volume(0) = {1};
-mesh_size = 0.015;
+//mesh_size = 0.015;
+mesh_size = 0.15;
 MeshSize{ PointsOf{ Volume{1, 2, 3, 4, 5}; } } = mesh_size;
 //+
 Physical Volume(6) = {3};
