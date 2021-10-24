@@ -71,3 +71,17 @@ temperature_solver_parameters = {
     "assembled_pc_hypre_boomeramg_no_CF": True,
     "ksp_max_it": 300,
 }
+
+ns_solver_tolerances = 1e-4
+ns_solver_parameters = {
+    "ksp_converged_maxits": None,
+    "ksp_max_it": 1000,
+    "ksp_atol": ns_solver_tolerances,
+    "ksp_rtol": ns_solver_tolerances,
+    # "ksp_monitor": None,
+    "snes_atol": 1e-4,
+    "snes_rtol": 1e-4,
+    "snes_max_it": 10,
+    "snes_no_convergence_test": None,
+    "ksp_converged_reason": None,
+}
