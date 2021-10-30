@@ -1,39 +1,52 @@
 ![CircleCI](https://img.shields.io/circleci/build/gh/LLNL/lestofire)
 [![codecov](https://codecov.io/gh/LLNL/lestofire/branch/main/graph/badge.svg)](https://codecov.io/gh/LLNL/lestofire)
 
-# Lestofire
+
+
+<div align="center">
+  <img width="300px" src="https://user-images.githubusercontent.com/7770764/139541514-7938159f-bfb9-41f4-8109-4f4388ca17b5.png">
+</div>
+
+## Level set topology optimization in Firedrake
+
+LeToP implements the level set method in topology optimization.
+It combines the automated calculation of shape derivatives in [Firedrake](https://gitlab.com/florian.feppon/null-space-optimizer) and [pyadjoint](https://github.com/dolfin-adjoint/pyadjoint) with the [Null space optimizer](https://gitlab.com/florian.feppon/null-space-optimizer) to find the optimal design. The level set in advected with a Hamilton-Jacobi equation and properly reinitialized to maintain the signed distance property.
+
+The user interface is very close to pyadjoint to allow for easy compatibility.
+
+# Installation
 
 Install with
 
 ```python
 pip3 install .
 ```
+at the project's root directory and with the Firedrake's virtual environment activated.
+LeTop depends on the [10.5281/zenodo.5526481 zenodo release](https://zenodo.org/record/4679405/export/hx) , which can be simply installed by passing the flag `--doi 10.5281/zenodo.5526481` to `firedrake-install`.
 
-at the project's root directory and with the Firedrake's virtual environment activated ([instructions](https://www.firedrakeproject.org/download.html))
-
-## Level set topology optimization in Firedrake
-
-Lestofire implements the level set method in topology optimization.
-It combines the automated calculation of shape derivatives in [Firedrake](https://gitlab.com/florian.feppon/null-space-optimizer) and [pyadjoint](https://github.com/dolfin-adjoint/pyadjoint) with the [Null space optimizer](https://gitlab.com/florian.feppon/null-space-optimizer) to find the optimal design.
-
-Heat exchanger
-
-![heat_exchanger](https://media.giphy.com/media/YhgqJt24PCXJgUdmLu/giphy.gif)
-
-Cantilever
+# Examples
+## Cantilever
 
 ![cantilever](https://media.giphy.com/media/eWze54pzWhoBiiJDmK/giphy.gif)
 
-LLNL Release Number: LLNL-CODE- 817098
+## Heat exchanger
 
-## Considerations when using Lestofire
+![heat_exchanger_3D](https://user-images.githubusercontent.com/7770764/139540221-8195f162-3850-4939-b116-e466fdb9d8b5.gif)
+
+## Bridge
+
+![bridge](https://user-images.githubusercontent.com/7770764/139540289-b7daff65-5c98-4828-8a07-445aab79b7bb.gif)
+
+
+
+LLNL Release Number: LLNL-CODE-817098
+
+## Considerations when using LeToP
 
 Make use of the pyadjoint context manager `stop_annotating()` and the decorator `no_annotations` for:
 
-- When using `interpolate()` or `project` from Firedrake as they might annotate unnecessary operations and render the shape derivatives wrong.
-- Similarly, when extending Lestofire routines, make sure you are not annotating additional operations as Firedrake annotates everything by default when importing `firedrake_adjoint`.
-
-## Heuristics to keep in mind
-
+- When using `interpolate()` or `project` from Firedrake as they might annotate unnecessary operations and result in wrong the shape derivatives.
+- Similarly, when extending LeToP routines, make sure you are not annotating additional operations as Firedrake annotates everything by default when importing `firedrake_adjoint`.
+- The shape velocities should be zeroed on the Dirichlet and Neumann boundaries. Use the `RegularizationSolver` boundary conditions to this effect.
+- Add fd.parameters["form_compiler"]["quadrature_degree"] = 4 to ensure quadrature does not go too high due to the heaviside function (used to mark the subdomains)
 - The isocontours of the level set must have enough mesh resolution, otherwise the reinitialization solver might fail.
-- If the level set is unstable during the optimization, tune the accuracy of the Hamilton-Jacobi solver by settings the options `hj_ts_atol` and `hj_ts_rtol` in `InfDimProblem`'s `solver_parameters` argument. It could also be that the optimization "time step" `dt` is too high.
