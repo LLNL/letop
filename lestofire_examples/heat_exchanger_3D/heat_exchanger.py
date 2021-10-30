@@ -8,6 +8,7 @@ from lestofire.optimization import (
     Constraint,
     nlspace_solve,
     read_checkpoint,
+    is_checkpoint
 )
 from lestofire.physics import (
     mark_no_flow_regions,
@@ -233,7 +234,9 @@ def heat_exchanger_3D():
         z * pi / ω
     ) - fd.Constant(0.2)
 
-    if read_checkpoint(opts.output_dir, phi):
+    checkpoints = is_checkpoint(opts.output_dir)
+    if checkpoints:
+        current_iter = read_checkpoint(checkpoints, phi)
         with open(
             f"{opts.output_dir}/brinkmann_penalty.txt", "r"
         ) as txt_brinkmann:
@@ -242,7 +245,8 @@ def heat_exchanger_3D():
             f"Current brinkmann term: {brinkmann_penalty_initial.values()[0]}"
         )
     else:
-        phi.interpolate(phi_expr)
+        with stop_annotating():
+            phi.interpolate(phi_expr)
         current_iter = 0
         brinkmann_penalty_initial = fd.Constant(opts.brinkmann_penalty)
 
