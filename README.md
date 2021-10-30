@@ -1,5 +1,5 @@
-![CircleCI](https://img.shields.io/circleci/build/gh/LLNL/lestofire)
-[![codecov](https://codecov.io/gh/LLNL/lestofire/branch/main/graph/badge.svg)](https://codecov.io/gh/LLNL/lestofire)
+![CircleCI](https://img.shields.io/circleci/build/gh/LLNL/letop)
+[![codecov](https://codecov.io/gh/LLNL/lestofire/branch/main/graph/badge.svg)](https://codecov.io/gh/LLNL/letop)
 
 
 
@@ -7,7 +7,7 @@
   <img width="300px" src="https://user-images.githubusercontent.com/7770764/139541514-7938159f-bfb9-41f4-8109-4f4388ca17b5.png">
 </div>
 
-## Level set topology optimization in Firedrake
+## Level set topology optimization in Firedrake 🚧 🚧 (in progress)
 
 LeToP implements the level set method in topology optimization.
 It combines the automated calculation of shape derivatives in [Firedrake](https://gitlab.com/florian.feppon/null-space-optimizer) and [pyadjoint](https://github.com/dolfin-adjoint/pyadjoint) with the [Null space optimizer](https://gitlab.com/florian.feppon/null-space-optimizer) to find the optimal design. The level set in advected with a Hamilton-Jacobi equation and properly reinitialized to maintain the signed distance property.
