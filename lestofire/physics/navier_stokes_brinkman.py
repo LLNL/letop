@@ -6,14 +6,7 @@ from firedrake import (
     grad,
     div,
     dx,
-    ds,
-    dS,
-    jump,
-    avg,
-    Constant,
-    exp,
 )
-from firedrake.function import Function
 from pyadjoint.enlisting import Enlist
 import ufl
 from .utils import hs
@@ -119,7 +112,7 @@ def NavierStokesBrinkmannForm(
         return sum((dx(dd, kwargs) for dd in list_dd[1::]), dx(list_dd[0]))
 
     def alpha(phi):
-        return brinkmann_penalty * hs(phi) + Constant(brinkmann_min)
+        return brinkmann_penalty * hs(phi) + fd.Constant(brinkmann_min)
 
     if brinkmann_penalty and phi is not None:
         if design_domain is not None:
