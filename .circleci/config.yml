@@ -1,14 +1,5 @@
 version: 2.1
 jobs:
-  build_env:
-    machine: true
-    steps:
-      - checkout
-      - run: |
-          echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
-                # build the application image
-          docker build -t salazardetroya/lestofire:env -f docker/Dockerfile .
-          docker push salazardetroya/lestofire:env
   build:
     docker:
       - image: salazardetroya/lestofire:env
@@ -41,7 +32,4 @@ workflows:
   version: 2
   all:
     jobs:
-      - build_env
-      - build:
-          requires:
-            - build_env
+      - build
