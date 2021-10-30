@@ -108,7 +108,11 @@ class LevelSetFunctional(object):
         self.hessian_cb_pre(self.level_set)
 
         r = compute_hessian(
-            self.functional, self.controls, m_dot, options=options, tape=self.tape
+            self.functional,
+            self.controls,
+            m_dot,
+            options=options,
+            tape=self.tape,
         )
 
         # Call callback
@@ -141,7 +145,9 @@ class LevelSetFunctional(object):
         """
         values = Enlist(values)
         if len(values) != len(self.level_set):
-            raise ValueError("values should be a list of same length as level sets.")
+            raise ValueError(
+                "values should be a list of same length as level sets."
+            )
 
         # Call callback.
         self.eval_cb_pre(self.level_set.delist(values))
@@ -171,7 +177,8 @@ class LevelSetFunctional(object):
     # TODO fix this to avoid deleting the level set
     def optimize_tape(self):
         self.tape.optimize(
-            controls=self.controls + self.level_set, functionals=[self.functional]
+            controls=self.controls + self.level_set,
+            functionals=[self.functional],
         )
 
     def marked_controls(self):

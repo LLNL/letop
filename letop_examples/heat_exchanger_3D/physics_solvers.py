@@ -1,5 +1,5 @@
 import firedrake as fd
-from lestofire.physics import (
+from letop.physics import (
     AdvectionDiffusionGLS,
     NavierStokesBrinkmannForm,
     NavierStokesBrinkmannSolver,

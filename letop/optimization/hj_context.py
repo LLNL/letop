@@ -7,12 +7,14 @@ from firedrake.exceptions import ConvergenceError
 from firedrake.petsc import PETSc
 from firedrake.utils import cached_property
 
-print = lambda x: PETSc.Sys.Print(x)
-
 
 def _make_reasons(reasons):
     return dict(
-        [(getattr(reasons, r), r) for r in dir(reasons) if not r.startswith("_")]
+        [
+            (getattr(reasons, r), r)
+            for r in dir(reasons)
+            if not r.startswith("_")
+        ]
     )
 
 
