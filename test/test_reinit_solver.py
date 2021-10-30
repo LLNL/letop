@@ -1,7 +1,7 @@
 import firedrake as fd
 from firedrake import sqrt
-from lestofire.optimization import ReinitSolverCG
-from lestofire.physics import max_mesh_dimension
+from letop.optimization import ReinitSolverCG
+from letop.physics import max_mesh_dimension
 import pytest
 
 

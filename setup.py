@@ -8,7 +8,7 @@ from setuptools import find_packages, setup
 # https://packaging.python.org/single_source_version/
 base_dir = os.path.abspath(os.path.dirname(__file__))
 about = {}
-with open(os.path.join(base_dir, "lestofire", "__about__.py"), "rb") as f:
+with open(os.path.join(base_dir, "letop", "__about__.py"), "rb") as f:
     exec(f.read(), about)
 
 
@@ -17,7 +17,7 @@ def read(fname):
 
 
 setup(
-    name="lestofire",
+    name="letop",
     version=about["__version__"],
     packages=find_packages(),
     author=about["__author__"],
@@ -46,5 +46,5 @@ setup(
         "Topic :: Scientific/Engineering :: Mathematics",
     ],
     python_requires=">=3",
-    entry_points={"console_scripts": ["lestofire-show = lestofire.cli:show"]},
+    entry_points={"console_scripts": ["letop-show = letop.cli:show"]},
 )

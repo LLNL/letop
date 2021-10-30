@@ -2,14 +2,14 @@ import firedrake as fd
 from firedrake import cos, pi, dx, inner, grad
 import firedrake_adjoint as fda
 from pyadjoint import stop_annotating
-from lestofire.physics import (
+from letop.physics import (
     NavierStokesBrinkmannForm,
     NavierStokesBrinkmannSolver,
     hs,
 )
-from lestofire.levelset import LevelSetFunctional
-from lestofire.levelset import RegularizationSolver
-from lestofire.optimization import InfDimProblem, Constraint, nullspace_shape
+from letop.levelset import LevelSetFunctional
+from letop.levelset import RegularizationSolver
+from letop.optimization import InfDimProblem, Constraint, nullspace_shape
 
 
 def main():

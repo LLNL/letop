@@ -7,7 +7,7 @@ from ufl.algebra import Abs
 
 import pytest
 
-from lestofire.optimization import (
+from letop.optimization import (
     HamiltonJacobiCGSolver,
 )
 

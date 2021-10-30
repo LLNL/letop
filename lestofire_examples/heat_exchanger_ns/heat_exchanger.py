@@ -2,9 +2,9 @@ import firedrake as fd
 import firedrake_adjoint as fda
 from firedrake import inner, grad, ds, dx, sin, cos, pi, dot, div
 
-from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import Constraint, InfDimProblem, nullspace_shape
-from lestofire.physics import (
+from letop.levelset import LevelSetFunctional, RegularizationSolver
+from letop.optimization import Constraint, InfDimProblem, nullspace_shape
+from letop.physics import (
     NavierStokesBrinkmannForm,
     mark_no_flow_regions,
     InteriorBC,

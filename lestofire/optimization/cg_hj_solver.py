@@ -1,7 +1,7 @@
 import firedrake as fd
 import firedrake_ts as fdts
 from firedrake import inner, dot, grad, div, dx, ds, dS, jump, avg
-from lestofire.physics import AdvectionDiffusionGLS, InteriorBC
+from letop.physics import AdvectionDiffusionGLS, InteriorBC
 from typing import Union, List, Callable
 
 

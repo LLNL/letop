@@ -7,7 +7,7 @@ import firedrake as fd
 from firedrake import inner, Function, dx, Constant, File
 from numpy.core.numeric import indices
 from sympy import solve
-from lestofire.optimization import InfDimProblem
+from letop.optimization import InfDimProblem
 from pyadjoint import no_annotations
 from firedrake.petsc import PETSc
 from functools import partial

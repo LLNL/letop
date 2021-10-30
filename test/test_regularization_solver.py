@@ -18,7 +18,7 @@ from firedrake import (
     conditional,
 )
 import numpy as np
-from lestofire.levelset import RegularizationSolver
+from letop.levelset import RegularizationSolver
 
 
 def regularization_form(r):
@@ -26,7 +26,6 @@ def regularization_form(r):
     x = SpatialCoordinate(mesh)
 
     S = VectorFunctionSpace(mesh, "CG", 1)
-    s = Function(S, name="deform")
     beta = 4.0
     reg_solver = RegularizationSolver(S, mesh, beta=beta, gamma=0.0, dx=dx)
 
@@ -55,7 +54,9 @@ def test_regularization_convergence():
 
 def domainify(vector, x):
     dim = len(x)
-    return conditional(x[0] > 0.0, vector, as_vector(tuple(0.0 for _ in range(dim))))
+    return conditional(
+        x[0] > 0.0, vector, as_vector(tuple(0.0 for _ in range(dim)))
+    )
 
 
 def test_2D_dirichlet_regions():
@@ -65,7 +66,6 @@ def test_2D_dirichlet_regions():
     x = SpatialCoordinate(mesh)
 
     S = VectorFunctionSpace(mesh, "CG", 1)
-    s = Function(S, name="deform")
     beta = 1.0
     reg_solver = RegularizationSolver(
         S, mesh, beta=beta, gamma=0.0, dx=dx, design_domain=0
@@ -75,7 +75,9 @@ def test_2D_dirichlet_regions():
     u_exact = Function(S)
     u_exact_component = (-cos(x[0] * pi * 2) + 1) * (-cos(x[1] * pi * 2) + 1)
 
-    u_exact.interpolate(as_vector(tuple(u_exact_component for _ in range(dim))))
+    u_exact.interpolate(
+        as_vector(tuple(u_exact_component for _ in range(dim)))
+    )
     f = Function(S)
     f_component = (
         -beta
@@ -120,7 +122,6 @@ def test_3D_dirichlet_regions():
     }
 
     S = VectorFunctionSpace(mesh, "CG", 1)
-    s = Function(S, name="deform")
     beta = 1.0
     reg_solver = RegularizationSolver(
         S,
@@ -140,7 +141,9 @@ def test_3D_dirichlet_regions():
         * (-cos(x[2] * pi * 2) + 1)
     )
 
-    u_exact.interpolate(as_vector(tuple(u_exact_component for _ in range(dim))))
+    u_exact.interpolate(
+        as_vector(tuple(u_exact_component for _ in range(dim)))
+    )
     f = Function(S)
     f_component = (
         -beta
@@ -176,7 +179,9 @@ def test_3D_dirichlet_regions():
     reg_solver.solve(velocity, rhs)
     error = norm(
         project(
-            domainify(u_exact, x) - velocity, S, solver_parameters=solver_parameters_amg
+            domainify(u_exact, x) - velocity,
+            S,
+            solver_parameters=solver_parameters_amg,
         )
     )
     assert error < 5e-2

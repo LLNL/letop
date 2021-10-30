@@ -17,9 +17,9 @@ from firedrake import (
     exp,
 )
 
-from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import InfDimProblem, Constraint
-from lestofire.optimization import nlspace_solve
+from letop.levelset import LevelSetFunctional, RegularizationSolver
+from letop.optimization import InfDimProblem, Constraint
+from letop.optimization import nlspace_solve
 
 from pyadjoint import stop_annotating
 import os
