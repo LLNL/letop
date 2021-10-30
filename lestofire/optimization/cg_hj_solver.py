@@ -53,7 +53,7 @@ def HamiltonJacobiCGSolver(
 
     phi_t = fd.Function(V)
     # Galerkin residual
-    F = AdvectionDiffusionGLS(V, theta, phi, phi_t, PeInv=PeInv)
+    F = AdvectionDiffusionGLS(V, theta, phi, PeInv=PeInv, phi_t=phi_t)
 
     problem = fdts.DAEProblem(F, phi, phi_t, (0.0, t_end), bcs=bcs)
     parameters = {
