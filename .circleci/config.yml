@@ -26,7 +26,7 @@ jobs:
             gmsh -3 3D_mesh.geo
             gmsh -2 -option unstructured_rectangle.geo.opt unstructured_rectangle.geo
             ./build_example_meshes.sh ${VIRTUAL_ENV}
-            pytest --cov=../lestofire/ .
+            pytest --cov=../letop/ .
             bash <(curl -s https://codecov.io/bash)
 workflows:
   version: 2

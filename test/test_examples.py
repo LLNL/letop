@@ -1,4 +1,4 @@
-from lestofire_examples import (
+from letop_examples import (
     compliance_optimization,
     heat_exchanger_optimization,
 )

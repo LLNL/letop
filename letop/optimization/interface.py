@@ -1,17 +1,17 @@
-from lestofire.physics.utils import max_mesh_dimension
+from letop.physics.utils import max_mesh_dimension
 import firedrake as fd
 from firedrake import inner, dx
 from pyadjoint import Control, no_annotations
 from pyadjoint.enlisting import Enlist
-from lestofire.levelset import (
+from letop.levelset import (
     LevelSetFunctional,
     RegularizationSolver,
 )
-from lestofire.optimization import (
+from letop.optimization import (
     HamiltonJacobiCGSolver,
     ReinitSolverCG,
 )
-from lestofire.physics import calculate_max_vel, InteriorBC
+from letop.physics import calculate_max_vel, InteriorBC
 from pyop2.profiling import timed_function
 from ufl.algebra import Abs
 

@@ -1,7 +1,7 @@
 import firedrake as fd
 from firedrake import sqrt, inner, dx
 from firedrake import sin, grad, pi, sym, div
-from lestofire.physics import (
+from letop.physics import (
     NavierStokesBrinkmannForm,
     NavierStokesBrinkmannSolver,
     mark_no_flow_regions,

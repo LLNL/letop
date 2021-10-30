@@ -2,15 +2,15 @@ import firedrake as fd
 from firedrake import inner, dot, grad, div, dx, ds, sin, pi, as_vector, cos
 import firedrake_adjoint as fda
 
-from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import (
+from letop.levelset import LevelSetFunctional, RegularizationSolver
+from letop.optimization import (
     InfDimProblem,
     Constraint,
     nlspace_solve,
     read_checkpoint,
-    is_checkpoint
+    is_checkpoint,
 )
-from lestofire.physics import (
+from letop.physics import (
     mark_no_flow_regions,
 )
 from physics_solvers import (

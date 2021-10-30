@@ -14,9 +14,9 @@ from firedrake import (
     Identity,
 )
 
-from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import InfDimProblem, Constraint
-from lestofire.optimization import nlspace_solve
+from letop.levelset import LevelSetFunctional, RegularizationSolver
+from letop.optimization import InfDimProblem, Constraint
+from letop.optimization import nlspace_solve
 
 import os
 
@@ -128,7 +128,6 @@ def compliance_optimization(n_iters=200):
             phi_pvd.write(phi[0])
 
     c = fda.Control(s)
-    # Lestofire routines
     Jhat = LevelSetFunctional(J, c, phi, derivative_cb_pre=deriv_cb)
     Vhat = LevelSetFunctional(VolPen, c, phi)
     beta_param = 0.1

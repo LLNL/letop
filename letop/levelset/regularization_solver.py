@@ -21,7 +21,7 @@ from firedrake import (
 from pyadjoint.enlisting import Enlist
 from pyadjoint import no_annotations
 from firedrake.mesh import ExtrudedMeshTopology
-from lestofire.physics import min_mesh_size
+from letop.physics import min_mesh_size
 
 from ufl import grad, inner, dot, dx, ds
 from ufl import ds_b, ds_t, ds_tb, ds_v
@@ -104,9 +104,9 @@ class RegularizationSolver(object):
 
         self.beta_param = Constant(beta)
 
-        self.a = (self.beta_param * inner(grad(theta), grad(xi)) + inner(theta, xi)) * (
-            dx
-        )
+        self.a = (
+            self.beta_param * inner(grad(theta), grad(xi)) + inner(theta, xi)
+        ) * (dx)
         if isinstance(mesh.topology, ExtrudedMeshTopology):
             ds_reg = ds_b + ds_v + ds_tb + ds_t
         else:
@@ -136,12 +136,14 @@ class RegularizationSolver(object):
             I_cg_B = Function(S)
             dim = S.mesh().geometric_dimension()
             # Assume that `A` is a :class:`.Function` in CG1 and `B` is a
-            #:class:`.Function` in DG0. Then the following code sets each DoF in
+            # `.Function` in DG0. Then the following code sets each DoF in
             # `A` to the maximum value that `B` attains in the cells adjacent to
             # that DoF::
             par_loop(
                 (
-                    "{{[i, j] : 0 <= i < A.dofs and 0 <= j < {0} }}".format(dim),
+                    "{{[i, j] : 0 <= i < A.dofs and 0 <= j < {0} }}".format(
+                        dim
+                    ),
                     "A[i, j] = fmax(A[i, j], B[0, 0])",
                 ),
                 dx,

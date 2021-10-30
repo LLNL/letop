@@ -15,10 +15,10 @@ from firedrake import (
 import firedrake_adjoint as fda
 import numpy as np
 
-from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.optimization import InfDimProblem, Constraint
-from lestofire.physics import hs
-from lestofire.optimization import nlspace_solve
+from letop.levelset import LevelSetFunctional, RegularizationSolver
+from letop.optimization import InfDimProblem, Constraint
+from letop.physics import hs
+from letop.optimization import nlspace_solve
 import itertools
 from firedrake import PETSc
 from solver_parameters import (

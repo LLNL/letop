@@ -2,14 +2,16 @@ import firedrake as fd
 import firedrake_adjoint as fda
 import numpy as np
 from firedrake import dx
-from lestofire.optimization.nullspace_shape import line_search
-from lestofire.optimization import InfDimProblem
-from lestofire.levelset import LevelSetFunctional, RegularizationSolver
-from lestofire.physics import hs
+from letop.optimization.nullspace_shape import line_search
+from letop.optimization import InfDimProblem
+from letop.levelset import LevelSetFunctional, RegularizationSolver
+from letop.physics import hs
 from numpy.testing import assert_allclose
+
 
 def merit_eval_new(AJ, J, AC, C):
     return J
+
 
 def test_line_search():
     mesh = fd.UnitSquareMesh(50, 50)
@@ -20,7 +22,7 @@ def test_line_search():
     mesh.coordinates.assign(mesh.coordinates + s)
 
     # Level set
-    PHI = fd.FunctionSpace(mesh, 'CG', 1)
+    PHI = fd.FunctionSpace(mesh, "CG", 1)
     x, y = fd.SpatialCoordinate(mesh)
 
     with fda.stop_annotating():
@@ -32,13 +34,13 @@ def test_line_search():
         "ts_rtol": 1e-4,
         "ts_dt": 1e-2,
         "ts_exact_final_time": "matchstep",
-        "ts_monitor": None
+        "ts_monitor": None,
     }
 
     ## Search direction
     with fda.stop_annotating():
-        delta_x = fd.interpolate(fd.as_vector([-100*x, 0.0]), S)
-        delta_x.rename('velocity')
+        delta_x = fd.interpolate(fd.as_vector([-100 * x, 0.0]), S)
+        delta_x.rename("velocity")
 
     # Cost function
     J = fd.assemble(hs(-phi) * dx)
@@ -52,11 +54,9 @@ def test_line_search():
     reg_solver = RegularizationSolver(
         S, mesh, beta=beta_param, gamma=1e5, dx=dx
     )
-    solver_parameters = {'hj_solver' : solver_parameters}
+    solver_parameters = {"hj_solver": solver_parameters}
     problem = InfDimProblem(
-        Jhat,
-        reg_solver,
-        solver_parameters=solver_parameters
+        Jhat, reg_solver, solver_parameters=solver_parameters
     )
 
     new_phi = fd.Function(PHI, name="new_ls")
@@ -70,7 +70,18 @@ def test_line_search():
     merit = merit_eval_new(AJ, J, AC, C)
 
     rtol = 1e-4
-    new_phi, newJ, newG, newH =  line_search(problem, orig_phi, new_phi, merit_eval_new, merit, AJ, AC, dt=1.0, tol_merit=rtol, maxtrials=20)
+    new_phi, newJ, newG, newH = line_search(
+        problem,
+        orig_phi,
+        new_phi,
+        merit_eval_new,
+        merit,
+        AJ,
+        AC,
+        dt=1.0,
+        tol_merit=rtol,
+        maxtrials=20,
+    )
 
     assert_allclose(newJ, J, rtol=rtol)
 
