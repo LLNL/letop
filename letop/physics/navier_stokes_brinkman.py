@@ -99,10 +99,12 @@ def NavierStokesBrinkmannForm(
     v, q = fd.TestFunctions(W)
     u, p = fd.split(w)
 
-    # Main NS form
+    # Navier-Stokes equation strong form
+    # u \nabla u - nu \nabla^2 u + \nabla p = 0.0
+    # \nabla u = 0
     F = (
-        nu * inner(grad(u), grad(v)) * dx
-        + inner(dot(grad(u), u), v) * dx
+        inner(dot(grad(u), u), v) * dx
+        + nu * inner(grad(u), grad(v)) * dx
         - p * div(v) * dx
         + div(u) * q * dx
     )
