@@ -321,6 +321,9 @@ def xiC_eval(C, dC, dCtdCtTinv, alphas, indicesEps):
 
 
 def merit_eval(muls, indicesEps, dCtdCtTinv, AJ, J, AC, C):
+    # return AJ * (J + muls.dot(C)) + penalty * 0.5 * C[indicesEps].clip(
+    #    0, None
+    # ).dot(C[indicesEps].clip(0, None))
     return AJ * (J + muls.dot(C)) + 0.5 * AC * C[indicesEps].dot(
         dCtdCtTinv.dot(C[indicesEps])
     )

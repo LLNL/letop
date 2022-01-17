@@ -37,7 +37,7 @@ def two_electrode():
         dest="xi",
         type=float,
         help="Applied non-dimensional scanning rate",
-        default=0.5,
+        default=0.1,
     )
     parser.add_argument(
         "--output_dir",
@@ -53,7 +53,7 @@ def two_electrode():
         dest="constraint_value",
         type=float,
         help="Constraint value: Min energy stored",
-        default=0.2,
+        default=0.1,
     )
     parser.add_argument(
         "--forward",
@@ -80,7 +80,7 @@ def two_electrode():
     tlimit = 1.0 / xi
     n_steps = 20
     dt_value = tlimit / n_steps
-    porosity = 0.2
+    porosity = 0.01
 
     mesh = fd.Mesh("./electrode_mesh.msh")
     # mesh_name = "interdigitated_capacitor.msh"
@@ -99,8 +99,10 @@ def two_electrode():
     PHI = fd.FunctionSpace(mesh, "CG", 1)
     phi = fd.Function(PHI, name="LevelSet")
 
-    ω = 0.3
-    phi_expr = sin(y * pi / ω) * cos(x * pi / ω) - fd.Constant(0.2)
+    ω = 0.2
+    phi_expr = sin((y - 0.1) * pi / ω) * cos((x - 0.1) * pi / ω) - fd.Constant(
+        0.2
+    )
     # phi_expr = cos(x * pi / ω) - fd.Constant(0.2)
     with fda.stop_annotating():
         phi.interpolate(-phi_expr)
@@ -135,12 +137,12 @@ def two_electrode():
     dt = fd.Constant(dt_value)
 
     # It might be important to let this value be relatively high so the optimizer can "see it"
-    lb_electronic = fd.Constant(1e-6)
+    lb_electronic = fd.Constant(1e-10)
 
     epsilon = fd.Constant(100.0)
 
     def cp(phi):
-        return hs(phi, epsilon=epsilon) + 1e-5
+        return hs(phi, epsilon=epsilon) + 1e-10
 
     def energy_resistive_step(u_n, u_sol, kappa_hat, sigma_hat):
         return inner(
@@ -154,15 +156,19 @@ def two_electrode():
     p = fd.Constant(3.0 / 2.0)
 
     def sigma_hat_func(phi):
-        return (fd.Constant(1.0) - porosity) ** (p) * hs(
+        eps = fd.Constant(1.0) - fd.Constant(1.0 - porosity) * hs(
             phi, epsilon=epsilon
-        ) + lb_electronic * hs(-phi, epsilon=epsilon)
+        )
+        return (fd.Constant(1.0) - lb_electronic) * (
+            fd.Constant(1.0) - eps
+        ) ** (p) + lb_electronic
 
     def kappa_hat_func(phi):
         porosity_new = porosity * 0.0736806299
-        return porosity_new ** (p) * hs(phi, epsilon=epsilon) + 1.0 * hs(
-            -phi, epsilon=epsilon
+        eps = fd.Constant(1.0) - fd.Constant(1.0 - porosity_new) * hs(
+            phi, epsilon=epsilon
         )
+        return eps ** (p)
 
     def forward(phi, phi_pvd=None, final_stored_cp=None):
 
@@ -190,7 +196,7 @@ def two_electrode():
 
         # BC
         ud = fd.Constant(0.0)
-        bc1 = fd.DirichletBC(W.sub(1), ud, (DIRICHLET_2,))
+        bc1 = fd.DirichletBC(W.sub(0), ud, (DIRICHLET_2,))
         bc2 = fd.DirichletBC(W.sub(0), fd.Constant(0.0), (DIRICHLET_1,))
         bc1.apply(u_n)
         bcs = [bc1, bc2]
@@ -203,6 +209,7 @@ def two_electrode():
 
         energy_resistive = 0.0
 
+        print(f"dt_value: {dt_value}")
         for _ in range(n_steps):
             solver.solve()
 
@@ -226,7 +233,7 @@ def two_electrode():
                     phi1, phi2 = u_n.split()
                     phi1.rename("Phi1")
                     phi2.rename("Phi2")
-                    phi_pvd.write(phi1, phi2, time=t)
+                    phi_pvd.write(phi1, phi2)  # , time=t)
 
         return u_n, energy_resistive
 
@@ -342,17 +349,17 @@ def two_electrode():
         ],
         reinit_distance=0.08,
     )
-    dt_hj = 0.05
+    dt_hj = 0.02
     params = {
         "alphaC": 1.0,
         "debug": 5,
-        "alphaJ": 0.1,
+        "alphaJ": 1.0,
         "dt": dt_hj,
         "K": 0.1,
-        "maxit": 100,
-        "maxtrials": 10,
+        "maxit": 200,
+        "maxtrials": 3,
         "itnormalisation": 10,
-        "tol_merit": 1e-2,  # new merit can be within 1% of the previous merit
+        "tol_merit": 0.1,  # new merit can be within 1% of the previous merit
         # "normalize_tol" : -1,
     }
     _ = nlspace_solve(

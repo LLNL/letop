@@ -24,8 +24,7 @@ def min_mesh_size(mesh):
         * fd.dx
     ).dat.data_ro
     local_min_size = np.max(h_sizes)
-    min_size = mesh.comm.allreduce(local_min_size, op=MPI.MAX)
-    return min_size
+    return mesh.comm.allreduce(local_min_size, op=MPI.MAX)
 
 
 def hs(
@@ -46,7 +45,7 @@ def hs(
         shift: (float): Shift the level set value to define the interface.
 
     Returns:
-        [type]: [description]
+        [type]: Heavise function onto phi, i.e. 1 for phi > 0 and 0 for phi < 0
     """
     if width_h:
         if epsilon:
