@@ -24,6 +24,16 @@ pip3 install .
 at the project's root directory and with the Firedrake's virtual environment activated.
 LeTop depends on the [10.5281/zenodo.5526481 zenodo release](https://zenodo.org/record/4679405/export/hx) , which can be simply installed by passing the flag `--doi 10.5281/zenodo.5526481` to `firedrake-install`.
 
+## Installation issues
+```
+src/C/umfpack.c:23:10: fatal error: 'umfpack.h' file not found
+```
+The package `cvxopt` cannot find the suitesparse library, which should be within PETSc (check the option `--download-suitesparse` was passed). Create the following environment variables before installing `letop`:
+```
+export CVXOPT_SUITESPARSE_LIB_DIR=$PETSC_DIR/$PETSC_ARCH/lib 
+export CVXOPT_SUITESPARSE_INC_DIR=$PETSC_DIR/$PETSC_ARCH/include
+```
+
 # Examples
 ## Cantilever
 
