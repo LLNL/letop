@@ -33,7 +33,8 @@ def test_cone_cg_2D():
 
     phi_pvd = fd.File("phi_reinit.pvd")
 
-    reinit_solver = ReinitSolverCG(V)
+    phi = fd.Function(V)
+    reinit_solver = ReinitSolverCG(phi)
     phin = reinit_solver.solve(phi0, iters=10)
     phi_pvd.write(phin)
 

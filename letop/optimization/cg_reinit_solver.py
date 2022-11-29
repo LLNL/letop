@@ -22,17 +22,18 @@ class BCInt(fd.DirichletBC):
 
 
 class ReinitSolverCG:
-    def __init__(self, V: fd.FunctionSpace, solver_parameters=None) -> None:
+    def __init__(self, phi: fd.Function, solver_parameters=None) -> None:
         """Reinitialization solver. Returns the level set
         to a signed distance function
 
         Args:
             V (fd.FunctionSpace): Function space of the level set
         """
+        V = phi.function_space()
         self.V = V
+        self.phi = phi
         self.mesh = V.ufl_domain()
         self.DG0 = fd.FunctionSpace(self.mesh, "DG", 0)
-        self.phi = fd.Function(V)
 
         rho, sigma = fd.TrialFunction(V), fd.TestFunction(V)
         a = rho * sigma * dx

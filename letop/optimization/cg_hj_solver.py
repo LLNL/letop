@@ -1,7 +1,6 @@
 import firedrake as fd
 import firedrake_ts as fdts
-from firedrake import inner, dot, grad, div, dx, ds, dS, jump, avg
-from letop.physics import AdvectionDiffusionGLS, InteriorBC
+from letop.physics import AdvectionDiffusionGLS
 from typing import Union, List, Callable
 
 
@@ -11,7 +10,7 @@ def HamiltonJacobiCGSolver(
     phi: fd.Function,
     t_end: float = 5000.0,
     bcs: Union[fd.DirichletBC, List[fd.DirichletBC]] = None,
-    monitor: Callable = None,
+    monitor_callback: Callable = None,
     solver_parameters=None,
     pre_jacobian_callback=None,
     post_jacobian_callback=None,
@@ -27,7 +26,7 @@ def HamiltonJacobiCGSolver(
         phi (fd.Function): Level set
         t_end (float, optional): Max time of simulation. Defaults to 5000.0.
         bcs (Union[fd.DirichletBC, List[fd.DirichletBC]], optional): BC for the equation. Defaults to None.
-        monitor (Callable, optional): Monitor function called each time step. Defaults to None.
+        monitor_callback (Callable, optional): Monitor function called each time step. Defaults to None.
         solver_parameters ([type], optional): Solver options. Defaults to None.
         :kwarg pre_jacobian_callback: A user-defined function that will
                be called immediately before Jacobian assembly. This can
@@ -73,7 +72,7 @@ def HamiltonJacobiCGSolver(
     return fdts.DAESolver(
         problem,
         solver_parameters=parameters,
-        monitor_callback=monitor,
+        monitor_callback=monitor_callback,
         pre_function_callback=pre_function_callback,
         post_function_callback=post_function_callback,
         pre_jacobian_callback=pre_jacobian_callback,

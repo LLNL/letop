@@ -14,6 +14,8 @@ from letop.optimization import (
 from letop.physics import calculate_max_vel, InteriorBC
 from pyop2.profiling import timed_function
 from ufl.algebra import Abs
+from petsc4py.PETSc import TS
+
 
 
 class Constraint(object):
@@ -100,6 +102,12 @@ class InfDimProblem(object):
         self.reg_solver = reg_solver
         assert len(cost_function.controls) < 2, "Only one control for now"
         self.phi = cost_function.level_set[0]
+        # Copy for the HamiltonJacobiCGSolver
+        self.phi_hj = fd.Function(cost_function.level_set[0], name="hamilton-jacobi")
+        # Copy for the Line search
+        self.phi_ls = fd.Function(cost_function.level_set[0], name="line-search")
+        # Copy for the Regularization solver
+        self.phi_rs = fd.Function(cost_function.level_set[0], name='reinit')
         self.V = self.phi.function_space()
         self.Vvec = cost_function.controls[0].control.function_space()
         self.delta_x = fd.Function(self.Vvec)
@@ -136,10 +144,10 @@ class InfDimProblem(object):
             ) - self.current_max_distance
 
         def postevent(ts, events, t, X, forward):
-            with self.phi.dat.vec_wo as v:
+            with self.phi_hj.dat.vec_wo as v:
                 X.copy(v)
-            self.phi.assign(self.reinit_solver.solve(self.phi))
-            with self.phi.dat.vec_wo as v:
+            self.phi_hj.assign(self.reinit_solver.solve(self.phi_hj))
+            with self.phi_hj.dat.vec_wo as v:
                 v.copy(X)
             self.current_max_distance += self.max_distance
 
@@ -186,6 +194,7 @@ class InfDimProblem(object):
 
         self.beta_param = reg_solver.beta_param.values()[0]
 
+
     def set_termination_event(
         self, termination_event, termination_tolerance=1e-2
     ):
@@ -197,8 +206,6 @@ class InfDimProblem(object):
         self.termination_tolerance = termination_tolerance
 
     def build_cg_solvers(self, solver_parameters=None):
-        V = self.V
-
         hj_solver_parameters = None
         reinit_solver_parameters = None
         if solver_parameters:
@@ -208,20 +215,17 @@ class InfDimProblem(object):
                 reinit_solver_parameters = solver_parameters["reinit_solver"]
 
         self.hj_solver = HamiltonJacobiCGSolver(
-            V,
+            self.V,
             self.delta_x,
-            self.phi,
+            self.phi_hj,
             solver_parameters=hj_solver_parameters,
         )
         self.reinit_solver = ReinitSolverCG(
-            V, solver_parameters=reinit_solver_parameters
+            self.phi_rs, solver_parameters=reinit_solver_parameters
         )
 
     def fespace(self):
         return self.Vvec
-
-    def x0(self):
-        return self.phi
 
     def eval(self, x):
         """Returns the triplet (J(x),G(x),H(x))"""
@@ -304,8 +308,12 @@ class InfDimProblem(object):
         """
         self.current_max_distance_at_t0 = self.current_max_distance
         self.hj_solver.ts.setMaxTime(scaling)
+        self.hj_solver.ts.setTimeStep(1e-4)
+        self.hj_solver.ts.setTime(0.0)
+        self.hj_solver.ts.setStepNumber(0)
         try:
-            output_phi = self.hj_solver.solve(input_phi)
+            self.phi_hj.assign(input_phi)
+            self.hj_solver.solve()
         except:
             reason = self.hj_solver.ts.getConvergedReason()
             print(f"Time stepping of Hamilton Jacobi failed. Reason: {reason}")
@@ -324,7 +332,7 @@ class InfDimProblem(object):
         max_steps = self.hj_solver.parameters.get("ts_max_steps", 800)
         current_time = self.hj_solver.ts.getTime()
         total_time = self.hj_solver.ts.getMaxTime()
-        if conv == 2:
+        if conv == TS.ConvergedReason.CONVERGED_ITS:
             warning = (
                 f"Maximum number of time steps {self.hj_solver.ts.getStepNumber()} reached."
                 f"Current time is only: {current_time} for total time: {total_time}."
@@ -346,11 +354,8 @@ class InfDimProblem(object):
             new_max_steps = min(current_max_steps * 1.5, max_steps * 3)
             self.hj_solver.ts.setMaxSteps(new_max_steps)
 
-            output_phi.assign(input_phi)
-        elif conv == 1:
+        elif conv == TS.ConvergedReason.CONVERGED_TIME:
             self.hj_solver.ts.setTolerances(rtol=rtol, atol=atol)
-
-        return output_phi
 
     def restore(self):
         pass

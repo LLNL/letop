@@ -23,3 +23,6 @@ def test_compliance():
         11.86,
         rtol=1e-2,
     )
+
+if __name__ == "__main__":
+    test_heat_exchanger()

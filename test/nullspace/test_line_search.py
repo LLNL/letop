@@ -27,7 +27,6 @@ def test_line_search():
 
     with fda.stop_annotating():
         phi = fd.interpolate(-(x - 0.5), PHI)
-        phi.rename("original")
 
     solver_parameters = {
         "ts_atol": 1e-4,
@@ -59,10 +58,7 @@ def test_line_search():
         Jhat, reg_solver, solver_parameters=solver_parameters
     )
 
-    new_phi = fd.Function(PHI, name="new_ls")
-    orig_phi = fd.Function(PHI)
     with fda.stop_annotating():
-        orig_phi.assign(phi)
         problem.delta_x.assign(delta_x)
 
     AJ, AC = 1.0, 1.0
@@ -70,10 +66,8 @@ def test_line_search():
     merit = merit_eval_new(AJ, J, AC, C)
 
     rtol = 1e-4
-    new_phi, newJ, newG, newH = line_search(
+    newJ, newG, newH = line_search(
         problem,
-        orig_phi,
-        new_phi,
         merit_eval_new,
         merit,
         AJ,

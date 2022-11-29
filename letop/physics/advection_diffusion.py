@@ -1,7 +1,6 @@
 import firedrake as fd
 from firedrake import inner, dot, grad, div, dx
 
-
 def AdvectionDiffusionGLS(
     V: fd.FunctionSpace,
     theta: fd.Function,

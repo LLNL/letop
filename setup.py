@@ -29,7 +29,7 @@ setup(
         "gmsh>=4.8.4",
         "pygmsh>=6.1.0",
         "pre-commit>=2.12.1",
-        "firedrake-ts @ git+https://github.com/IvanYashchuk/firedrake-ts.git@cost-adjoint",
+        "firedrake-ts @ git+https://github.com/IvanYashchuk/firedrake-ts.git",
     ],
     description="A little bit of foobar in your life",
     long_description=read("README.md"),

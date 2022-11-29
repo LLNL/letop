@@ -156,8 +156,6 @@ def invert_dCdCT(dCdCT, debug):
 
 def line_search(
     problem,
-    orig_phi,
-    new_phi,
     merit_eval_new,
     merit,
     AJ,
@@ -172,10 +170,9 @@ def line_search(
     problem.delta_x /= vel_scale
     success = 0
     for k in range(maxtrials):
-        new_phi.assign(
-            problem.retract(orig_phi, problem.delta_x, scaling=(dt * 0.5 ** k))
-        )
-        (newJ, newG, newH) = problem.eval(new_phi)
+        problem.retract(problem.phi, problem.delta_x, scaling=(dt * 0.5 ** k))
+        problem.phi_ls.assign(problem.phi_hj)
+        (newJ, newG, newH) = problem.eval(problem.phi_ls)
         newC = np.concatenate((newG, newH))
         new_merit = merit_eval_new(
             AJ,
@@ -208,7 +205,7 @@ def line_search(
             color="red",
         )
 
-    return new_phi, newJ, newG, newH
+    return  newJ, newG, newH
 
 
 def solve_dual_problem(
@@ -439,16 +436,12 @@ def nlspace_solve(
         "merit": [],
     }
 
-    phi = problem.x0()
-
-    (J, G, H) = problem.eval(phi)
+    (J, G, H) = problem.eval(problem.phi)
 
     normdx = 1  # current value for x_{n+1}-x_n
 
-    new_phi = Function(phi.function_space())
-    orig_phi = Function(phi.function_space())
     while normdx > params["tol"] and len(results["J"]) < params["maxit"]:
-        with MPITimer(phi.comm) as timings:
+        with MPITimer(problem.phi.comm) as timings:
 
             results["J"].append(J)
             results["G"].append(G)
@@ -464,10 +457,10 @@ def nlspace_solve(
                 + format(J, ".4g")
                 + " "
                 + "G=["
-                + ",".join(format(phi, ".4g") for phi in G[:10])
+                + ",".join(format(constraint, ".4g") for constraint in G[:10])
                 + "] "
                 + "H=["
-                + ",".join(format(phi, ".4g") for phi in H[:10])
+                + ",".join(format(constraint, ".4g") for constraint in H[:10])
                 + "] "
                 + " ||dx||_V="
                 + format(normdx, ".4g"),
@@ -477,7 +470,7 @@ def nlspace_solve(
 
             # Returns the gradients (in the primal space). They are
             # firedrake.Function's
-            (dJ, dG, dH) = problem.eval_gradients(phi)
+            (dJ, dG, dH) = problem.eval_gradients(problem.phi)
             dC = dG + dH
 
             H = np.asarray(H)
@@ -577,11 +570,8 @@ def nlspace_solve(
             if descent_output_dir:
                 descent_pvd.write(problem.delta_x)
 
-            orig_phi.assign(phi)
-            new_phi, newJ, newG, newH = line_search(
+            newJ, newG, newH = line_search(
                 problem,
-                orig_phi,
-                new_phi,
                 merit_eval_new,
                 merit,
                 AJ,
@@ -591,7 +581,7 @@ def nlspace_solve(
                 tol_merit=params["tol_merit"],
                 debug=params["debug"],
             )
-            phi.assign(new_phi)
+            problem.phi.assign(problem.phi_ls)
             (J, G, H) = (newJ, newG, newH)
 
         if params["monitor_time"]:
