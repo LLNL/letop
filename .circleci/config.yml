@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: salazardetroya/lestofire:env
+      - image: miguelsalazartroya/miguelsalazartroya-letop:latest
     steps:
       - checkout # check out the code in the project directory
       - run:

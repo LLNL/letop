@@ -22,7 +22,7 @@ Install with
 pip3 install .
 ```
 at the project's root directory and with the Firedrake's virtual environment activated.
-LeTop depends on the [10.5281/zenodo.5526481 zenodo release](https://zenodo.org/record/4679405/export/hx) , which can be simply installed by passing the flag `--doi 10.5281/zenodo.5526481` to `firedrake-install`.
+LeTop depends on the [10.5281/zenodo.7017917](https://zenodo.org/record/7017917#.Y4YXbLLMKK0), which can be simply installed by passing the flag `--doi 10.5281/zenodo.7017917` to `firedrake-install`.
 
 ## Installation issues
 ```
